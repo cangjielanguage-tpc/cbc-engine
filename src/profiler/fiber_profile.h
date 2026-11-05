@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 
 namespace Cbc::Profiler {
 
@@ -24,7 +25,7 @@ class FiberProfile {
 public:
     [[gnu::always_inline]] inline void RecordCall(FunctionId caller, CallSiteId callSite)
     {
-        const auto writerIndex  = sharedWriterIndex.load(std::memory_order_relaxed) & 1U;
+        const auto writerIndex  = sharedWriterIndex & 1U;
         auto& current           = buffers[writerIndex];
         current.records[cursor] = CallRecord { caller, callSite };
 
@@ -52,17 +53,8 @@ private:
         uint64_t recordCount { 0 };
     };
 
-    enum class ReaderState : uint8_t {
-        INACTIVE,
-        ACTIVE,
-        TRANSITION
-    };
-
-    // Producer-only. Called after filling the current buffer. If the collector
-    // still owns the other buffer, keep the current one and overwrite it in place.
+    // Producer-only. Called after filling the current buffer.
     [[gnu::noinline, gnu::cold]] void TryPublish();
-
-    void ChangeReaderState(ReaderState from, ReaderState to);
 
     friend class FiberProfileManager;
     friend struct FiberProfileTestAccess;
@@ -74,17 +66,14 @@ private:
     uint32_t cursor { 0 }; // next physical slot in current buffer
     uint32_t count { 0 };  // valid entries in current buffer, capped at N
 
-    std::atomic<uint32_t> sharedWriterIndex { NO_PUBLISHED_BUFFER };
+    std::mutex bufferMutex;
+    uint32_t sharedWriterIndex { NO_PUBLISHED_BUFFER };
 
     std::atomic<uint64_t> recordCount { 0 };
 
     uint64_t processedCount { 0 };
 
     uint64_t observedCount { 0 };
-
-    // Written by both producer and collector. TRANSITION serializes a
-    // buffer switch with the collector taking or releasing its read snapshot.
-    std::atomic<ReaderState> readerState { ReaderState::INACTIVE };
 
     std::atomic<bool> active { true };
 };

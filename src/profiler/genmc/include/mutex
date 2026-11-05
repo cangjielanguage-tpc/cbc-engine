@@ -1,0 +1,66 @@
+#pragma once
+
+#include <pthread.h>
+
+namespace std {
+
+class mutex {
+public:
+    mutex() { pthread_mutex_init(&value, nullptr); }
+
+    ~mutex() { pthread_mutex_destroy(&value); }
+
+    mutex(const mutex&)            = delete;
+    mutex& operator=(const mutex&) = delete;
+
+    void lock() { pthread_mutex_lock(&value); }
+
+    bool try_lock() { return pthread_mutex_trylock(&value) == 0; }
+
+    void unlock() { pthread_mutex_unlock(&value); }
+
+private:
+    pthread_mutex_t value;
+};
+
+struct try_to_lock_t {
+    explicit try_to_lock_t() = default;
+};
+
+inline constexpr try_to_lock_t try_to_lock {};
+
+template <typename Mutex> class lock_guard {
+public:
+    explicit lock_guard(Mutex& mutex) : value(mutex) { value.lock(); }
+
+    ~lock_guard() { value.unlock(); }
+
+    lock_guard(const lock_guard&)            = delete;
+    lock_guard& operator=(const lock_guard&) = delete;
+
+private:
+    Mutex& value;
+};
+
+template <typename Mutex> class unique_lock {
+public:
+    unique_lock(Mutex& mutex, try_to_lock_t) : value(&mutex), owns(value->try_lock()) {}
+
+    ~unique_lock()
+    {
+        if (owns) {
+            value->unlock();
+        }
+    }
+
+    unique_lock(const unique_lock&)            = delete;
+    unique_lock& operator=(const unique_lock&) = delete;
+
+    bool owns_lock() const { return owns; }
+
+private:
+    Mutex* value;
+    bool owns;
+};
+
+} // namespace std

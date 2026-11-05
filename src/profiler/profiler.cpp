@@ -36,14 +36,11 @@ public:
     FiberProfileHandle RegisterFiber()
     {
         auto profile = std::make_shared<FiberProfile>();
-        std::list<FiberProfileHandle> one;
-        one.emplace_back(profile);
 
         {
-            std::lock_guard<std::mutex> lock(queueMutex);
-            pending.splice(pending.end(), one);
+            std::lock_guard<std::mutex> lock(profilesMutex);
+            activeProfiles.emplace_back(profile);
         }
-        wakeup.notify_one();
         return profile;
     }
 
@@ -71,7 +68,7 @@ private:
     ~FiberProfileManager()
     {
         {
-            std::lock_guard<std::mutex> lock(queueMutex);
+            std::lock_guard<std::mutex> lock(profilesMutex);
             stopping = true;
         }
         wakeup.notify_one();
@@ -110,8 +107,8 @@ private:
         );
         const auto args = Cbc::RT::B3xi12::Decode(reader);
         ASSERT(args.opc == Cbc::RT::Opcode::DIRECT_CALL_2I);
-        const auto callee = bytecode->code.literals->at(args.xi12.imm12).uintptr;
-        auto* calleeFuh   = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
+        const auto callee                = bytecode->code.literals->at(args.xi12.imm12).uintptr;
+        auto* calleeFuh                  = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
         const auto runtimeCallSiteOffset = static_cast<uint32_t>(edge.callSite - bytecodeStart);
         const auto cbcCallSiteOffset =
             bytecode->offsetsIndex.FindMappedOffset(Cbc::InstructionType::REWRITTEN, runtimeCallSiteOffset);
@@ -151,9 +148,9 @@ private:
 
     void ConsumePublished(FiberProfile& profile, CallCounters& counters)
     {
-        profile.ChangeReaderState(FiberProfile::ReaderState::INACTIVE, FiberProfile::ReaderState::ACTIVE);
+        std::lock_guard<std::mutex> lock(profile.bufferMutex);
 
-        const auto writerIndex = profile.sharedWriterIndex.load();
+        const auto writerIndex = profile.sharedWriterIndex;
         if (writerIndex != FiberProfile::NO_PUBLISHED_BUFFER) {
             const auto readerIndex = writerIndex ^ 1U;
             const auto& buffer     = profile.buffers[readerIndex];
@@ -162,8 +159,6 @@ private:
                 profile.processedCount = buffer.recordCount;
             }
         }
-
-        profile.ChangeReaderState(FiberProfile::ReaderState::ACTIVE, FiberProfile::ReaderState::INACTIVE);
     }
 
     bool ConsumeProfile(FiberProfile& profile, CallCounters& counters, uint64_t& recordedCallCount)
@@ -172,13 +167,13 @@ private:
 
         const auto currentRecordCount =
             profile.recordCount.load(std::memory_order_relaxed) + (finished ? profile.cursor : 0);
-        recordedCallCount += currentRecordCount - profile.observedCount;
-        profile.observedCount = currentRecordCount;
+        recordedCallCount     += currentRecordCount - profile.observedCount;
+        profile.observedCount  = currentRecordCount;
 
         ConsumePublished(profile, counters);
 
         if (finished) {
-            const auto writerIndex = profile.sharedWriterIndex.load() & 1U;
+            const auto writerIndex = profile.sharedWriterIndex & 1U;
             auto& current          = profile.buffers[writerIndex];
             const uint32_t start   = profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
             ProcessBuffer(current, start, profile.count, counters);
@@ -192,14 +187,23 @@ private:
         CallCounters counters;
         uint64_t recordedCallCount = 0;
         const auto scanStart       = std::chrono::steady_clock::now();
+
+        std::unique_lock<std::mutex> lock(profilesMutex);
         for (auto it = activeProfiles.begin(); it != activeProfiles.end();) {
-            auto& profile = **it;
-            if (ConsumeProfile(profile, counters, recordedCallCount)) {
+            auto profile = *it;
+
+            lock.unlock();
+            const bool finished = ConsumeProfile(*profile, counters, recordedCallCount);
+            lock.lock();
+
+            if (finished) {
                 it = activeProfiles.erase(it);
             } else {
                 ++it;
             }
         }
+        lock.unlock();
+
         const auto scanTime =
             std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - scanStart);
         ProcessCollectedCalls(counters, recordedCallCount, scanTime.count());
@@ -207,31 +211,24 @@ private:
 
     void Run()
     {
-        std::unique_lock<std::mutex> lock(queueMutex);
+        std::unique_lock<std::mutex> lock(profilesMutex);
         while (true) {
-            wakeup.wait_for(lock, COLLECTION_PERIOD, [&] { return stopping || !pending.empty(); });
+            wakeup.wait_for(lock, COLLECTION_PERIOD, [&] { return stopping; });
 
-            std::list<FiberProfileHandle> newcomers;
-            newcomers.splice(newcomers.end(), pending);
-            const bool shouldStop = stopping;
-            lock.unlock();
-
-            activeProfiles.splice(activeProfiles.end(), newcomers);
-            ConsumeActiveProfiles();
-
-            if (shouldStop) {
+            if (stopping) {
                 return;
             }
+
+            lock.unlock();
+            ConsumeActiveProfiles();
             lock.lock();
         }
     }
 
-    std::mutex queueMutex;
+    std::mutex profilesMutex;
     std::condition_variable wakeup;
-    std::list<FiberProfileHandle> pending;
-    bool stopping { false }; // guarded by queueMutex
-
-    std::list<FiberProfileHandle> activeProfiles;  // owned exclusively by collector thread
+    std::list<FiberProfileHandle> activeProfiles; // guarded by profilesMutex
+    bool stopping { false };                      // guarded by profilesMutex
 
     std::thread worker;
 };
