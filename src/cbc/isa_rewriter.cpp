@@ -333,21 +333,22 @@ struct IsaRewriter : public IsaParser {
         emit.LogInstruction(returnedToMsg);
     }
 
-    void EmitFillSRetAreaByRegs(Utils::Vector<CAbiPiece> sretRegPieces)
+    void EmitFillSRetAreaByRegs(std::optional<CAbiStructPlan> retPlan)
     {
-        if (sretRegPieces.Size() == 0) {
+        UNWRAP_OPT(plan, retPlan, []() {});
+        if (plan.PiecesNum() == 0) {
             return;
         }
+
         int intIdx                       = 0;
         int floatIdx                     = 0;
-        for (const auto& piece : sretRegPieces) {
+        for (const auto& piece : plan.pieces) {
             if (IsFloat(piece.kind)) {
                 emit.StoreRec(Stk(piece.kind), HostTraits::RET_FREGS[floatIdx++], IReg::IR_ACC, piece.offset);
             } else {
                 emit.StoreRec(Stk(piece.kind), HostTraits::RET_IREGS[intIdx++], IReg::IR_ACC, piece.offset);
             }
         }
-        sretRegPieces.Clear();
     }
 
     ssize_t Pos()
@@ -530,8 +531,11 @@ struct IsaRewriter : public IsaParser {
     ///     2) Can be used as destination caller-allocated buffer for struct return value.
     ///
     /// @return stack arguments count and fregs count
-    std::tuple<int, int, Utils::Vector<CAbiPiece>> StageForeignCallArgs(
-        Utils::Span<const Location> args, CallAbiFlags flags, Resolution::MethodSignature& sig
+    std::tuple<int, int> StageForeignCallArgs(
+        Utils::Span<const Location> args,
+        CallAbiFlags flags,
+        Resolution::MethodSignature& sig,
+        std::optional<CAbiStructPlan> retPlan
     )
     {
         ASSERT(sig.tvars.GetLength() == 0);
@@ -552,13 +556,8 @@ struct IsaRewriter : public IsaParser {
         });
         Utils::Vector<ForeignStructCopy> structCopies;
 
-        Utils::Vector<CAbiPiece> sretRegPieces;
-        if (flags.isSRet) {
-            // Foreign record returned: can be placed on registers or in caller frame depending on classification.
-            if (!StageForeignStructRet(args[args.Size() - 1], sig.ResType().term, moves, abi, sretRegPieces)) {
-                Fail("failed to stage foreign record return");
-                return {};
-            }
+        if (retPlan.has_value() && retPlan->passBy != CAbiPassBy::EMPTY && retPlan->passBy != CAbiPassBy::REGS) {
+            moves.AddMove(abi.ConsumeSret(), args[args.Size() - 1]);
         }
 
         int idx     = 0;
@@ -589,7 +588,7 @@ struct IsaRewriter : public IsaParser {
         }
 
         int sretSpillSlot = -1;
-        if (sretRegPieces.Size() > 0) {
+        if (retPlan.has_value() && retPlan->PiecesNum() > 0) {
             // If sretAddrLocation is reg, move resolver can spoil it, so save it to stack before resolution.
             auto sretAddrLocation = args[args.Size() - 1];
             if (sretAddrLocation.Kind() != Location::SLOT) {
@@ -628,7 +627,7 @@ struct IsaRewriter : public IsaParser {
             }
         }
 
-        if (sretRegPieces.Size() > 0) {
+        if (retPlan.has_value() && retPlan->PiecesNum() > 0) {
             // Move sret destination address into ACC. It will be used after call by `EmitFillSRetAreaByRegs`.
             auto sretAddrLocation = args[args.Size() - 1];
             if (sretAddrLocation.Kind() != Location::SLOT) {
@@ -640,32 +639,29 @@ struct IsaRewriter : public IsaParser {
         }
 
         maxParamPassingSize = std::max(maxParamPassingSize, copyOffset);
-        return { abi.MaxStackSlot(), abi.MaxFRegs(), sretRegPieces };
+        return { abi.MaxStackSlot(), abi.MaxFRegs() };
     }
 
-    bool StageForeignStructRet(
-        Location buf, Engine::Term type, MoveResolver& moves, AbiAssigner& abi, Utils::Vector<CAbiPiece>& retPieces
-    )
+    std::optional<CAbiStructPlan> StageForeignStructRet(Resolution::MethodSignature& sig, CallAbiFlags flags)
     {
-        Utils::Vector<CAbiField> fields0;
-        if (!FlattenCAbiFields(resolver, type, 0, fields0)) {
-            return false;
+        if (!flags.isSRet) {
+            return std::nullopt;
         }
 
-        UNWRAP_OPT_B(size, resolver.fieldManager->GetFlatSize(type));
-        auto fields = Utils::Span<CAbiField>(fields0.Data(), fields0.Size());
-        auto plan   = ClassifyCAbiStructRet(fields, size);
-        switch (plan.passBy) {
-            case CAbiPassBy::EMPTY: break;
-            case CAbiPassBy::REGS:  {
-                for (const auto& piece : plan.pieces) {
-                    retPieces.PushBack(piece);
-                }
-                break;
-            }
-            default: moves.AddMove(abi.ConsumeSret(), buf); break;
+        auto type = sig.ResType().term;
+        Utils::Vector<CAbiField> fields0;
+        if (!FlattenCAbiFields(resolver, type, 0, fields0)) {
+            return std::nullopt;
         }
-        return true;
+
+        auto size0 = resolver.fieldManager->GetFlatSize(type);
+        if (!size0.has_value()) {
+            return std::nullopt;
+        }
+
+        auto size   = size0.value();
+        auto fields = Utils::Span<CAbiField>(fields0.Data(), fields0.Size());
+        return ClassifyCAbiStructRet(fields, size);
     }
 
     bool StageForeignStructArg(
@@ -1647,11 +1643,16 @@ struct IsaRewriter : public IsaParser {
         Resolution::MethodSignature methodSig = { .resolver = &resolver,
                                                   .term     = sig,
                                                   .tvars    = tvars }; // synthetic method signature
-        auto [stackSlotsCount, fregsCount, sretRegPieces] =
-            StageForeignCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig);
+        auto flags                            = MakeCallAbiFlags(ref.flags, ref.abiKind);
+        auto retPlan                          = StageForeignStructRet(methodSig, flags);
+        if (flags.isSRet && !retPlan.has_value()) {
+            Fail("Unable to plan struct returning");
+            return;
+        }
+        auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, flags, methodSig, retPlan);
         ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
         emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
-        EmitFillSRetAreaByRegs(sretRegPieces);
+        EmitFillSRetAreaByRegs(retPlan);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1676,23 +1677,29 @@ struct IsaRewriter : public IsaParser {
         auto compiled  = std::get_if<DirectCall::Compiled>(&method->data);
         auto callFlags = MakeCallAbiFlags(ref.flags, ref.abiKind);
 
-        if (compiled) {
+        if (compiled && compiled->isForeign) {
+            // Foreign call
             auto sym = emit.NewAddressSym(compiled->funcPtr);
-            if (compiled->isForeign) {
-                auto [stackSlotsCount, fregsCount, sretRegPieces] =
-                    StageForeignCallArgs(args, callFlags, method->signature);
-                EmitLogCall("call.2n", method);
-                ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
-                emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
-                BindStatePoint();
-                EmitFillSRetAreaByRegs(sretRegPieces);
-            } else {
-                StageManagedCallArgs(args, callFlags, method->signature);
-                EmitLogCall("call.2c", method);
-                emit.DirectCall2c(sym);
-                BindStatePoint();
+            auto retPlan = StageForeignStructRet(method->signature, callFlags);
+            if (callFlags.isSRet && !retPlan.has_value()) {
+                Fail("Unable to plan struct returning");
+                return;
             }
+            auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, callFlags, method->signature, retPlan);
+            EmitLogCall("call.2n", method);
+            ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
+            emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
+            BindStatePoint();
+            EmitFillSRetAreaByRegs(retPlan);
+        } else if (compiled) {
+            // AOT managed call
+            auto sym = emit.NewAddressSym(compiled->funcPtr);
+            StageManagedCallArgs(args, callFlags, method->signature);
+            EmitLogCall("call.2c", method);
+            emit.DirectCall2c(sym);
+            BindStatePoint();
         } else {
+            // CBC managed call
             StageManagedCallArgs(args, callFlags, method->signature);
             EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);

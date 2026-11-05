@@ -43,6 +43,15 @@ enum class CAbiPassBy {
 struct CAbiStructPlan {
     CAbiPassBy passBy;
     Utils::Vector<CAbiPiece> pieces; // filled only when passBy == REGS
+
+    int PiecesNum()
+    {
+        if (passBy == CAbiPassBy::REGS) {
+            return pieces.Size();
+        } else {
+            return 0;
+        }
+    }
 };
 
 // Classifies placement of by-value struct by its flattened fields information and other parameters.
