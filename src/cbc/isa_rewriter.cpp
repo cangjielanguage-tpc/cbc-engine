@@ -7,6 +7,7 @@
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
+#include "cbc/isa_rt.h"
 #include "cbc/move_resolver.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"

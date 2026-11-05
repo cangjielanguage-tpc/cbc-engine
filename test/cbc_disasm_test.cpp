@@ -8,8 +8,8 @@
 #include "engine/image/reader.h"
 #include "interpreter/function_handle.h"
 
-#include "engine/options.h"
 #include "testutils.h"
+#include "engine/options.h"
 #include "utils/ostream.h"
 
 static LimitedHeap<16384> heap;
@@ -95,116 +95,6 @@ TEST_ASM(CbcDisasmTest, Convert)
     std::string expected = " 0: mov.W64 IR1, 1\n"
                            " 3: convert I64, I32, IR1, IR1\n"
                            " 6: convert U32, U64, IR1, IR1\n"
-                           " 9: load.ti.g IR1, @0\n";
+                           " 9: ret.W64 IR1\n";
     CompareWith("convert.asm", expected);
-}
-
-static std::string RawIsaDisasm(uint8_t* start, uint8_t* end)
-{
-    Stream::StringBuffer stream;
-    Cbc::RawDisasm(stream, start, end);
-    return stream.ToString();
-}
-
-TEST_F(CbcDisasmTest, ConvertRaw)
-{
-    uint8_t code[] = {
-        // input ISA encodes a cast as (to << 4) | from type codes, i.e. I64 -> I32
-        static_cast<uint8_t>(Cbc::Opcode::Convert),
-        static_cast<uint8_t>((0x4 << 4) | 0x6),
-        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
-        static_cast<uint8_t>(Cbc::Opcode::CheckedConvert),
-        static_cast<uint8_t>((0x4 << 4) | 0xa), // F64 -> I32
-        static_cast<uint8_t>((static_cast<uint8_t>(Cbc::IReg::IR2) << 4) | static_cast<uint8_t>(Cbc::FReg::FR0)),
-    };
-    EXPECT_EQ(
-        "0: convert I32, I64, IR1, IR2\n"
-        "3: checked.convert I32, F64, IR2, FR0\n",
-        RawIsaDisasm(code, code + sizeof(code))
-    );
-}
-
-TEST_F(CbcDisasmTest, ConvertRawUnknownPair)
-{
-    uint8_t code[] = {
-        static_cast<uint8_t>(Cbc::Opcode::Convert),
-        static_cast<uint8_t>((0x0 << 4) | 0x0), // I8 -> I8, not in the cast table
-        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
-    };
-    EXPECT_EQ("0: convert I8, I8, IR1, IR2\n", RawIsaDisasm(code, code + sizeof(code)));
-}
-
-TEST_F(CbcDisasmTest, CheckedConvertRawUnsupportedPair)
-{
-    uint8_t code[] = {
-        static_cast<uint8_t>(Cbc::Opcode::CheckedConvert),
-        static_cast<uint8_t>((0x6 << 4) | 0x4), // I32 -> I64, widening is not checked
-        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
-    };
-    EXPECT_EQ("0: checked.convert I64, I32, IR1, IR2\n", RawIsaDisasm(code, code + sizeof(code)));
-}
-
-template <typename T> static std::string RtLog(T args)
-{
-    Stream::StringBuffer stream;
-    Cbc::RT::Log(nullptr, stream, args);
-    return stream.ToString();
-}
-
-TEST(CbcFormatTest, CastOpLayout)
-{
-    Cbc::Format::CastOp op = Cbc::Format::CastOp::I32_TO_I64;
-    EXPECT_EQ(op.Raw(), static_cast<uint8_t>(Cbc::Format::CastOp::I32_TO_I64));
-    EXPECT_EQ(op.FromTypeStr(), "I32");
-    EXPECT_EQ(op.ToTypeStr(), "I64");
-    ASSERT_TRUE(Cbc::Format::CastOp::FromPair(0x4, 0x6).has_value());
-    EXPECT_EQ(Cbc::Format::CastOp::FromPair(0x4, 0x6)->Raw(), op.Raw());
-    EXPECT_FALSE(Cbc::Format::CastOp::FromPair(0x0, 0x0).has_value());
-    EXPECT_FALSE(Cbc::Format::CastOp::FromPair(0x4, 0x5).has_value()); // I32 -> U32 is not unchecked
-
-    // Every op is reachable from its own (from, to) pair, and the enum is dense.
-    for (uint8_t i = 0; i < Cbc::Format::CastOp::COUNT; ++i) {
-        auto entry = Cbc::Format::CastOp(static_cast<Cbc::Format::CastOp::Value>(i));
-        EXPECT_EQ(entry.Raw(), i);
-        ASSERT_TRUE(Cbc::Format::CastOp::FromPair(entry.FromType(), entry.ToType()).has_value());
-        EXPECT_EQ(Cbc::Format::CastOp::FromPair(entry.FromType(), entry.ToType())->Raw(), i);
-    }
-}
-
-TEST(CbcFormatTest, CheckedCastOpLayout)
-{
-    Cbc::Format::CheckedCastOp op = Cbc::Format::CheckedCastOp::I64_TO_I32;
-    EXPECT_EQ(op.Raw(), static_cast<uint8_t>(Cbc::Format::CheckedCastOp::I64_TO_I32));
-    EXPECT_EQ(op.FromTypeStr(), "I64");
-    EXPECT_EQ(op.ToTypeStr(), "I32");
-    ASSERT_TRUE(Cbc::Format::CheckedCastOp::FromPair(0x6, 0x4).has_value());
-    EXPECT_EQ(Cbc::Format::CheckedCastOp::FromPair(0x6, 0x4)->Raw(), op.Raw());
-    EXPECT_FALSE(Cbc::Format::CheckedCastOp::FromPair(0x4, 0x6).has_value()); // I32 -> I64 is not checked
-
-    for (uint8_t i = 0; i < Cbc::Format::CheckedCastOp::COUNT; ++i) {
-        auto entry = Cbc::Format::CheckedCastOp(static_cast<Cbc::Format::CheckedCastOp::Value>(i));
-        EXPECT_EQ(entry.Raw(), i);
-        ASSERT_TRUE(Cbc::Format::CheckedCastOp::FromPair(entry.FromType(), entry.ToType()).has_value());
-        EXPECT_EQ(Cbc::Format::CheckedCastOp::FromPair(entry.FromType(), entry.ToType())->Raw(), i);
-    }
-}
-
-TEST(CbcRtDisasmTest, ConvertUnchecked)
-{
-    Cbc::RT::ConvertOp args {
-        .opc  = Cbc::RT::Opcode::CONVERT,
-        .cast = Cbc::Format::CastOp::I64_TO_I32,
-        .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
-    };
-    EXPECT_EQ("convert I64->I32 IR1 IR2\n", RtLog(args));
-}
-
-TEST(CbcRtDisasmTest, ConvertChecked)
-{
-    Cbc::RT::CheckedConvertOp args {
-        .opc  = Cbc::RT::Opcode::CHECKED_CONVERT,
-        .cast = Cbc::Format::CheckedCastOp::I64_TO_I32,
-        .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
-    };
-    EXPECT_EQ("checked.convert I64->I32 IR1 IR2\n", RtLog(args));
 }

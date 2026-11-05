@@ -8,6 +8,7 @@
 #include "cbc/emitter/segment.h"
 #include "cbc/emitter/symbols.h"
 #include "cbc/isa.h"
+#include "cbc/isa_rt.h"
 #include "encoding_rt.h"
 #include "interpreter/code.h"
 #include "interpreter/interpretation_loop.h"

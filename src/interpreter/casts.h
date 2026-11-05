@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "cbc/isa.h"
+#include "cbc/isa_rt.h"
 #include "ectype.h"
 
 namespace Interpretation {

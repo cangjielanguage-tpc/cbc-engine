@@ -5,7 +5,277 @@
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
+#include <array>
 #include <cstdint>
+#include <optional>
+#include <string_view>
+
+namespace Cbc {
+namespace Format {
+
+inline constexpr uint8_t INVALID_CAST_CODE = 0xff;
+
+/// Maps `(from, to)` pairs to a dense index. Missing pairs are 0xff.
+template <uint8_t N>
+constexpr std::array<uint8_t, CastType::COUNT * CastType::COUNT> MakeCastPairTable(const CastType::Pair (&pairs)[N])
+{
+    std::array<uint8_t, CastType::COUNT * CastType::COUNT> table {};
+    for (auto& entry : table) {
+        entry = INVALID_CAST_CODE;
+    }
+    for (uint8_t i = 0; i < N; ++i) {
+        table[pairs[i].from * CastType::COUNT + pairs[i].to] = i;
+    }
+    return table;
+}
+
+class CastOp {
+public:
+    using TypeCode = CastType::Code;
+    using TypePair = CastType::Pair;
+
+#define CAST_OP_LIST(X)                                                                                                \
+    /* from I32 */                                                                                                     \
+    X(I32_TO_I8, I32, I8)                                                                                              \
+    X(I32_TO_U8, I32, U8)                                                                                              \
+    X(I32_TO_I16, I32, I16)                                                                                            \
+    X(I32_TO_U16, I32, U16)                                                                                            \
+    X(I32_TO_I64, I32, I64)                                                                                            \
+    X(I32_TO_F32, I32, F32)                                                                                            \
+    X(I32_TO_F64, I32, F64)                                                                                            \
+    /* from U32 */                                                                                                     \
+    X(U32_TO_I8, U32, I8)                                                                                              \
+    X(U32_TO_U8, U32, U8)                                                                                              \
+    X(U32_TO_I16, U32, I16)                                                                                            \
+    X(U32_TO_U16, U32, U16)                                                                                            \
+    X(U32_TO_I64, U32, I64)                                                                                            \
+    X(U32_TO_F32, U32, F32)                                                                                            \
+    X(U32_TO_F64, U32, F64)                                                                                            \
+    /* from I64 */                                                                                                     \
+    X(I64_TO_I32, I64, I32)                                                                                            \
+    X(I64_TO_F32, I64, F32)                                                                                            \
+    X(I64_TO_F64, I64, F64)                                                                                            \
+    /* from U64 */                                                                                                     \
+    X(U64_TO_I32, U64, I32)                                                                                            \
+    X(U64_TO_U32, U64, U32)                                                                                            \
+    X(U64_TO_F32, U64, F32)                                                                                            \
+    X(U64_TO_F64, U64, F64)                                                                                            \
+    /* from F32 */                                                                                                     \
+    X(F32_TO_I8, F32, I8)                                                                                              \
+    X(F32_TO_U8, F32, U8)                                                                                              \
+    X(F32_TO_I16, F32, I16)                                                                                            \
+    X(F32_TO_U16, F32, U16)                                                                                            \
+    X(F32_TO_I32, F32, I32)                                                                                            \
+    X(F32_TO_U32, F32, U32)                                                                                            \
+    X(F32_TO_I64, F32, I64)                                                                                            \
+    X(F32_TO_U64, F32, U64)                                                                                            \
+    X(F32_TO_F64, F32, F64)                                                                                            \
+    /* from F64 */                                                                                                     \
+    X(F64_TO_I8, F64, I8)                                                                                              \
+    X(F64_TO_U8, F64, U8)                                                                                              \
+    X(F64_TO_I16, F64, I16)                                                                                            \
+    X(F64_TO_U16, F64, U16)                                                                                            \
+    X(F64_TO_I32, F64, I32)                                                                                            \
+    X(F64_TO_U32, F64, U32)                                                                                            \
+    X(F64_TO_I64, F64, I64)                                                                                            \
+    X(F64_TO_U64, F64, U64)                                                                                            \
+    X(F64_TO_F32, F64, F32)
+
+    enum Value : uint8_t {
+#define CAST_OP_DECLARE(name, from, to) name,
+        CAST_OP_LIST(CAST_OP_DECLARE)
+#undef CAST_OP_DECLARE
+        COUNT
+    };
+
+    static constexpr TypePair PAIRS[COUNT] = {
+#define CAST_OP_PAIR(name, from, to) TypePair { TypeCode::from, TypeCode::to },
+        CAST_OP_LIST(CAST_OP_PAIR)
+#undef CAST_OP_PAIR
+    };
+
+#undef CAST_OP_LIST
+
+    static constexpr auto PAIR_TABLE = MakeCastPairTable(PAIRS);
+
+    constexpr static std::optional<CastOp> FromPair(uint8_t from, uint8_t to)
+    {
+        if (from >= CastType::COUNT || to >= CastType::COUNT) {
+            return std::nullopt;
+        }
+        auto raw = PAIR_TABLE[from * CastType::COUNT + to];
+        if (raw == INVALID_CAST_CODE) {
+            return std::nullopt;
+        }
+        ASSERT(raw < COUNT);
+        return CastOp(static_cast<Value>(raw));
+    }
+
+    constexpr CastOp(Value raw) : _value(raw) { ASSERT(IsValid()); }
+
+    constexpr CastOp(uint8_t raw) : _value(static_cast<Value>(raw)) { ASSERT(IsValid()); }
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr uint8_t Raw() const { return static_cast<uint8_t>(_value); }
+
+    constexpr bool IsValid() const { return Raw() < COUNT; }
+
+    constexpr TypeCode FromType() const
+    {
+        ASSERT(IsValid());
+        return PAIRS[_value].from;
+    }
+
+    constexpr TypeCode ToType() const
+    {
+        ASSERT(IsValid());
+        return PAIRS[_value].to;
+    }
+
+    constexpr bool ToIsFloatingPoint() const { return CastType::IsFloatingPoint(ToType()); }
+
+    constexpr bool FromIsFloatingPoint() const { return CastType::IsFloatingPoint(FromType()); }
+
+    constexpr std::string_view ToTypeStr() const { return CastType::Name(ToType()); }
+
+    constexpr std::string_view FromTypeStr() const { return CastType::Name(FromType()); }
+
+private:
+    Value _value;
+};
+
+class CheckedCastOp {
+public:
+    using TypeCode = CastType::Code;
+    using TypePair = CastType::Pair;
+
+#define CHECKED_CAST_OP_LIST(X)                                                                                        \
+    /* from I8 */                                                                                                      \
+    X(I8_TO_U8, I8, U8)                                                                                                \
+    /* from U8 */                                                                                                      \
+    X(U8_TO_I8, U8, I8)                                                                                                \
+    /* from I16 */                                                                                                     \
+    X(I16_TO_I8, I16, I8)                                                                                              \
+    X(I16_TO_U8, I16, U8)                                                                                              \
+    X(I16_TO_U16, I16, U16)                                                                                            \
+    /* from U16 */                                                                                                     \
+    X(U16_TO_I8, U16, I8)                                                                                              \
+    X(U16_TO_U8, U16, U8)                                                                                              \
+    X(U16_TO_I16, U16, I16)                                                                                            \
+    /* from I32 */                                                                                                     \
+    X(I32_TO_I8, I32, I8)                                                                                              \
+    X(I32_TO_U8, I32, U8)                                                                                              \
+    X(I32_TO_I16, I32, I16)                                                                                            \
+    X(I32_TO_U16, I32, U16)                                                                                            \
+    X(I32_TO_U32, I32, U32)                                                                                            \
+    /* from U32 */                                                                                                     \
+    X(U32_TO_I8, U32, I8)                                                                                              \
+    X(U32_TO_U8, U32, U8)                                                                                              \
+    X(U32_TO_I16, U32, I16)                                                                                            \
+    X(U32_TO_U16, U32, U16)                                                                                            \
+    X(U32_TO_I32, U32, I32)                                                                                            \
+    /* from I64 */                                                                                                     \
+    X(I64_TO_I8, I64, I8)                                                                                              \
+    X(I64_TO_U8, I64, U8)                                                                                              \
+    X(I64_TO_I16, I64, I16)                                                                                            \
+    X(I64_TO_U16, I64, U16)                                                                                            \
+    X(I64_TO_I32, I64, I32)                                                                                            \
+    X(I64_TO_U32, I64, U32)                                                                                            \
+    X(I64_TO_U64, I64, U64)                                                                                            \
+    /* from U64 */                                                                                                     \
+    X(U64_TO_I8, U64, I8)                                                                                              \
+    X(U64_TO_U8, U64, U8)                                                                                              \
+    X(U64_TO_I16, U64, I16)                                                                                            \
+    X(U64_TO_U16, U64, U16)                                                                                            \
+    X(U64_TO_I32, U64, I32)                                                                                            \
+    X(U64_TO_U32, U64, U32)                                                                                            \
+    X(U64_TO_I64, U64, I64)                                                                                            \
+    /* from F32 */                                                                                                     \
+    X(F32_TO_I8, F32, I8)                                                                                              \
+    X(F32_TO_U8, F32, U8)                                                                                              \
+    X(F32_TO_I16, F32, I16)                                                                                            \
+    X(F32_TO_U16, F32, U16)                                                                                            \
+    X(F32_TO_I32, F32, I32)                                                                                            \
+    X(F32_TO_U32, F32, U32)                                                                                            \
+    X(F32_TO_I64, F32, I64)                                                                                            \
+    X(F32_TO_U64, F32, U64)                                                                                            \
+    /* from F64 */                                                                                                     \
+    X(F64_TO_I8, F64, I8)                                                                                              \
+    X(F64_TO_U8, F64, U8)                                                                                              \
+    X(F64_TO_I16, F64, I16)                                                                                            \
+    X(F64_TO_U16, F64, U16)                                                                                            \
+    X(F64_TO_I32, F64, I32)                                                                                            \
+    X(F64_TO_U32, F64, U32)                                                                                            \
+    X(F64_TO_I64, F64, I64)                                                                                            \
+    X(F64_TO_U64, F64, U64)
+
+    enum Value : uint8_t {
+#define CHECKED_CAST_OP_DECLARE(name, from, to) name,
+        CHECKED_CAST_OP_LIST(CHECKED_CAST_OP_DECLARE)
+#undef CHECKED_CAST_OP_DECLARE
+        COUNT
+    };
+
+    static constexpr TypePair PAIRS[COUNT] = {
+#define CHECKED_CAST_OP_PAIR(name, from, to) TypePair { TypeCode::from, TypeCode::to },
+        CHECKED_CAST_OP_LIST(CHECKED_CAST_OP_PAIR)
+#undef CHECKED_CAST_OP_PAIR
+    };
+
+#undef CHECKED_CAST_OP_LIST
+
+    static constexpr auto PAIR_TABLE = MakeCastPairTable(PAIRS);
+
+    constexpr static std::optional<CheckedCastOp> FromPair(uint8_t from, uint8_t to)
+    {
+        if (from >= CastType::COUNT || to >= CastType::COUNT) {
+            return std::nullopt;
+        }
+        auto raw = PAIR_TABLE[from * CastType::COUNT + to];
+        if (raw == INVALID_CAST_CODE) {
+            return std::nullopt;
+        }
+        ASSERT(raw < COUNT);
+        return CheckedCastOp(static_cast<Value>(raw));
+    }
+
+    constexpr CheckedCastOp(Value raw) : _value(raw) { ASSERT(IsValid()); }
+
+    constexpr CheckedCastOp(uint8_t raw) : _value(static_cast<Value>(raw)) { ASSERT(IsValid()); }
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr uint8_t Raw() const { return static_cast<uint8_t>(_value); }
+
+    constexpr bool IsValid() const { return Raw() < COUNT; }
+
+    constexpr TypeCode FromType() const
+    {
+        ASSERT(IsValid());
+        return PAIRS[_value].from;
+    }
+
+    constexpr TypeCode ToType() const
+    {
+        ASSERT(IsValid());
+        return PAIRS[_value].to;
+    }
+
+    constexpr bool ToIsFloatingPoint() const { return CastType::IsFloatingPoint(ToType()); }
+
+    constexpr bool FromIsFloatingPoint() const { return CastType::IsFloatingPoint(FromType()); }
+
+    constexpr std::string_view ToTypeStr() const { return CastType::Name(ToType()); }
+
+    constexpr std::string_view FromTypeStr() const { return CastType::Name(FromType()); }
+
+private:
+    Value _value;
+};
+
+} // namespace Format
+} // namespace Cbc
 
 // X parameters: opcode, encoding format, string format
 #define CBC_RT_OPCODES(X)                                                                                              \
