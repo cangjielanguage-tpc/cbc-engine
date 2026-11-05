@@ -115,19 +115,23 @@ TEST(EmitTest, BinaryOps_Reg)
         int64_t r;
         int64_t expected;
     } cases[] = {
-        { Format::Common::SUB,  Width::W64, "sub.64",  10,    4,    6 },
-        { Format::Common::MUL,  Width::W32, "mul.32",  6,     7,    42 },
-        { Format::Common::AND,  Width::W64, "and.64",  0xCC,  0x0F, 0x0C },
-        { Format::Common::OR,   Width::W64, "or.64",   0xC0,  0x0F, 0xCF },
-        { Format::Common::XOR,  Width::W64, "xor.64",  0xFF,  0x0F, 0xF0 },
-        { Format::Common::SDIV, Width::W64, "sdiv.64", -7,    2,    -3 },
-        { Format::Common::SREM, Width::W64, "srem.64", -7,    2,    -1 },
-        { Format::Common::UDIV, Width::W64, "udiv.64", 42,    5,    8 },
-        { Format::Common::UREM, Width::W64, "urem.64", 42,    5,    2 },
-        { Format::Common::LSL,  Width::W64, "lsl.64",  1,     5,    32 },
-        { Format::Common::LSR,  Width::W64, "lsr.64",  static_cast<int64_t>(0x8000000000000000ull), 4,
+        { Format::Common::SUB, Width::W64, "sub.64", 10, 4, 6 },
+        { Format::Common::MUL, Width::W32, "mul.32", 6, 7, 42 },
+        { Format::Common::AND, Width::W64, "and.64", 0xCC, 0x0F, 0x0C },
+        { Format::Common::OR, Width::W64, "or.64", 0xC0, 0x0F, 0xCF },
+        { Format::Common::XOR, Width::W64, "xor.64", 0xFF, 0x0F, 0xF0 },
+        { Format::Common::SDIV, Width::W64, "sdiv.64", -7, 2, -3 },
+        { Format::Common::SREM, Width::W64, "srem.64", -7, 2, -1 },
+        { Format::Common::UDIV, Width::W64, "udiv.64", 42, 5, 8 },
+        { Format::Common::UREM, Width::W64, "urem.64", 42, 5, 2 },
+        { Format::Common::LSL, Width::W64, "lsl.64", 1, 5, 32 },
+        { Format::Common::LSR,
+          Width::W64,
+          "lsr.64",
+          static_cast<int64_t>(0x8000000000000000ull),
+          4,
           static_cast<int64_t>(0x0800000000000000ull) },
-        { Format::Common::ASR,  Width::W64, "asr.64",  -16,   2,    -4 },
+        { Format::Common::ASR, Width::W64, "asr.64", -16, 2, -4 },
         { Format::Common::SDIV, Width::W64, "sdiv.64", INT64_MIN, -1, INT64_MIN },
         { Format::Common::SREM, Width::W64, "srem.64", INT64_MIN, -1, 0 },
     };
@@ -174,18 +178,18 @@ TEST(EmitTest, BinaryOps_Imm)
         int64_t l;
         int64_t expected;
     } cases[] = {
-        { Format::Common::SUB,  "sub.64",  10,   100,       90 },
-        { Format::Common::MUL,  "mul.64",  3,    14,        42 },
-        { Format::Common::AND,  "and.64",  0x0F, 0xCC,      0x0C },
-        { Format::Common::OR,   "or.64",   0x0F, 0xC0,      0xCF },
-        { Format::Common::XOR,  "xor.64",  0xFF, 0x0F,      0xF0 },
-        { Format::Common::SDIV, "sdiv.64", 2,    -7,        -3 },
-        { Format::Common::SREM, "srem.64", 2,    -7,        -1 },
-        { Format::Common::UDIV, "udiv.64", 5,    42,        8 },
-        { Format::Common::UREM, "urem.64", 5,    42,        2 },
-        { Format::Common::LSL,  "lsl.64",  5,    1,         32 },
-        { Format::Common::LSR,  "lsr.64",  4,    INT64_MIN, static_cast<int64_t>(0x0800000000000000ull) },
-        { Format::Common::ASR,  "asr.64",  2,    -16,       -4 },
+        { Format::Common::SUB, "sub.64", 10, 100, 90 },
+        { Format::Common::MUL, "mul.64", 3, 14, 42 },
+        { Format::Common::AND, "and.64", 0x0F, 0xCC, 0x0C },
+        { Format::Common::OR, "or.64", 0x0F, 0xC0, 0xCF },
+        { Format::Common::XOR, "xor.64", 0xFF, 0x0F, 0xF0 },
+        { Format::Common::SDIV, "sdiv.64", 2, -7, -3 },
+        { Format::Common::SREM, "srem.64", 2, -7, -1 },
+        { Format::Common::UDIV, "udiv.64", 5, 42, 8 },
+        { Format::Common::UREM, "urem.64", 5, 42, 2 },
+        { Format::Common::LSL, "lsl.64", 5, 1, 32 },
+        { Format::Common::LSR, "lsr.64", 4, INT64_MIN, static_cast<int64_t>(0x0800000000000000ull) },
+        { Format::Common::ASR, "asr.64", 2, -16, -4 },
     };
 
     for (const auto& test : cases) {
@@ -193,9 +197,7 @@ TEST(EmitTest, BinaryOps_Imm)
         e.BinaryImm(test.op, Width::W64, IReg::IR1, IReg::IR2, static_cast<uint64_t>(test.imm));
         e.Ret();
         auto code = e.Build(heap);
-        CHECK_DISASM(
-            code, "0x000: " + std::string(test.text) + " IR1 IR2 " + std::to_string(test.imm), "0x004: ret"
-        );
+        CHECK_DISASM(code, "0x000: " + std::string(test.text) + " IR1 IR2 " + std::to_string(test.imm), "0x004: ret");
         ExpectResult(Interpret(code, U64(0), U64(test.l)), Width::W64, test.expected);
     }
 }
@@ -214,37 +216,49 @@ TEST(EmitTest, CheckedBinaryOps_Reg)
         int64_t expected;
         Interpretation::Type exception;
     } cases[] = {
-        { Format::Checked::CADD,  Width::W8,  "cadd.8",   100,        27,  127, Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W8,  "cadd.8",   120,        10,  0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W16, "cadd.16",  30000,      1000, 31000, Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W16, "cadd.16",  32767,      1,   0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W32, "cadd.32",  5,          7,   12,  Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W32, "cadd.32",  INT32_MAX,  1,   0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W64, "cadd.64",  5,          7,   12,  Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W64, "cadd.64",  INT64_MAX,  1,   0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CSUB,  Width::W8,  "csub.8",   5,          7,   -2,  Interpretation::Type::Successful },
-        { Format::Checked::CSUB,  Width::W8,  "csub.8",   INT8_MIN,   1,   0,   Interpretation::Type::SubOverflowException },
-        { Format::Checked::CSUB,  Width::W32, "csub.32",  5,          7,   -2,  Interpretation::Type::Successful },
-        { Format::Checked::CSUB,  Width::W32, "csub.32",  INT32_MIN,  1,   0,   Interpretation::Type::SubOverflowException },
-        { Format::Checked::CMUL,  Width::W64, "cmul.64",  6,          7,   42,  Interpretation::Type::Successful },
-        { Format::Checked::CMUL,  Width::W64, "cmul.64",  4294967296, 4294967296, 0, Interpretation::Type::MulOverflowException },
-        { Format::Checked::CDIV,  Width::W64, "cdiv.64",  42,         7,   6,   Interpretation::Type::Successful },
-        { Format::Checked::CDIV,  Width::W64, "cdiv.64",  7,          0,   0,   Interpretation::Type::ArithmeticException },
-        { Format::Checked::CDIV,  Width::W64, "cdiv.64",  INT64_MIN,  -1,  0,   Interpretation::Type::DivOverflowException },
-        { Format::Checked::CUADD, Width::W64, "cuadd.64", 5,          7,   12,  Interpretation::Type::Successful },
-        { Format::Checked::CUADD, Width::W64, "cuadd.64", -1,         1,   0,   Interpretation::Type::UaddOverflowException },
-        { Format::Checked::CUSUB, Width::W64, "cusub.64", 7,          5,   2,   Interpretation::Type::Successful },
-        { Format::Checked::CUSUB, Width::W64, "cusub.64", 0,          1,   0,   Interpretation::Type::UsubOverflowException },
-        { Format::Checked::CUMUL, Width::W64, "cumul.64", 6,          7,   42,  Interpretation::Type::Successful },
-        { Format::Checked::CUMUL, Width::W64, "cumul.64", 4294967296, 4294967296, 0, Interpretation::Type::UmulOverflowException },
-        { Format::Checked::CPOW,  Width::W64, "cpow.64",  2,          10,  1024, Interpretation::Type::Successful },
-        { Format::Checked::CPOW,  Width::W64, "cpow.64",  2,          63,  0,   Interpretation::Type::UpowOverflowException },
-        { Format::Checked::CLSL,  Width::W64, "clsl.64",  1,          5,   32,  Interpretation::Type::Successful },
-        { Format::Checked::CLSL,  Width::W64, "clsl.64",  1,          64,  0,   Interpretation::Type::LshOverflowException },
-        { Format::Checked::CLSR,  Width::W64, "clsr.64",  240,        4,   15,  Interpretation::Type::Successful },
-        { Format::Checked::CLSR,  Width::W64, "clsr.64",  1,          64,  0,   Interpretation::Type::RshOverflowException },
-        { Format::Checked::CASR,  Width::W64, "casr.64",  -16,        2,   -4,  Interpretation::Type::Successful },
-        { Format::Checked::CASR,  Width::W64, "casr.64",  -1,         64,  0,   Interpretation::Type::AshOverflowException },
+        { Format::Checked::CADD, Width::W8, "cadd.8", 100, 27, 127, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W8, "cadd.8", 120, 10, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W16, "cadd.16", 30000, 1000, 31000, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W16, "cadd.16", 32767, 1, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W32, "cadd.32", 5, 7, 12, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W32, "cadd.32", INT32_MAX, 1, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W64, "cadd.64", 5, 7, 12, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W64, "cadd.64", INT64_MAX, 1, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CSUB, Width::W8, "csub.8", 5, 7, -2, Interpretation::Type::Successful },
+        { Format::Checked::CSUB, Width::W8, "csub.8", INT8_MIN, 1, 0, Interpretation::Type::SubOverflowException },
+        { Format::Checked::CSUB, Width::W32, "csub.32", 5, 7, -2, Interpretation::Type::Successful },
+        { Format::Checked::CSUB, Width::W32, "csub.32", INT32_MIN, 1, 0, Interpretation::Type::SubOverflowException },
+        { Format::Checked::CMUL, Width::W64, "cmul.64", 6, 7, 42, Interpretation::Type::Successful },
+        { Format::Checked::CMUL,
+          Width::W64,
+          "cmul.64",
+          4294967296,
+          4294967296,
+          0,
+          Interpretation::Type::MulOverflowException },
+        { Format::Checked::CDIV, Width::W64, "cdiv.64", 42, 7, 6, Interpretation::Type::Successful },
+        { Format::Checked::CDIV, Width::W64, "cdiv.64", 7, 0, 0, Interpretation::Type::ArithmeticException },
+        { Format::Checked::CDIV, Width::W64, "cdiv.64", INT64_MIN, -1, 0, Interpretation::Type::DivOverflowException },
+        { Format::Checked::CUADD, Width::W64, "cuadd.64", 5, 7, 12, Interpretation::Type::Successful },
+        { Format::Checked::CUADD, Width::W64, "cuadd.64", -1, 1, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CUSUB, Width::W64, "cusub.64", 7, 5, 2, Interpretation::Type::Successful },
+        { Format::Checked::CUSUB, Width::W64, "cusub.64", 0, 1, 0, Interpretation::Type::SubOverflowException },
+        { Format::Checked::CUMUL, Width::W64, "cumul.64", 6, 7, 42, Interpretation::Type::Successful },
+        { Format::Checked::CUMUL,
+          Width::W64,
+          "cumul.64",
+          4294967296,
+          4294967296,
+          0,
+          Interpretation::Type::MulOverflowException },
+        { Format::Checked::CPOW, Width::W64, "cpow.64", 2, 10, 1024, Interpretation::Type::Successful },
+        { Format::Checked::CPOW, Width::W64, "cpow.64", 2, 63, 0, Interpretation::Type::PowOverflowException },
+        { Format::Checked::CLSL, Width::W64, "clsl.64", 1, 5, 32, Interpretation::Type::Successful },
+        { Format::Checked::CLSL, Width::W64, "clsl.64", 1, 64, 0, Interpretation::Type::LshOverflowException },
+        { Format::Checked::CLSR, Width::W64, "clsr.64", 240, 4, 15, Interpretation::Type::Successful },
+        { Format::Checked::CLSR, Width::W64, "clsr.64", 1, 64, 0, Interpretation::Type::RshOverflowException },
+        { Format::Checked::CASR, Width::W64, "casr.64", -16, 2, -4, Interpretation::Type::Successful },
+        { Format::Checked::CASR, Width::W64, "casr.64", -1, 64, 0, Interpretation::Type::AshOverflowException },
     };
 
     for (const auto& test : cases) {
@@ -272,35 +286,41 @@ TEST(EmitTest, CheckedBinaryOps_ImmShort)
         int64_t expected;
         Interpretation::Type exception;
     } cases[] = {
-        { Format::Checked::CADD,  Width::W8,  "cadd.8",   3, 100,       103, Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W8,  "cadd.8",   3, 126,       0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W16, "cadd.16",  3, 30000,     30003, Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W16, "cadd.16",  3, 32767,     0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W32, "cadd.32",  3, 100,       103, Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W32, "cadd.32",  3, INT32_MAX, 0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W64, "cadd.64",  3, 100,       103, Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W64, "cadd.64",  3, INT64_MAX, 0,   Interpretation::Type::AddOverflowException },
-        { Format::Checked::CSUB,  Width::W32, "csub.32",  3, 100,       97,  Interpretation::Type::Successful },
-        { Format::Checked::CSUB,  Width::W32, "csub.32",  3, INT32_MIN, 0,   Interpretation::Type::SubOverflowException },
-        { Format::Checked::CMUL,  Width::W32, "cmul.32",  3, 7,         21,  Interpretation::Type::Successful },
-        { Format::Checked::CMUL,  Width::W32, "cmul.32",  3, 0x40000000, 0,  Interpretation::Type::MulOverflowException },
-        { Format::Checked::CDIV,  Width::W64, "cdiv.64",  7, 42,        6,   Interpretation::Type::Successful },
-        { Format::Checked::CDIV,  Width::W64, "cdiv.64",  0, 7,         0,   Interpretation::Type::ArithmeticException },
-        { Format::Checked::CDIV,  Width::W64, "cdiv.64",  -1, INT64_MIN, 0,  Interpretation::Type::DivOverflowException },
-        { Format::Checked::CUADD, Width::W32, "cuadd.32", 3, 7,         10,  Interpretation::Type::Successful },
-        { Format::Checked::CUADD, Width::W32, "cuadd.32", 3, -1,        0,   Interpretation::Type::UaddOverflowException },
-        { Format::Checked::CUSUB, Width::W32, "cusub.32", 3, 7,         4,   Interpretation::Type::Successful },
-        { Format::Checked::CUSUB, Width::W32, "cusub.32", 3, 2,         0,   Interpretation::Type::UsubOverflowException },
-        { Format::Checked::CUMUL, Width::W32, "cumul.32", 3, 7,         21,  Interpretation::Type::Successful },
-        { Format::Checked::CUMUL, Width::W32, "cumul.32", 3, 2147483648, 0,  Interpretation::Type::UmulOverflowException },
-        { Format::Checked::CPOW,  Width::W32, "cpow.32",  3, 7,         343, Interpretation::Type::Successful },
-        { Format::Checked::CPOW,  Width::W32, "cpow.32",  3, 0x10000,   0,   Interpretation::Type::UpowOverflowException },
-        { Format::Checked::CLSL,  Width::W32, "clsl.32",  3, 1,         8,   Interpretation::Type::Successful },
-        { Format::Checked::CLSL,  Width::W32, "clsl.32",  32, 1,        0,   Interpretation::Type::LshOverflowException },
-        { Format::Checked::CLSR,  Width::W32, "clsr.32",  3, 0xF0,      0x1E, Interpretation::Type::Successful },
-        { Format::Checked::CLSR,  Width::W32, "clsr.32",  32, 1,        0,   Interpretation::Type::RshOverflowException },
-        { Format::Checked::CASR,  Width::W32, "casr.32",  3, -16,       -2,  Interpretation::Type::Successful },
-        { Format::Checked::CASR,  Width::W32, "casr.32",  32, -1,       0,   Interpretation::Type::AshOverflowException },
+        { Format::Checked::CADD, Width::W8, "cadd.8", 3, 100, 103, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W8, "cadd.8", 3, 126, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W16, "cadd.16", 3, 30000, 30003, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W16, "cadd.16", 3, 32767, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W32, "cadd.32", 3, 100, 103, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W32, "cadd.32", 3, INT32_MAX, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W64, "cadd.64", 3, 100, 103, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W64, "cadd.64", 3, INT64_MAX, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CSUB, Width::W32, "csub.32", 3, 100, 97, Interpretation::Type::Successful },
+        { Format::Checked::CSUB, Width::W32, "csub.32", 3, INT32_MIN, 0, Interpretation::Type::SubOverflowException },
+        { Format::Checked::CMUL, Width::W32, "cmul.32", 3, 7, 21, Interpretation::Type::Successful },
+        { Format::Checked::CMUL, Width::W32, "cmul.32", 3, 0x40000000, 0, Interpretation::Type::MulOverflowException },
+        { Format::Checked::CDIV, Width::W64, "cdiv.64", 7, 42, 6, Interpretation::Type::Successful },
+        { Format::Checked::CDIV, Width::W64, "cdiv.64", 0, 7, 0, Interpretation::Type::ArithmeticException },
+        { Format::Checked::CDIV, Width::W64, "cdiv.64", -1, INT64_MIN, 0, Interpretation::Type::DivOverflowException },
+        { Format::Checked::CUADD, Width::W32, "cuadd.32", 3, 7, 10, Interpretation::Type::Successful },
+        { Format::Checked::CUADD, Width::W32, "cuadd.32", 3, -1, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CUSUB, Width::W32, "cusub.32", 3, 7, 4, Interpretation::Type::Successful },
+        { Format::Checked::CUSUB, Width::W32, "cusub.32", 3, 2, 0, Interpretation::Type::SubOverflowException },
+        { Format::Checked::CUMUL, Width::W32, "cumul.32", 3, 7, 21, Interpretation::Type::Successful },
+        { Format::Checked::CUMUL,
+          Width::W32,
+          "cumul.32",
+          3,
+          2147483648,
+          0,
+          Interpretation::Type::MulOverflowException },
+        { Format::Checked::CPOW, Width::W32, "cpow.32", 3, 7, 343, Interpretation::Type::Successful },
+        { Format::Checked::CPOW, Width::W32, "cpow.32", 3, 0x10000, 0, Interpretation::Type::PowOverflowException },
+        { Format::Checked::CLSL, Width::W32, "clsl.32", 3, 1, 8, Interpretation::Type::Successful },
+        { Format::Checked::CLSL, Width::W32, "clsl.32", 32, 1, 0, Interpretation::Type::LshOverflowException },
+        { Format::Checked::CLSR, Width::W32, "clsr.32", 3, 0xF0, 0x1E, Interpretation::Type::Successful },
+        { Format::Checked::CLSR, Width::W32, "clsr.32", 32, 1, 0, Interpretation::Type::RshOverflowException },
+        { Format::Checked::CASR, Width::W32, "casr.32", 3, -16, -2, Interpretation::Type::Successful },
+        { Format::Checked::CASR, Width::W32, "casr.32", 32, -1, 0, Interpretation::Type::AshOverflowException },
     };
 
     for (const auto& test : cases) {
@@ -308,9 +328,7 @@ TEST(EmitTest, CheckedBinaryOps_ImmShort)
         e.BinaryImm(test.op, test.width, IReg::IR1, IReg::IR2, static_cast<uint64_t>(test.imm));
         e.Ret();
         auto code = e.Build(heap);
-        CHECK_DISASM(
-            code, "0x000: " + std::string(test.text) + " IR1 IR2 " + std::to_string(test.imm), "0x004: ret"
-        );
+        CHECK_DISASM(code, "0x000: " + std::string(test.text) + " IR1 IR2 " + std::to_string(test.imm), "0x004: ret");
         if (test.exception == Interpretation::Type::Successful) {
             ExpectResult(Interpret(code, U64(0), U64(test.l)), test.width, test.expected);
         } else {
@@ -332,27 +350,27 @@ TEST(EmitTest, CheckedBinaryOps_ImmWide)
     } cases[] = {
         // W8 wides do not exist (never emitteed by compiler, asserted in emitter)
         // so no W8 tests here
-        { Format::Checked::CADD,  Width::W16, "cadd.16",  -4096,     0,    Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W16, "cadd.16",  32767,     0,    Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W32, "cadd.32",  -4096,     0,    Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W32, "cadd.32",  INT32_MAX, 0,    Interpretation::Type::AddOverflowException },
-        { Format::Checked::CADD,  Width::W64, "cadd.64",  1,         4097, Interpretation::Type::Successful },
-        { Format::Checked::CADD,  Width::W64, "cadd.64",  INT64_MAX, 0,    Interpretation::Type::AddOverflowException },
-        { Format::Checked::CSUB,  Width::W64, "csub.64",  8192,      4096, Interpretation::Type::Successful },
-        { Format::Checked::CSUB,  Width::W64, "csub.64",  INT64_MIN, 0,    Interpretation::Type::SubOverflowException },
-        { Format::Checked::CMUL,  Width::W32, "cmul.32",  1,         4096, Interpretation::Type::Successful },
-        { Format::Checked::CMUL,  Width::W32, "cmul.32",  0x100000,  0,    Interpretation::Type::MulOverflowException },
-        { Format::Checked::CUADD, Width::W32, "cuadd.32", 1,         4097, Interpretation::Type::Successful },
-        { Format::Checked::CUADD, Width::W32, "cuadd.32", -1,        0,    Interpretation::Type::UaddOverflowException },
-        { Format::Checked::CUSUB, Width::W32, "cusub.32", 8192,      4096, Interpretation::Type::Successful },
-        { Format::Checked::CUSUB, Width::W32, "cusub.32", 4095,      0,    Interpretation::Type::UsubOverflowException },
-        { Format::Checked::CUMUL, Width::W32, "cumul.32", 1,         4096, Interpretation::Type::Successful },
-        { Format::Checked::CUMUL, Width::W32, "cumul.32", 0x100000,  0,    Interpretation::Type::UmulOverflowException },
-        { Format::Checked::CPOW,  Width::W32, "cpow.32",  1,         1,    Interpretation::Type::Successful },
-        { Format::Checked::CPOW,  Width::W32, "cpow.32",  2,         0,    Interpretation::Type::UpowOverflowException },
-        { Format::Checked::CLSL,  Width::W32, "clsl.32",  1,         0,    Interpretation::Type::LshOverflowException },
-        { Format::Checked::CLSR,  Width::W32, "clsr.32",  1,         0,    Interpretation::Type::RshOverflowException },
-        { Format::Checked::CASR,  Width::W32, "casr.32",  -1,        0,    Interpretation::Type::AshOverflowException },
+        { Format::Checked::CADD, Width::W16, "cadd.16", -4096, 0, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W16, "cadd.16", 32767, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W32, "cadd.32", -4096, 0, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W32, "cadd.32", INT32_MAX, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CADD, Width::W64, "cadd.64", 1, 4097, Interpretation::Type::Successful },
+        { Format::Checked::CADD, Width::W64, "cadd.64", INT64_MAX, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CSUB, Width::W64, "csub.64", 8192, 4096, Interpretation::Type::Successful },
+        { Format::Checked::CSUB, Width::W64, "csub.64", INT64_MIN, 0, Interpretation::Type::SubOverflowException },
+        { Format::Checked::CMUL, Width::W32, "cmul.32", 1, 4096, Interpretation::Type::Successful },
+        { Format::Checked::CMUL, Width::W32, "cmul.32", 0x100000, 0, Interpretation::Type::MulOverflowException },
+        { Format::Checked::CUADD, Width::W32, "cuadd.32", 1, 4097, Interpretation::Type::Successful },
+        { Format::Checked::CUADD, Width::W32, "cuadd.32", -1, 0, Interpretation::Type::AddOverflowException },
+        { Format::Checked::CUSUB, Width::W32, "cusub.32", 8192, 4096, Interpretation::Type::Successful },
+        { Format::Checked::CUSUB, Width::W32, "cusub.32", 4095, 0, Interpretation::Type::SubOverflowException },
+        { Format::Checked::CUMUL, Width::W32, "cumul.32", 1, 4096, Interpretation::Type::Successful },
+        { Format::Checked::CUMUL, Width::W32, "cumul.32", 0x100000, 0, Interpretation::Type::MulOverflowException },
+        { Format::Checked::CPOW, Width::W32, "cpow.32", 1, 1, Interpretation::Type::Successful },
+        { Format::Checked::CPOW, Width::W32, "cpow.32", 2, 0, Interpretation::Type::PowOverflowException },
+        { Format::Checked::CLSL, Width::W32, "clsl.32", 1, 0, Interpretation::Type::LshOverflowException },
+        { Format::Checked::CLSR, Width::W32, "clsr.32", 1, 0, Interpretation::Type::RshOverflowException },
+        { Format::Checked::CASR, Width::W32, "casr.32", -1, 0, Interpretation::Type::AshOverflowException },
     };
 
     for (const auto& test : cases) {
@@ -360,9 +378,7 @@ TEST(EmitTest, CheckedBinaryOps_ImmWide)
         e.BinaryImm(test.op, test.width, IReg::IR1, IReg::IR2, 0x1000);
         e.Ret();
         auto code = e.Build(heap);
-        CHECK_DISASM(
-            code, "0x000: " + std::string(test.text) + " IR1 IR2 4096", "0x00b: ret"
-        );
+        CHECK_DISASM(code, "0x000: " + std::string(test.text) + " IR1 IR2 4096", "0x00b: ret");
         if (test.exception == Interpretation::Type::Successful) {
             ExpectResult(Interpret(code, U64(0), U64(test.l)), test.width, test.expected);
         } else {
@@ -384,23 +400,23 @@ TEST(EmitTest, SaturatingBinaryOps_Reg)
         int64_t r;
         int64_t expected;
     } cases[] = {
-        { Format::Saturating::SADD, Width::W32, "sadd.32", 5,          7,  12 },
-        { Format::Saturating::SADD, Width::W32, "sadd.32", INT32_MAX,  5,  INT32_MAX },
-        { Format::Saturating::SADD, Width::W8,  "sadd.8",  120,        10, 127 },
-        { Format::Saturating::SADD, Width::W16, "sadd.16", 32767,      1,  32767 },
-        { Format::Saturating::SADD, Width::W64, "sadd.64", INT64_MAX,  1,  INT64_MAX },
-        { Format::Saturating::SSUB, Width::W32, "ssub.32", INT32_MIN,  1,  INT32_MIN },
+        { Format::Saturating::SADD, Width::W32, "sadd.32", 5, 7, 12 },
+        { Format::Saturating::SADD, Width::W32, "sadd.32", INT32_MAX, 5, INT32_MAX },
+        { Format::Saturating::SADD, Width::W8, "sadd.8", 120, 10, 127 },
+        { Format::Saturating::SADD, Width::W16, "sadd.16", 32767, 1, 32767 },
+        { Format::Saturating::SADD, Width::W64, "sadd.64", INT64_MAX, 1, INT64_MAX },
+        { Format::Saturating::SSUB, Width::W32, "ssub.32", INT32_MIN, 1, INT32_MIN },
         { Format::Saturating::SMUL, Width::W64, "smul.64", 4294967296, 4294967296, INT64_MAX },
-        { Format::Saturating::SDIV, Width::W64, "sdiv.64", 42,         7,  6 },
-        { Format::Saturating::SDIV, Width::W64, "sdiv.64", INT64_MIN,  -1, INT64_MAX },
-        { Format::Saturating::SMOD, Width::W64, "smod.64", 7,          3,  1 },
-        { Format::Saturating::SMOD, Width::W64, "smod.64", INT64_MIN,  -1, 0 },
-        { Format::Saturating::SPOW, Width::W64, "spow.64", 2,          10, 1024 },
-        { Format::Saturating::SPOW, Width::W64, "spow.64", 3,          100, INT64_MAX },
-        { Format::Saturating::SLSL, Width::W64, "slsl.64", 1,          5,  32 },
-        { Format::Saturating::SLSL, Width::W64, "slsl.64", 1,          100, INT64_MAX },
-        { Format::Saturating::SASR, Width::W64, "sasr.64", -16,        2,  -4 },
-        { Format::Saturating::SASR, Width::W64, "sasr.64", -1,         100, -1 },
+        { Format::Saturating::SDIV, Width::W64, "sdiv.64", 42, 7, 6 },
+        { Format::Saturating::SDIV, Width::W64, "sdiv.64", INT64_MIN, -1, INT64_MAX },
+        { Format::Saturating::SMOD, Width::W64, "smod.64", 7, 3, 1 },
+        { Format::Saturating::SMOD, Width::W64, "smod.64", INT64_MIN, -1, 0 },
+        { Format::Saturating::SPOW, Width::W64, "spow.64", 2, 10, 1024 },
+        { Format::Saturating::SPOW, Width::W64, "spow.64", 3, 100, INT64_MAX },
+        { Format::Saturating::SLSL, Width::W64, "slsl.64", 1, 5, 32 },
+        { Format::Saturating::SLSL, Width::W64, "slsl.64", 1, 100, INT64_MAX },
+        { Format::Saturating::SASR, Width::W64, "sasr.64", -16, 2, -4 },
+        { Format::Saturating::SASR, Width::W64, "sasr.64", -1, 100, -1 },
     };
 
     for (const auto& test : cases) {
@@ -425,20 +441,20 @@ TEST(EmitTest, SaturatingBinaryOps_Imm)
         int64_t l;
         int64_t expected;
     } cases[] = {
-        { Format::Saturating::SADD, Width::W32, 5,      false, "sadd.32", 4,  100,       105 },
-        { Format::Saturating::SADD, Width::W32, 5,      false, "sadd.32", 4,  INT32_MAX, INT32_MAX },
-        { Format::Saturating::SADD, Width::W8,  2,      false, "sadd.8",  4,  126,       127 },
-        { Format::Saturating::SADD, Width::W16, 300,    false, "sadd.16", 4,  32000,     32300 },
-        { Format::Saturating::SADD, Width::W16, 300,    false, "sadd.16", 4,  32767,     32767 },
-        { Format::Saturating::SADD, Width::W64, 2000,   false, "sadd.64", 4,  1,         2001 },
-        { Format::Saturating::SMUL, Width::W32, 0x1000, true,  "smul.32", 11, 1,         4096 },
-        { Format::Saturating::SMUL, Width::W32, 0x1000, true,  "smul.32", 11, 0x100000,  INT32_MAX },
+        { Format::Saturating::SADD, Width::W32, 5, false, "sadd.32", 4, 100, 105 },
+        { Format::Saturating::SADD, Width::W32, 5, false, "sadd.32", 4, INT32_MAX, INT32_MAX },
+        { Format::Saturating::SADD, Width::W8, 2, false, "sadd.8", 4, 126, 127 },
+        { Format::Saturating::SADD, Width::W16, 300, false, "sadd.16", 4, 32000, 32300 },
+        { Format::Saturating::SADD, Width::W16, 300, false, "sadd.16", 4, 32767, 32767 },
+        { Format::Saturating::SADD, Width::W64, 2000, false, "sadd.64", 4, 1, 2001 },
+        { Format::Saturating::SMUL, Width::W32, 0x1000, true, "smul.32", 11, 1, 4096 },
+        { Format::Saturating::SMUL, Width::W32, 0x1000, true, "smul.32", 11, 0x100000, INT32_MAX },
         // Narrow-width immediates are normalized to the operation width by the
         // compiler before emission (an out-of-range one trips the emitter
         // assert), so W8 has no wide-immediate rows here.
-        { Format::Saturating::SMUL, Width::W16, 0x1000, true,  "smul.16", 11, 1,         4096 },
-        { Format::Saturating::SMUL, Width::W64, 0x1000, true,  "smul.64", 11, 1,         4096 },
-        { Format::Saturating::SLSL, Width::W64, 3,      false, "slsl.64", 4,  1,         8 },
+        { Format::Saturating::SMUL, Width::W16, 0x1000, true, "smul.16", 11, 1, 4096 },
+        { Format::Saturating::SMUL, Width::W64, 0x1000, true, "smul.64", 11, 1, 4096 },
+        { Format::Saturating::SLSL, Width::W64, 3, false, "slsl.64", 4, 1, 8 },
     };
 
     for (const auto& test : cases) {
@@ -449,9 +465,7 @@ TEST(EmitTest, SaturatingBinaryOps_Imm)
         // Short immediates print as signed 12-bit values, wide ones as I64.
         auto value = test.wide ? std::to_string(test.imm)
                                : std::to_string(static_cast<int>(MathUtils::SignExtend(test.imm, 12)));
-        CHECK_DISASM(
-            code, "0x000: " + std::string(test.text) + " IR1 IR2 " + value, Pos(test.size) + ": ret"
-        );
+        CHECK_DISASM(code, "0x000: " + std::string(test.text) + " IR1 IR2 " + value, Pos(test.size) + ": ret");
         ExpectResult(Interpret(code, U64(0), U64(test.l)), test.width, test.expected);
     }
 }
@@ -470,16 +484,16 @@ TEST(EmitTest, FloatBinaryOps)
         double expected;
         bool interpret;
     } cases[] = {
-        { Format::FloatOperations::FSUB,  Width::W32, "fsub.32",  4.5,   0.5,      4.0,       true },
-        { Format::FloatOperations::FMUL,  Width::W64, "fmul.64",  3.0,   2.5,      7.5,       true },
-        { Format::FloatOperations::FDIV,  Width::W64, "fdiv.64",  7.5,   2.5,      3.0,       true },
-        { Format::FloatOperations::FDIV,  Width::W64, "fdiv.64",  1.0,   0.0,      INFINITY,  true },
-        { Format::FloatOperations::FDIV,  Width::W64, "fdiv.64",  -1.0,  0.0,      -INFINITY, true },
-        { Format::FloatOperations::FDIV,  Width::W32, "fdiv.32",  1.0,   0.0,      INFINITY,  true },
-        { Format::FloatOperations::FMOV,  Width::W32, "fmov.32",  0,     0,        0,         false },
-        { Format::FloatOperations::FNEG,  Width::W64, "fneg.64",  0,     0,        0,         false },
-        { Format::FloatOperations::FABS,  Width::W32, "fabs.32",  0,     0,        0,         false },
-        { Format::FloatOperations::FSQRT, Width::W64, "fsqrt.64", 0,     0,        0,         false },
+        { Format::FloatOperations::FSUB, Width::W32, "fsub.32", 4.5, 0.5, 4.0, true },
+        { Format::FloatOperations::FMUL, Width::W64, "fmul.64", 3.0, 2.5, 7.5, true },
+        { Format::FloatOperations::FDIV, Width::W64, "fdiv.64", 7.5, 2.5, 3.0, true },
+        { Format::FloatOperations::FDIV, Width::W64, "fdiv.64", 1.0, 0.0, INFINITY, true },
+        { Format::FloatOperations::FDIV, Width::W64, "fdiv.64", -1.0, 0.0, -INFINITY, true },
+        { Format::FloatOperations::FDIV, Width::W32, "fdiv.32", 1.0, 0.0, INFINITY, true },
+        { Format::FloatOperations::FMOV, Width::W32, "fmov.32", 0, 0, 0, false },
+        { Format::FloatOperations::FNEG, Width::W64, "fneg.64", 0, 0, 0, false },
+        { Format::FloatOperations::FABS, Width::W32, "fabs.32", 0, 0, 0, false },
+        { Format::FloatOperations::FSQRT, Width::W64, "fsqrt.64", 0, 0, 0, false },
     };
 
     for (const auto& test : cases) {
@@ -492,8 +506,8 @@ TEST(EmitTest, FloatBinaryOps)
             continue;
         }
         auto res = test.width == Width::W32
-            ? InterpretFPRes(code, F32(static_cast<float>(test.l)), F32(static_cast<float>(test.r)))
-            : InterpretFPRes(code, F64(test.l), F64(test.r));
+                       ? InterpretFPRes(code, F32(static_cast<float>(test.l)), F32(static_cast<float>(test.r)))
+                       : InterpretFPRes(code, F64(test.l), F64(test.r));
         if (test.width == Width::W32) {
             EXPECT_EQ(res.f32, static_cast<float>(test.expected));
         } else {
@@ -559,11 +573,7 @@ TEST(EmitTest, Bcc64_ShortOffsets)
         e.Bind(label);
 
         auto code = e.Build(heap);
-        CHECK_DISASM(
-            code,
-            "0x000: bcc.64 eq IR1 IR2 1",
-            "0x004: ret"
-        );
+        CHECK_DISASM(code, "0x000: bcc.64 eq IR1 IR2 1", "0x004: ret");
     }
     {
         Emitter e; // backward short branch -> still BCC64I (I = immediate offset)
@@ -573,11 +583,7 @@ TEST(EmitTest, Bcc64_ShortOffsets)
         e.Bcc(CC::NE, Width::W64, IReg::IR1, IReg::IR2, label);
 
         auto code = e.Build(heap);
-        CHECK_DISASM(
-            code,
-            "0x000: ret",
-            "0x001: bcc.64 ne IR1 IR2 -5"
-        );
+        CHECK_DISASM(code, "0x000: ret", "0x001: bcc.64 ne IR1 IR2 -5");
     }
 }
 
@@ -611,12 +617,7 @@ TEST(EmitTest, BccImm64_Variants)
         e.Bind(label);
 
         auto code = e.Build(heap);
-        CHECK_DISASM(
-            code,
-            "0x000: bcc.64 ne IR1 5 2",
-            "0x005: ret",
-            "0x006: ret"
-        );
+        CHECK_DISASM(code, "0x000: bcc.64 ne IR1 5 2", "0x005: ret", "0x006: ret");
     }
     {
         Emitter e; // imm offset + literal value -> BCCL64I
@@ -627,11 +628,7 @@ TEST(EmitTest, BccImm64_Variants)
 
         auto code = e.Build(heap);
         ASSERT_EQ(code.literals->size(), 1u);
-        CHECK_DISASM(
-            code,
-            "0x000: bcc.64 ne IR1 65536 1",
-            "0x005: ret"
-        );
+        CHECK_DISASM(code, "0x000: bcc.64 ne IR1 65536 1", "0x005: ret");
     }
     {
         Emitter e; // literal offset + imm value -> BCCI64L
@@ -856,11 +853,10 @@ static void testBFX(bool signExtend)
     };
 
     for (const auto& test : cases) {
-        auto size = test.to - test.from + 1;
+        auto size         = test.to - test.from + 1;
         auto expectedBits = MathUtils::Bits(test.value, test.from, test.to);
-        auto expected = signExtend
-            ? MathUtils::SignExtend(expectedBits, size)
-            : MathUtils::ZeroExtend(expectedBits, size);
+        auto expected =
+            signExtend ? MathUtils::SignExtend(expectedBits, size) : MathUtils::ZeroExtend(expectedBits, size);
 
         Emitter e;
         if (signExtend) {
@@ -878,15 +874,9 @@ static void testBFX(bool signExtend)
     }
 }
 
-TEST(EmitTest, BFXS)
-{
-    testBFX(true);
-}
+TEST(EmitTest, BFXS) { testBFX(true); }
 
-TEST(EmitTest, BFXZ)
-{
-    testBFX(false);
-}
+TEST(EmitTest, BFXZ) { testBFX(false); }
 
 } // namespace Emitter
 } // namespace Cbc
