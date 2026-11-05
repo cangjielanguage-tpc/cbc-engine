@@ -75,11 +75,18 @@ Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Value::Primitive fr1
 );
 
+// Runs the code over a test-provided frame buffer and returns the result.
+// `frame.start` must point one past the last frame slot (see the geometry note in
+// test/mock/interpreter.cpp); `frameBot` must then be frame.start - frameSize
+// (from ExecBytecodeInfo::frameSize) so that stack-passed call arguments staged by
+// st.stack.param*/lea.stack.param land inside the provided buffer. Defaults to 0,
+// which keeps the historical behavior (fine for code without stack arguments).
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code,
     Interpretation::Frame frame,
     Interpretation::Value::Primitive ir1,
-    Interpretation::Value::Primitive ir2
+    Interpretation::Value::Primitive ir2,
+    uintptr_t frameBot = 0
 );
 
 Interpretation::Value::Primitive Interpret(
@@ -106,7 +113,8 @@ Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Code code,
     Interpretation::Frame frame,
     Interpretation::Value::Primitive fr0,
-    Interpretation::Value::Primitive fr1
+    Interpretation::Value::Primitive fr1,
+    uintptr_t frameBot = 0
 );
 
 void InitializeMockInterpreter();

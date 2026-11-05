@@ -41,8 +41,12 @@ extern RTSupport::TypeInfo builtinTypeInfos[BUILTIN_COUNT];
 void InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype);
 void InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ectype);
 
+// `frameBot` is the lowest address of the frame's slot region (frame.start - frameSize);
+// the loop addresses stack-passed call arguments relative to it. Zero keeps the
+// legacy behavior (callers that never execute stack-argument staging).
 Thunk InterpretationLoop(
-    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0,
+    uintptr_t frameBot = 0
 );
 
 } // namespace Interpretation

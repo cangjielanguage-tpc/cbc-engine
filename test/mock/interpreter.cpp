@@ -52,14 +52,24 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
 
 static Type g_lastImplicitThrow = Type::Successful;
 
+// Frame geometry (mirrors the compiled trampoline, perform_2i_call in arch_os/*/trampolines.S):
+// frame.start points one past the last frame slot; frame slots are addressed as negative offsets
+// from it (slot N at frame.start + N * STACK_SLOT_SIZE - staticFrameSize, where staticFrameSize is
+// ExecBytecodeInfo::staticFrameSize). The stack-passed call arguments are staged by the caller at
+// frameBot + k * STACK_SLOT_SIZE (st.stack.param*/lea.stack.param, stack-passed call type infos),
+// where frameBot = frame.start - frameSize (ExecBytecodeInfo::frameSize) is the lowest address of
+// the frame region: frameSize = staticFrameSize + the outgoing param-passing area that the rewriter
+// expands below the addressed slots (aligned to FRAME_ALIGNMENT). An I2I callee reads its incoming
+// stack params at [IR7 + k * STACK_SLOT_SIZE] — the tail register, which the real asm thunk points
+// at the caller's frameBot before entering the callee.
 static void DoInterpretationLoop(
-    Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
+    Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader, uintptr_t frameBot
 )
 {
     Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Started interpration of mock method");
     Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
     while (true) {
-        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader);
+        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader, frameBot);
         if (thunk.op == ThunkOp::None) {
             break;
         }
@@ -67,6 +77,7 @@ static void DoInterpretationLoop(
             case ThunkOp::NewObject:
             case ThunkOp::NewObjectAcc: MockNewObj(ectype, th, TypeInfo(thunk.arg)); break;
             case ThunkOp::I2ICall:
+                ectype->Put(IReg::IR7, U64(frameBot));
                 InterpreterI2CallTest(ectype, th, reinterpret_cast<DynamicFunctionHandle*>(thunk.arg));
                 break;
             case ThunkOp::ThrowImplicit:
@@ -90,7 +101,8 @@ Value::Primitive Interpret(
     Value::Primitive fr0,
     Value::Primitive fr1,
     RegType resReg,
-    Value::Primitive ir3 = Value::Primitive { .u64 = 0 }
+    Value::Primitive ir3 = Value::Primitive { .u64 = 0 },
+    uintptr_t frameBot = 0
 )
 {
     heap.Reset();
@@ -121,7 +133,7 @@ Value::Primitive Interpret(
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    DoInterpretationLoop(&ectype, frame, ThreadHandle(nullptr), code.literals, s);
+    DoInterpretationLoop(&ectype, frame, ThreadHandle(nullptr), code.literals, s, frameBot);
 
     return ectype.GetPrimitive(resReg);
 }
@@ -143,6 +155,7 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFu
     // slot N is located at frame.start + N * STACK_SLOT_SIZE - frameSize.
     auto frameStart = reinterpret_cast<uintptr_t>(frameSlots + stackSlotCount);
     Interpretation::Frame frame { frameStart };
+    auto frameBot = frameStart - bytecode->frameSize;
 
     IRegContainer iregs[IReg::COUNT];
     FRegContainer fregs[FReg::COUNT];
@@ -155,7 +168,7 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFu
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     InterpretationStart(fuh, ectype);
-    DoInterpretationLoop(ectype, frame, handle, code.literals, s);
+    DoInterpretationLoop(ectype, frame, handle, code.literals, s, frameBot);
     InterpretationEnd(fuh, ectype);
 
     for (auto i = 8; i != IReg::COUNT; i++) {
@@ -212,10 +225,13 @@ Interpretation::Value::Primitive Interpret(
     Interpretation::Code code,
     Interpretation::Frame frame,
     Interpretation::Value::Primitive ir1,
-    Interpretation::Value::Primitive ir2
+    Interpretation::Value::Primitive ir2,
+    uintptr_t frameBot
 )
 {
-    return Interpretation::Interpret<Cbc::IReg>(code, frame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1);
+    return Interpretation::Interpret<Cbc::IReg>(
+        code, frame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1, U64(0), frameBot
+    );
 }
 
 Interpretation::Value::Primitive Interpret(
@@ -254,10 +270,13 @@ Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Code code,
     Interpretation::Frame frame,
     Interpretation::Value::Primitive fr0,
-    Interpretation::Value::Primitive fr1
+    Interpretation::Value::Primitive fr1,
+    uintptr_t frameBot
 )
 {
-    return Interpretation::Interpret<Cbc::FReg>(code, frame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
+    return Interpretation::Interpret<Cbc::FReg>(
+        code, frame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0, U64(0), frameBot
+    );
 }
 
 MockInterfaceDispatch& InterfaceDispatchMock()
