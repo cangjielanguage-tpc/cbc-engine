@@ -1,0 +1,11 @@
+@main_type "default"
+
+@type default
+  @method test_slsl_64_63(I64)I64
+    @code
+      @live.prim IR1
+      slsli.64 IR1, IR1, 63
+      ret.64 IR1
+    @end
+  @end
+@end

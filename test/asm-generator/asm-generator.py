@@ -565,6 +565,43 @@ def generate_frame_slots() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# sat-arith: saturating SLSL with negative bases
+# ---------------------------------------------------------------------------
+
+# Negative bases exercise the unsigned-wide shift in SatArith (a signed left
+# shift of a negative value is UB); the shift of width - 1 also drives the
+# makeS clamping. Shifts must stay in sync with the `shifts` array in
+# CbcTest.SatSlslNegativeBase (test/cbc_test.cpp).
+SAT_SLSL_WIDTHS  = [8, 16, 32, 64]
+SAT_SLSL_SHIFTS  = [1, 2, 7, 15, 31, 63]
+
+
+def slsl_neg_method(width: int, shift: int) -> Method:
+    """Builds one slsl case: `slsli.<w> IR1, IR1, <shift>` on the incoming
+    IR1 param (the base). Narrow widths have no ret.8/ret.16, so only the
+    w64 case returns I64."""
+    ret = I64 if width == 64 else I32
+    return (
+        method(f"test_slsl_{width}_{shift}", ret, params=(I64,), default_w=width)
+        .live(IR1)
+        .instr("slsli", IR1, IR1, shift)
+        .ret()
+    )
+
+
+def generate_sat_arith() -> list[Path]:
+    return write_suite(
+        "sat-arith",
+        {
+            f"slsl_{width}_{shift}.asm": asm_file([slsl_neg_method(width, shift)])
+                                          for width in SAT_SLSL_WIDTHS
+                                          for shift in SAT_SLSL_SHIFTS
+                                          if shift <= width
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -573,6 +610,7 @@ GENERATORS = {
     "bfx"              : generate_bfx,
     "arith-specialized": generate_arith_specialized,
     "frame-slots"      : generate_frame_slots,
+    "sat-arith"        : generate_sat_arith,
 }
 
 
