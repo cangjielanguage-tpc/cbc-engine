@@ -37,6 +37,7 @@ public func throwImplicitException(tpe: Int64): Int64 {
         case 31 => throw OverflowException("The result would be greater than Int64.Max.")
         case 32 => throw OverflowException("The result would be less than UInt64.Min.")
         case 33 => throw OverflowException("The result would be greater than UInt64.Max.")
+        case 34 => throw IndexOutOfBoundsException()
         case _ => throw Exception("Unknown implicit exception type")
     }
     return tpe

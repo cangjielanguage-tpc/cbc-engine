@@ -82,6 +82,10 @@ def live(*regs: str) -> str:
     return "@live.prim " + ", ".join(regs)
 
 
+def live_ref(*regs: str) -> str:
+    return "@live.ref " + ", ".join(regs)
+
+
 def instr(mnemonic: str, *operands: object, w: int | None = None,
           suffixes: tuple[object, ...] = ()) -> str:
     """Renders one instruction line: `mnemonic[.s1…] op, op, …`.
@@ -153,6 +157,10 @@ class MethodBuilder:
 
     def live(self, *regs: str) -> "MethodBuilder":
         self._lines.append(live(*regs))
+        return self
+
+    def live_ref(self, *regs: str) -> "MethodBuilder":
+        self._lines.append(live_ref(*regs))
         return self
 
     def instr(self, mnemonic: str, *operands: object,
@@ -602,6 +610,32 @@ def generate_sat_arith() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# arr-ic: array index check (arr.ic) lowered through the rewriter
+# ---------------------------------------------------------------------------
+
+# IR1 carries a reference to a fake array with the layout
+# [TI*][u64 length][elements...] (see CbcTest.ArrIndexCheck); IR2 carries the
+# index. The method loads the length with arr.len, checks the index with
+# arr.ic (mnemonic order: index first, length second) and returns the index
+# when the check passes. The same bytecode serves the throwing cases; the
+# index is returned straight from IR2 because IR1 stays a reference (the
+# liveness analyzer forbids redefining it as prim).
+def arr_ic_method() -> Method:
+    return (
+        method("test_arr_ic", I64, params=(I64, I64), default_w=64)
+        .live_ref(IR1)
+        .live("IR2")
+        .plain("arr.len", "IR3", IR1)
+        .plain("arr.ic", "IR2", "IR3")
+        .ret("IR2")
+    )
+
+
+def generate_arr_ic() -> list[Path]:
+    return write_suite("arr-ic", {"arr_ic.asm": asm_file([arr_ic_method()])})
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -611,6 +645,7 @@ GENERATORS = {
     "arith-specialized": generate_arith_specialized,
     "frame-slots"      : generate_frame_slots,
     "sat-arith"        : generate_sat_arith,
+    "arr-ic"           : generate_arr_ic,
 }
 
 

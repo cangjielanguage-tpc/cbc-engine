@@ -1285,6 +1285,11 @@ void Emitter::NullCheck(IReg r)
     Encode(segment, RT::B2xr { .opc = RT::Opcode::NULLCHECK, .xr = { .imm = 0, .r = r } });
 }
 
+void Emitter::ArrayIndexCheck(IReg length, IReg index)
+{
+    Encode(segment, RT::B2rr { .opc = RT::Opcode::ARRAY_INDEX_CHECK, .rr = { .x = length, .y = index } });
+}
+
 void Emitter::InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo)
 {
     Encode(

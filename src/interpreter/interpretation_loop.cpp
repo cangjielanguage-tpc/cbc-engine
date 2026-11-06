@@ -1554,6 +1554,14 @@ LABEL(DIVCHECK) {
     NEXT_OR_THROW(div.u64 != 0, Type::ArithmeticException);
 }
 
+LABEL(ARRAY_INDEX_CHECK) {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    auto length = ectype->GetPrimitive(args.rr.x.IR());
+    auto index  = ectype->GetPrimitive(args.rr.y.IR());
+    NEXT_OR_THROW(index.u64 < length.u64, Type::IndexOutOfBoundsException);
+}
+
 LABEL(LOAD_GENERIC_TI) {
     auto args = B9i64::Decode(reader);
     LOG_INSTR;

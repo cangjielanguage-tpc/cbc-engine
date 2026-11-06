@@ -41,6 +41,8 @@ enum class Type {
     CastOverflowU64Min   = 32,
     CastOverflowU64Max   = 33,
 
+    IndexOutOfBoundsException = 34,
+
     // TODO: add other types when needed
 };
 

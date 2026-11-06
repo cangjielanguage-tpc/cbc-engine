@@ -169,6 +169,27 @@ TEST(EmitTest, BinaryOps_Reg)
     }
 }
 
+TEST(EmitTest, ArrayIndexCheck)
+{
+    Emitter e;
+    e.ArrayIndexCheck(IReg::IR2, IReg::IR1); // length, index
+    e.Ret();
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: arr.ic IR2 IR1",
+        "0x002: ret"
+    );
+    // IR1 carries the index, IR2 the length (cf. arr.ic idx, len in the ISA).
+    EXPECT_EQ(Interpret(code, U64(5), U64(10), U64(0)).u64, 5);
+    EXPECT_EQ(InterpretThrows(code, U64(10), U64(3), U64(0)), Interpretation::Type::IndexOutOfBoundsException);
+    // A negative index wraps to a huge unsigned value and throws as well.
+    EXPECT_EQ(
+        InterpretThrows(code, U64(static_cast<uint64_t>(-1)), U64(3), U64(0)),
+        Interpretation::Type::IndexOutOfBoundsException
+    );
+}
+
 TEST(EmitTest, BinaryOps_Imm)
 {
     struct Case {
