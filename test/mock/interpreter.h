@@ -60,6 +60,11 @@ static Interpretation::Value::Primitive F32(float v) { return Interpretation::Va
 
 static Interpretation::Value::Primitive F64(double v) { return Interpretation::Value::Primitive { .f64 = v }; }
 
+// Result conventions:
+// - The returned Primitive is the raw register content: for narrow (8/16/32-bit) results the
+//   upper union bytes are NOT guaranteed zeroed (unseeded register bytes are PRNG garbage),
+//   so compare narrow results through .u32 (or narrower), never memcmp the whole union.
+// - Implicit exceptions are reported via Interpretation::LastImplicitThrow() (or InterpretThrows).
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
 );
