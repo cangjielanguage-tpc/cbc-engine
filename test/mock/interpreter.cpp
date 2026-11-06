@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <unordered_map>
 
 #include "../testutils.h"
 #include "cbc/decoder.h"
@@ -29,6 +30,7 @@ namespace Interpretation {
 using namespace RTSupport;
 
 static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type);
+static void MockNewArr(Ectype* ectype, ThreadHandle th, TypeInfo elemType);
 static Interpretation::Frame zeroFrame { 0 };
 
 static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFunctionHandle* fuh);
@@ -46,6 +48,23 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
     memset(mem, 0, typeInfo->size);
     TestTypeInfo** header = (TestTypeInfo**)mem;
     *header               = typeInfo;
+
+    ectype->Put(IReg::IR1, Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
+}
+
+// Array layout must match the runtime constants the rewriter emits against:
+// [TypeInfo*][u64 length][elements...] with ObjectHeaderSize 8 and ArrayBodyOffset 16;
+// the element stride follows MetaInfo::GetAlignedSize, same as LeaIndex.
+static void MockNewArr(Ectype* ectype, ThreadHandle th, TypeInfo elemType)
+{
+    auto elemSize = MetaInfo::GetAlignedSize(elemType);
+    auto count    = ectype->GetPrimitive(IReg::IR2).u64;
+    auto size     = MetaInfo::ArrayBodyOffset() + count * elemSize;
+    auto mem      = heap.Allocate(size, alignof(std::max_align_t));
+    memset(mem, 0, size);
+    TestTypeInfo** header = (TestTypeInfo**)mem;
+    *header               = Extract(elemType);
+    *reinterpret_cast<uint64_t*>(static_cast<uint8_t*>(mem) + MetaInfo::ObjectHeaderSize()) = count;
 
     ectype->Put(IReg::IR1, Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
 }
@@ -76,6 +95,7 @@ static void DoInterpretationLoop(
         switch (thunk.op) {
             case ThunkOp::NewObject:
             case ThunkOp::NewObjectAcc: MockNewObj(ectype, th, TypeInfo(thunk.arg)); break;
+            case ThunkOp::NewArray: MockNewArr(ectype, th, TypeInfo(thunk.arg)); break;
             case ThunkOp::I2ICall:
                 ectype->Put(IReg::IR7, U64(frameBot));
                 InterpreterI2CallTest(ectype, th, reinterpret_cast<DynamicFunctionHandle*>(thunk.arg));
@@ -297,9 +317,55 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
+// A TypeInfo embedded in bytecode is resolved at rewrite time and travels to run time as a raw
+// pointer (NEWOBJ/NEWARR/NEWBOX2/IOF embed TypeInfo::Raw() as an immediate; CALL_INTERF carries it
+// in the instruction word). MockNewObj/MockNewArr write that same pointer into the object header,
+// and Execution::GetTypeInfo reads it back, so the mock must hand out one immortal TestTypeInfo
+// per interned term: the registry is keyed by the interned term identity (GlobalTerm::operator==
+// compares the interned TermData pointers) and entries are never destroyed.
+//
+// Shape: non-primitive terms get a generic object-like TI (header 8 + one payload slot, matching
+// the mocked MetaInfo constants and what MockNewObj allocates). Primitive terms mirror
+// Engine::FieldLayoutManager::GetFlatSize so that TI-derived addressing (LeaIndex stride,
+// copy sizes) stays consistent with the kind-derived strides of ld.arr/st.arr and the
+// load/store access widths.
+static TestTypeInfo& SyntheticTypeInfo(Engine::GlobalTerm term)
+{
+    using TK = Engine::TermKind;
+    size_t size = 2 * MetaInfo::ObjectHeaderSize();
+    uint8_t alignment = sizeof(void*);
+    switch (term.GetKind()) {
+        case TK::VOID:
+        case TK::UNIT:          size = 0; alignment = 1; break;
+        case TK::I8:
+        case TK::U8:
+        case TK::BOOLEAN:       size = 1; alignment = 1; break;
+        case TK::I16:
+        case TK::U16:
+        case TK::F16:           size = 2; alignment = 2; break;
+        case TK::I32:
+        case TK::U32:
+        case TK::F32:
+        case TK::UCHAR32:       size = 4; alignment = 4; break;
+        case TK::I64:
+        case TK::U64:
+        case TK::F64:
+        case TK::IADDR:
+        case TK::UADDR:
+        case TK::BSTRING:
+        case TK::C_POINTER:
+        case TK::NULLABLE:
+        case TK::FUNCTIONAL:
+        case TK::NON_NULLABLE:  size = sizeof(void*); alignment = sizeof(void*); break;
+        default:                break;
+    }
+    static std::unordered_map<uintptr_t, TestTypeInfo> registry;
+    return registry.try_emplace(reinterpret_cast<uintptr_t>(term.data), size, alignment).first->second;
+}
+
 std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
-    return std::nullopt;
+    return TypeInfo(&SyntheticTypeInfo(term));
 }
 
 Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
@@ -496,7 +562,13 @@ bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
 
-TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
+TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti)
+{
+    // Engine::TypeInfoManager FATALs ("Unexpected UUID associated term") when two created
+    // TypeInfos share a UUID, so the id must be unique per TypeInfo instance; instance
+    // addresses are stable and 8-aligned, for registry-owned and test-fabricated TIs alike.
+    return static_cast<TypeInfoUUID>(reinterpret_cast<uintptr_t>(ti.Raw()) >> 3);
+}
 
 TypeInfo MetaInfo::GetElementTypeInfo(TypeInfo ti) { return TypeInfo(nullptr); }
 
