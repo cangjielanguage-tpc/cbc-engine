@@ -1,3 +1,4 @@
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -479,12 +480,28 @@ void Execution::WriteObjectInstance(Reference base, uintptr_t field, Reference o
 
 void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
 {
-    FATAL("Should not be called");
+    // todo-mock 3.7. The real RT copies the record's flat field-layout size (instanceSize =
+    // FieldLayoutManager::GetFlatSize, no object header) between the absolute data addresses
+    // the engine handlers pass (ASSIGN_GENERIC/StructFieldOp adjust ref-shaped bases by the
+    // object header; the derived-pointer copies pass raw data addresses). The synthetic
+    // object-like TIs count header + payload in their size (the MockNewObj allocation unit),
+    // so the flat payload is size - ObjectHeaderSize. `base`/`th` only feed the real RT's GC
+    // write barrier; the engine routes only non-primitive TIs here, so TIs that do not exceed
+    // the header copy nothing.
+    auto size = MetaInfo::GetTypeSize(ti);
+    if (size <= MetaInfo::ObjectHeaderSize()) {
+        return;
+    }
+    memcpy(reinterpret_cast<void*>(field), reinterpret_cast<void*>(src), size - MetaInfo::ObjectHeaderSize());
 }
 
 void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
 {
-    FATAL("Should not be called");
+    auto size = MetaInfo::GetTypeSize(ti);
+    if (size <= MetaInfo::ObjectHeaderSize()) {
+        return;
+    }
+    memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(field), size - MetaInfo::ObjectHeaderSize());
 }
 
 Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th)
@@ -567,7 +584,17 @@ void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
 bool Execution::IsPendingSafePoint() { return false; }
 
-bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }
+// todo-mock 3.7. The engine's iof lowerings embed the exact synthetic-TI pointer (iof carries
+// TypeInfo::Raw() as an immediate, iof.g a load.type.info result - the same registry entry)
+// and MockNewObj writes that pointer into the object header, so instanceof reduces to TI
+// pointer identity with the header: true iff the reference is non-null and its header TI is
+// the queried one. The registry TIs carry no supertype information (the mock image has no
+// subtype hierarchy), so subtype relations are not modeled; null references are not
+// instances (the IOF/IOF_GENERIC handlers pass the reference through without a null check).
+bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
+{
+    return base.value != 0 && GetTypeInfo(base).Raw() == ti.Raw();
+}
 
 TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
 {
@@ -595,7 +622,7 @@ Reference Execution::GetLocalBasePtr() { return Reference { .value = reinterpret
 
 // lea.static's LOAD_ADDR LD_LEA execution derives the static address as a global derived
 // pointer; mirror the real runtime's arch-conditional tagging (identity on x86_64, top-bit on
-// aarch64). UnwrapDerivedPtr stays FATAL: nothing on the mock paths unwraps derived pointers.
+// aarch64).
 uintptr_t Execution::DerivedPtrOfGlobal(uintptr_t derived)
 {
 #if defined(__x86_64__) || defined(_M_X64)
@@ -605,7 +632,22 @@ uintptr_t Execution::DerivedPtrOfGlobal(uintptr_t derived)
 #endif
 }
 
-uintptr_t Execution::UnwrapDerivedPtr(uint64_t derived, bool checked) { FATAL("Should not reach here"); }
+// todo-mock 3.7 (stretch). Mirror of impl/runtime.cpp: derived pointers are plain addresses on
+// x86_64 (where DerivedPtrOfGlobal is identity too, so they round-trip), tagged with the
+// GLOBAL flag on aarch64. The mock's GetStructLocationKind never returns GLOBAL and the DSL
+// has no copy.derived spelling, but the copy/copy.g lowering (CopyDerived) unwraps its
+// operands unconditionally, so the FATAL would hit any copy-shaped asm.
+uintptr_t Execution::UnwrapDerivedPtr(uint64_t derived, bool checked)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    return derived;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    if (checked) {
+        ASSERT((derived & DERIVED_PTR_GLOBAL_FLAG) > 0);
+    }
+    return derived & ~DERIVED_PTR_GLOBAL_FLAG;
+#endif
+}
 
 Reference Execution::GetPendingException()
 {
@@ -618,23 +660,35 @@ Reference Execution::GetAndClearPendingException()
     return Reference { .value = 0 };
 }
 
+// todo-mock 3.7. The ref-shaped atomic hooks are the GC-barrier-bearing variants of the plain
+// ref field access (the CJNative atomicReadRef/atomicWriteRef/atomicSwapRef/
+// atomicCompareAndSwapRef family, runtime.cpp): the callers compute the absolute slot address
+// (objRef.value + offset) and the mock has no GC, so each hook models that slot as a seq_cst
+// 8-byte atomic over the same storage ReadObjectInstance/WriteObjectInstance use. The
+// container reference parameter only feeds the real RT's write barrier.
 Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
 {
-    FATAL("Should not reach here");
-    return Reference { .value = 0 };
+    return Reference { .value =
+                           reinterpret_cast<std::atomic<uintptr_t>*>(field)->load(std::memory_order_seq_cst) };
 }
 
-void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field) { FATAL("Should not reach here"); }
+void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
+{
+    reinterpret_cast<std::atomic<uintptr_t>*>(field)->store(ref.value, std::memory_order_seq_cst);
+}
 
 Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {
-    FATAL("Should not reach here");
-    return Reference { .value = 0 };
+    return Reference { .value = reinterpret_cast<std::atomic<uintptr_t>*>(field)->exchange(
+                           ref.value, std::memory_order_seq_cst
+                       ) };
 }
 
 bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field)
 {
-    FATAL("Should not reach here");
+    auto expected = oldRef.value;
+    return reinterpret_cast<std::atomic<uintptr_t>*>(field)
+        ->compare_exchange_strong(expected, newRef.value, std::memory_order_seq_cst);
 }
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
