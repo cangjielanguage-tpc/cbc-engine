@@ -273,3 +273,201 @@ TEST_ASM(CbcTest, MockInterfaceCall)
         EXPECT_EQ(mock.outerTiCalls.Size(), 0);
     }
 }
+
+// ---------------------------------------------------------------------------
+// mock-lea: lea family / offset / movbp / lea.static / payload.g over the mock base pointers
+// ---------------------------------------------------------------------------
+
+// The stubbed field-offset/base-pointer queries (todo-mock 3.3) shape these
+// identities: GetFieldOffset folds to ordinal * 8 for the non-overlapping
+// synthetic TIs and to 0 for the overlapping (enum-like) ones, plus the object
+// header with adjustByHeader. For the slot-aligned I64 fields of the mock-lea
+// images that coincides with the ld.field/st.field offsets - rec fields stay
+// cell-relative, class fields carry the header - so the lea'd addresses must
+// byte-match the field accesses. The base pointers are two distinct mock-owned
+// 512-byte areas (zeroed by InitializeMockInterpreter, exposed via
+// MockLocalBaseArea/MockGlobalBaseArea); their addresses are embedded as
+// MovImm immediates at rewrite. The generic loads/stores address through the
+// derived pointer alone (the mock's Read/WriteObjectInstance ignore the base
+// register), so the base-area words are seeded/inspected at the exact derived
+// address, while the registers themselves are checked against the exposed
+// areas.
+
+TEST_ASM(CbcTest, MockLea)
+{
+    auto path = "./generated-asm/mock-lea/lea.asm";
+    alignas(16) uint64_t rec[4] = { 0 };
+    alignas(16) uint64_t obj[4] = { 0 };
+    auto recAddr = reinterpret_cast<uint64_t>(rec);
+    auto objAddr = reinterpret_cast<uint64_t>(obj);
+
+    for (auto [method, base, offset] :
+         {std::tuple {"test_lea_rec_f0", recAddr, size_t {0}},
+          std::tuple {"test_lea_rec_f1", recAddr, size_t {8}},
+          std::tuple {"test_lea_obj_x", objAddr, size_t {RTSupport::MetaInfo::ObjectHeaderSize()}},
+          std::tuple {"test_lea_obj_y", objAddr, size_t {RTSupport::MetaInfo::ObjectHeaderSize() + 8}}}) {
+        SCOPED_TRACE(std::string(method));
+        auto code = OpenAndRewrite(method, path)->code;
+        EXPECT_EQ(Interpret(code, U64(base), U64(0)).u64, base + offset);
+    }
+    for (auto [method, base] :
+         {std::pair {"test_lea_rec_rt", recAddr}, std::pair {"test_lea_obj_rt", objAddr}}) {
+        auto code = OpenAndRewrite(method, path)->code;
+        for (uint64_t value : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE(std::string(method) + " value=" + hex(value));
+            EXPECT_EQ(Interpret(code, U64(base), U64(value)).u64, 1);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockLeaGeneric)
+{
+    // lea.g rewrites to LEA_GENERIC over the loaded container TI plus the
+    // header addend for class containers; the addresses must match the
+    // non-generic lea and the ld.field offsets.
+    auto path = "./generated-asm/mock-lea/lea-g.asm";
+    alignas(16) uint64_t rec[4] = { 0 };
+    alignas(16) uint64_t obj[4] = { 0 };
+    auto recAddr = reinterpret_cast<uint64_t>(rec);
+    auto objAddr = reinterpret_cast<uint64_t>(obj);
+
+    for (auto [method, base, offset] :
+         {std::tuple {"test_leag_rec_f0", recAddr, size_t {0}},
+          std::tuple {"test_leag_rec_f1", recAddr, size_t {8}},
+          std::tuple {"test_leag_obj_x", objAddr, size_t {RTSupport::MetaInfo::ObjectHeaderSize()}},
+          std::tuple {"test_leag_obj_y", objAddr, size_t {RTSupport::MetaInfo::ObjectHeaderSize() + 8}}}) {
+        SCOPED_TRACE(std::string(method));
+        auto code = OpenAndRewrite(method, path)->code;
+        EXPECT_EQ(Interpret(code, U64(base), U64(0)).u64, base + offset);
+    }
+    for (auto [method, base] :
+         {std::pair {"test_leag_rec_rt", recAddr}, std::pair {"test_leag_obj_rt", objAddr}}) {
+        auto code = OpenAndRewrite(method, path)->code;
+        for (uint64_t value : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE(std::string(method) + " value=" + hex(value));
+            EXPECT_EQ(Interpret(code, U64(base), U64(value)).u64, 1);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockFieldOffset)
+{
+    // offset runs at run time (OFFSET) over the loaded container TI; the
+    // returned deltas are the exact ld.field offsets. add.offset composes the
+    // base with the delta in place and raw-round-trips through it.
+    auto path = "./generated-asm/mock-lea/offset.asm";
+    for (auto [method, expected] :
+         {std::pair {"test_offset_rec_f0", uint64_t {0}},
+          std::pair {"test_offset_rec_f1", uint64_t {8}},
+          std::pair {"test_offset_obj_x", uint64_t {RTSupport::MetaInfo::ObjectHeaderSize()}},
+          std::pair {"test_offset_obj_y", uint64_t {RTSupport::MetaInfo::ObjectHeaderSize() + 8}}}) {
+        SCOPED_TRACE(std::string(method));
+        auto code = OpenAndRewrite(method, path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, expected);
+    }
+
+    alignas(16) uint64_t rec[4] = { 0 };
+    alignas(16) uint64_t obj[4] = { 0 };
+    auto recAddr = reinterpret_cast<uint64_t>(rec);
+    auto objAddr = reinterpret_cast<uint64_t>(obj);
+    for (auto [method, base, offset] :
+         {std::tuple {"test_add_offset_rec_f1", recAddr, size_t {8}},
+          std::tuple {"test_add_offset_obj_x", objAddr, size_t {RTSupport::MetaInfo::ObjectHeaderSize()}}}) {
+        SCOPED_TRACE(std::string(method));
+        auto code = OpenAndRewrite(method, path)->code;
+        EXPECT_EQ(Interpret(code, U64(base), U64(0)).u64, base + offset);
+    }
+    for (auto [method, base] :
+         {std::pair {"test_add_offset_rec_rt", recAddr}, std::pair {"test_add_offset_obj_rt", objAddr}}) {
+        auto code = OpenAndRewrite(method, path)->code;
+        for (uint64_t value : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE(std::string(method) + " value=" + hex(value));
+            EXPECT_EQ(Interpret(code, U64(base), U64(value)).u64, 1);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockMovBasePtr)
+{
+    auto path = "./generated-asm/mock-lea/movbp.asm";
+    {
+        auto code = OpenAndRewrite("test_movbp_local", path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, reinterpret_cast<uint64_t>(MockLocalBaseArea()));
+    }
+    {
+        auto code = OpenAndRewrite("test_movbp_global", path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, reinterpret_cast<uint64_t>(MockGlobalBaseArea()));
+    }
+    {
+        EXPECT_NE(MockLocalBaseArea(), MockGlobalBaseArea());
+        auto code = OpenAndRewrite("test_movbp_distinct", path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, 1);
+    }
+
+    // The base areas are the actual storage: a pre-seeded word at area + 0x10
+    // reads back through movbp + ld.g, and the st.g writes land in the
+    // mock-owned buffers.
+    constexpr auto seedOffset = 0x10;
+    for (auto [readMethod, writeMethod, area] :
+         {std::tuple {"test_movbp_local_read", "test_movbp_local_write", reinterpret_cast<uint8_t*>(MockLocalBaseArea())},
+          std::tuple {"test_movbp_global_read", "test_movbp_global_write", reinterpret_cast<uint8_t*>(MockGlobalBaseArea())}}) {
+        auto readCode  = OpenAndRewrite(readMethod, path)->code;
+        auto writeCode = OpenAndRewrite(writeMethod, path)->code;
+        auto areaAddr  = reinterpret_cast<uint64_t>(area) + seedOffset;
+        *reinterpret_cast<uint64_t*>(area + seedOffset) = 0x5a5a;
+
+        SCOPED_TRACE(std::string(readMethod) + " preseed");
+        EXPECT_EQ(Interpret(readCode, U64(areaAddr), U64(0)).u64, 0x5a5a);
+        for (uint64_t value : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE(std::string(writeMethod) + " value=" + hex(value));
+            EXPECT_EQ(Interpret(writeCode, U64(areaAddr), U64(value)).u64, value);
+            EXPECT_EQ(*reinterpret_cast<uint64_t*>(area + seedOffset), value);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockLeaStatic)
+{
+    auto path = "./generated-asm/mock-lea/lea-static.asm";
+    {
+        // The base-ref register of lea.static is the mock global base area,
+        // baked in as a MovImm immediate at rewrite.
+        auto code = OpenAndRewrite("test_lea_static_base", path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, reinterpret_cast<uint64_t>(MockGlobalBaseArea()));
+    }
+    {
+        // The lea'd address and ld.static name the same static slot: a raw
+        // store through the address reads back through ld.static.
+        auto code = OpenAndRewrite("test_lea_static_rt", path)->code;
+        for (uint64_t value : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE("test_lea_static_rt value=" + hex(value));
+            EXPECT_EQ(Interpret(code, U64(value), U64(0)).u64, 1);
+        }
+    }
+    {
+        // st.static/ld.static round-trip both static slots.
+        auto code = OpenAndRewrite("test_static_pair", path)->code;
+        for (auto [v0, v1] :
+             {std::pair {0x1234ull, 0x5678ull}, std::pair {0ull, 0xffffffffffffffffull}}) {
+            SCOPED_TRACE("test_static_pair v0=" + hex(v0) + " v1=" + hex(v1));
+            EXPECT_EQ(Interpret(code, U64(v0), U64(v1)).u64, 1);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockPayloadGeneric)
+{
+    // payload.g rewrites to LEA_GENERIC of the overlapping option TI (every
+    // ordinal folds to 0) plus the header addend, so its address is the
+    // payload word behind the header: the st.raw store at +8 and the st.g
+    // store through lea.box(obj) both surface through payload.g.
+    auto path = "./generated-asm/mock-lea/payload.asm";
+    for (auto method :
+         {"test_payload_raw_opt1", "test_payload_gen_opt1", "test_payload_raw_opt0", "test_payload_gen_opt0"}) {
+        auto code = OpenAndRewrite(method, path)->code;
+        for (uint64_t payload : {0x5a5aull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE(std::string(method) + " payload=" + hex(payload));
+            EXPECT_EQ(Interpret(code, U64(payload), U64(0)).u64, payload);
+        }
+    }
+}

@@ -1776,8 +1776,9 @@ def generate_frame_slots() -> list[Path]:
 # rewrite, but TypedSlotOffset (isa_rewriter.cpp, shared with ld.stack.rec)
 # wraps every negative typed offset through an implicit uint32->int32
 # conversion that the UBSan build (halt_on_error) rejects.
-# lea.g is not generated either: LEA_GENERIC calls the mocked GetFieldOffset,
-# which FATALs (and ld.g/st.g always lower to the zero-offset STORE_GENERIC).
+# lea.g/payload.g are not generated here either: they run over the mocked
+# GetFieldOffset/base-pointer queries (todo-mock 3.3) and live in the mock-lea
+# suite instead.
 
 # Probed raw-memory spellings: ld.raw has only {u8,s8,u16,s16,32,u32,s32,64,ref,f32,f64}
 # (no plain 8/16 forms); st.raw has {8,16,32,64,ref,f32,f64}. Both lower to
@@ -2981,10 +2982,11 @@ def generate_calls() -> list[Path]:
 # Excluded: copy/copy.g (CopyDerived always unwraps the derived pointer through
 # UnwrapDerivedPtr, which FATALs), copy.typed*/copy.to.typed*/copy.from.typed*
 # (TypedSlotOffset in isa_rewriter.cpp still wraps negative offsets through the
-# unsigned subtraction that the UBSan build rejects), payload.g (LEA_GENERIC
-# calls the FATALing GetFieldOffset, todo-mock 3.3), new.none.g/new.some.g
+# unsigned subtraction that the UBSan build rejects), new.none.g/new.some.g
 # (the NEWOBJ_ACC_G result must land in IR_ACC but the mock's NewObjectAcc
-# thunk puts it into IR1, todo-mock 3.4).
+# thunk puts it into IR1, todo-mock 3.4). payload.g was excluded for the same
+# FATALing GetFieldOffset and moved to the mock-lea suite once todo-mock 3.3
+# stubbed it.
 
 MOCK_REC_ARRAY = "@arr[mem:Rec@rec]"  # 16-byte elements (rec elem TI)
 MOCK_I64_ARRAY = "@arr[I64]"          # 8-byte elements (prim elem TI)
@@ -3359,6 +3361,409 @@ def generate_mock_objects() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# mock-lea: lea family / offset / movbp / lea.static / payload.g over the mock base pointers
+# ---------------------------------------------------------------------------
+
+# todo-mock 3.3: GetFieldOffset, GetGlobalBasePtr/GetLocalBasePtr and
+# DerivedPtrOfGlobal return deterministic mock-owned values instead of FATALing,
+# so the lea family, offset/add.offset, movbp.local/.global, lea.static and
+# payload.g rewrite and execute over the mock. The addressing identities the
+# generated methods rely on:
+# - lea/lea.g/offset/add.offset of the slot-aligned I64 rec fields stay
+#   cell-relative (ordinal * 8) and of the class fields carry the object header
+#   on top (ordinal * 8 + ObjectHeaderSize) - exactly the ld.field/st.field
+#   offsets of the same fields;
+# - lea.g/offset take the container TI in a register (load.type.info); the
+#   non-overlapping synthetic shape folds GetFieldOffset to ordinal * 8, while
+#   payload.g relies on the overlapping option TI (every ordinal folds to 0)
+#   plus the header addend, so its address is the payload word behind the header;
+# - movbp.local/.global and lea.static's base-ref register expose the two
+#   distinct mock-owned base areas (zeroed by InitializeMockInterpreter,
+#   inspectable via MockLocalBaseArea()/MockGlobalBaseArea()); the generic
+#   loads/stores address through the derived pointer alone (the mock ignores
+#   the base register), so pre-seeded words are seeded/inspected at the exact
+#   derived address C++-side;
+# - lea.static's address register holds the engine static-slot address (the
+#   LOAD_ADDR LD_LEA execution runs it through DerivedPtrOfGlobal), so the raw
+#   store through it must read back through ld.static.
+# Two liveness quirks shape the bodies: movbp.local/.global leave their
+# destination unmarked in the assembler's liveness analysis (the result is
+# stamped with an explicit @live before use), and lea.static defines the base
+# register with the REF mark (returned via ret.ref) and the address register
+# with the PRIM one.
+
+MOCK_LEA_FIELD_REFS = """
+@field_ref rec_f0 = mem:Rec@rec f0 I64
+@field_ref rec_f1 = mem:Rec@rec f1 I64
+@field_ref obj_x = mem:Obj@ref x I64
+@field_ref obj_y = mem:Obj@ref y I64
+"""
+
+MOCK_LEA_TYPES = """
+@type mem:Rec
+  @flags PUBLIC RECORD
+  @field f0 I64
+    @flags PUBLIC
+  @end
+  @field f1 I64
+    @flags PUBLIC
+  @end
+@end
+
+@type mem:Obj
+  @field x I64
+    @flags PUBLIC
+  @end
+  @field y I64
+    @flags PUBLIC
+  @end
+@end
+
+"""
+
+MOCK_LEA_STATICS = """
+@field_ref stat0 = default@ref s0 I64
+@field_ref stat1 = default@ref s1 I64
+
+@type default
+  @field s0 I64
+    @flags STATIC
+  @end
+  @field s1 I64
+    @flags STATIC
+  @end
+
+"""
+
+
+def mock_lea_field_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n' + MOCK_LEA_FIELD_REFS.lstrip("\n") + MOCK_LEA_TYPES.lstrip(
+        "\n"
+    ) + "@type default\n" + body + "\n@end\n"
+
+
+def mock_lea_bare_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n\n@type default\n' + body + "\n@end\n"
+
+
+def mock_lea_static_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n' + MOCK_LEA_STATICS.lstrip("\n") + body + "\n@end\n"
+
+
+def mock_lea_option_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n' + MOCK_OPTION_TYPES.lstrip(
+        "\n"
+    ) + "@type default\n" + body + "\n@end\n"
+
+
+def lea_addr_method(name: str, field: str, rec: bool) -> Method:
+    builder = method(f"test_{name}", I64, params=(I64,))
+    builder = builder.live_rec(IR1) if rec else builder.live_ref(IR1)
+    return builder.instr("lea", IR2, IR1, f"#{field}").dead(IR1).ret(IR2)
+
+
+def lea_rt_method(name: str, field: str, rec: bool) -> Method:
+    # The raw store/load through the lea'd pointer must byte-match ld.field of
+    # the same field.
+    builder = method(f"test_{name}", I64, params=(I64, I64))
+    builder = builder.live_rec(IR1) if rec else builder.live_ref(IR1)
+    return (
+        builder
+        .live(IR2)
+        .instr("lea", IR3, IR1, f"#{field}")
+        .instr("st.raw.64", IR2, IR3, imm(0))
+        .instr("ld.field", IR4, IR1, f"#{field}")
+        .instr("ld.raw.64", IR5, IR3, imm(0))
+        .instr("scc.64", "EQ", IR6, IR4, IR2)
+        .instr("scc.64", "EQ", IR7, IR5, IR2)
+        .instr("mul.64", IR6, IR6, IR7)
+        .dead(IR1, IR2, IR3, IR4, IR5, IR7)
+        .ret(IR6)
+    )
+
+
+def lea_g_addr_method(name: str, field: str, owner: str) -> Method:
+    return (
+        method(f"test_{name}", I64, params=(I64,))
+        .live_ref(IR1)
+        .raw(f"load.type.info IR2, {owner}")
+        .instr("lea.g", IR3, IR1, IR2, f"#{field}")
+        .dead(IR1, IR2)
+        .ret(IR3)
+    )
+
+
+def lea_g_rt_method(name: str, field: str, owner: str, rec: bool) -> Method:
+    # lea.g demands the REF mark on the base while ld.field of a rec field
+    # demands REC, so the rec bodies re-stamp the base with the @dead +
+    # @live.rec dance between the two ops.
+    builder = (
+        method(f"test_{name}", I64, params=(I64, I64))
+        .live_ref(IR1)
+        .live(IR2)
+        .raw(f"load.type.info IR3, {owner}")
+        .instr("lea.g", IR4, IR1, IR3, f"#{field}")
+    )
+    if rec:
+        builder = builder.dead(IR1).live_rec(IR1)
+    return (
+        builder
+        .instr("st.raw.64", IR2, IR4, imm(0))
+        .instr("ld.field", IR5, IR1, f"#{field}")
+        .instr("ld.raw.64", IR6, IR4, imm(0))
+        .instr("scc.64", "EQ", IR7, IR5, IR2)
+        .instr("scc.64", "EQ", IR8, IR6, IR2)
+        .instr("mul.64", IR7, IR7, IR8)
+        .dead(IR1, IR2, IR3, IR4, IR5, IR6, IR8)
+        .ret(IR7)
+    )
+    return builder.dead(IR1, IR2, IR3, IR4, IR5, IR6, IR8).ret(IR7)
+
+
+def offset_method(name: str, field: str, owner: str) -> Method:
+    # The offset op reads its TI register at run time only (the analyzer never
+    # marks it), so load.type.info must precede it.
+    return (
+        method(f"test_{name}", I64)
+        .raw(f"load.type.info IR2, {owner}")
+        .instr("offset", IR1, f"#{field}", IR2)
+        .ret(IR1)
+    )
+
+
+def add_offset_method(name: str, field: str, owner: str) -> Method:
+    return (
+        method(f"test_{name}", I64, params=(I64,))
+        .live(IR1)
+        .raw(f"load.type.info IR2, {owner}")
+        .instr("add.offset", IR1, f"#{field}", IR2)
+        .ret(IR1)
+    )
+
+
+def add_offset_rt_method(name: str, field: str, owner: str) -> Method:
+    # add.offset needs its destination PRIM-marked (usePrim on the in-place
+    # accumulate), so the container base rides in a plain register and the
+    # round-trip goes through the raw memory ops only.
+    return (
+        method(f"test_{name}", I64, params=(I64, I64))
+        .live(IR1, IR2)
+        .raw(f"load.type.info IR3, {owner}")
+        .instr("add.offset", IR1, f"#{field}", IR3)
+        .instr("st.raw.64", IR2, IR1, imm(0))
+        .instr("ld.raw.64", IR4, IR1, imm(0))
+        .instr("scc.64", "EQ", IR5, IR4, IR2)
+        .dead(IR1, IR2, IR3, IR4)
+        .ret(IR5)
+    )
+
+
+def movbp_value_method(name: str, local: bool) -> Method:
+    return (
+        method(f"test_{name}", I64)
+        .raw(f"movbp.{'local' if local else 'global'} IR1")
+        .live(IR1)
+        .ret(IR1)
+    )
+
+
+def movbp_distinct_method() -> Method:
+    return (
+        method("test_movbp_distinct", I64)
+        .raw("movbp.local IR1")
+        .live(IR1)
+        .raw("movbp.global IR2")
+        .live(IR2)
+        .instr("scc.64", "NE", IR3, IR1, IR2)
+        .dead(IR1, IR2)
+        .ret(IR3)
+    )
+
+
+def bp_generic_read_method(name: str, local: bool) -> Method:
+    # Reads the pre-seeded word at the derived address (a test-provided prim)
+    # through movbp + ld.g; the TypeInfo register is a plain constant like in
+    # the mem-obj generic test.
+    return (
+        method(f"test_{name}", I64, params=(I64,))
+        .live(IR1)
+        .raw(f"movbp.{'local' if local else 'global'} IR2")
+        .live_ref(IR2)
+        .instr("movi", IR9, imm(0x1000), w=64)
+        .instr("ld.g", IR4, IR2, IR1, IR9)
+        .dead(IR1, IR2, IR9)
+        .raw("ret.ref IR4")
+        .build()
+    )
+
+
+def bp_generic_write_method(name: str, local: bool) -> Method:
+    return (
+        method(f"test_{name}", I64, params=(I64, I64))
+        .live(IR1)
+        .live_ref(IR2)
+        .raw(f"movbp.{'local' if local else 'global'} IR3")
+        .live_ref(IR3)
+        .instr("movi", IR9, imm(0x1000), w=64)
+        .instr("st.g", IR2, IR3, IR1, IR9)
+        .instr("ld.g", IR5, IR3, IR1, IR9)
+        .dead(IR1, IR2, IR3, IR9)
+        .raw("ret.ref IR5")
+        .build()
+    )
+
+
+def lea_static_base_method() -> Method:
+    return (
+        method("test_lea_static_base", I64)
+        .raw("lea.static IR1, IR2, #stat0")
+        .raw("ret.ref IR2")
+        .build()
+    )
+
+
+def lea_static_rt_method(name: str, field: str) -> Method:
+    return (
+        method(f"test_{name}", I64, params=(I64,))
+        .live(IR1)
+        .raw(f"lea.static IR2, IR3, #{field}")
+        .dead(IR3)
+        .instr("st.raw.64", IR1, IR2, imm(0))
+        .instr("ld.static", IR4, f"#{field}")
+        .instr("scc.64", "EQ", IR5, IR4, IR1)
+        .dead(IR1, IR2, IR4)
+        .ret(IR5)
+    )
+
+
+def static_pair_method() -> Method:
+    return (
+        method("test_static_pair", I64, params=(I64, I64))
+        .live(IR1, IR2)
+        .instr("st.static", IR1, "#stat0")
+        .instr("st.static", IR2, "#stat1")
+        .instr("ld.static", IR3, "#stat1")
+        .instr("ld.static", IR4, "#stat0")
+        .instr("scc.64", "EQ", IR5, IR3, IR2)
+        .instr("scc.64", "EQ", IR6, IR4, IR1)
+        .instr("mul.64", IR5, IR5, IR6)
+        .dead(IR1, IR2, IR3, IR4, IR6)
+        .ret(IR5)
+    )
+
+
+def payload_raw_method(name: str, option: str) -> Method:
+    # st.raw.64 seeds the payload word behind the header; payload.g must read
+    # exactly that word.
+    return (
+        method(f"test_{name}", I64, params=(I64,))
+        .live(IR1)
+        .instr("mov.64", IR2, IR1)
+        .dead(IR1)
+        .raw(f"newobj mem:{option}@ref")
+        .instr("st.raw.64", IR2, IR1, imm(8))
+        .raw("load.type.info IR3, I64")
+        .raw(f"load.type.info IR4, mem:{option}@ref")
+        .raw(f"payload.g IR5, IR1, IR3, IR4, mem:{option}@ref")
+        .dead(IR1, IR2, IR3, IR4)
+        .raw("ret.ref IR5")
+        .build()
+    )
+
+
+def payload_generic_write_method(name: str, option: str) -> Method:
+    # The reverse direction: the payload word is written through the generic
+    # path (st.g with the derived address = lea.box(obj) = obj + 8) and read
+    # back through payload.g.
+    return (
+        method(f"test_{name}", I64, params=(I64,))
+        .live_ref(IR1)
+        .raw("mov.ref IR2, IR1")
+        .dead(IR1)
+        .raw(f"newobj mem:{option}@ref")
+        .instr("lea.box", IR3, IR1)
+        .raw("load.type.info IR4, I64")
+        .instr("st.g", IR2, IR1, IR3, IR4)
+        .raw(f"load.type.info IR5, mem:{option}@ref")
+        .raw(f"payload.g IR6, IR1, IR4, IR5, mem:{option}@ref")
+        .dead(IR1, IR2, IR3, IR4, IR5)
+        .raw("ret.ref IR6")
+        .build()
+    )
+
+
+def generate_mock_lea() -> list[Path]:
+    written = write_suite(
+        "mock-lea",
+        {
+            "lea.asm": mock_lea_field_file(
+                [
+                    lea_addr_method("lea_rec_f0", "rec_f0", rec=True),
+                    lea_addr_method("lea_rec_f1", "rec_f1", rec=True),
+                    lea_addr_method("lea_obj_x", "obj_x", rec=False),
+                    lea_addr_method("lea_obj_y", "obj_y", rec=False),
+                    lea_rt_method("lea_rec_rt", "rec_f0", rec=True),
+                    lea_rt_method("lea_obj_rt", "obj_x", rec=False),
+                ]
+            ),
+            "lea-g.asm": mock_lea_field_file(
+                [
+                    lea_g_addr_method("leag_rec_f0", "rec_f0", "mem:Rec@rec"),
+                    lea_g_addr_method("leag_rec_f1", "rec_f1", "mem:Rec@rec"),
+                    lea_g_addr_method("leag_obj_x", "obj_x", "mem:Obj@ref"),
+                    lea_g_addr_method("leag_obj_y", "obj_y", "mem:Obj@ref"),
+                    lea_g_rt_method("leag_rec_rt", "rec_f0", "mem:Rec@rec", rec=True),
+                    lea_g_rt_method("leag_obj_rt", "obj_x", "mem:Obj@ref", rec=False),
+                ]
+            ),
+            "offset.asm": mock_lea_field_file(
+                [
+                    offset_method("offset_rec_f0", "rec_f0", "mem:Rec@rec"),
+                    offset_method("offset_rec_f1", "rec_f1", "mem:Rec@rec"),
+                    offset_method("offset_obj_x", "obj_x", "mem:Obj@ref"),
+                    offset_method("offset_obj_y", "obj_y", "mem:Obj@ref"),
+                    add_offset_method("add_offset_rec_f1", "rec_f1", "mem:Rec@rec"),
+                    add_offset_method("add_offset_obj_x", "obj_x", "mem:Obj@ref"),
+                    add_offset_rt_method("add_offset_rec_rt", "rec_f1", "mem:Rec@rec"),
+                    add_offset_rt_method("add_offset_obj_rt", "obj_x", "mem:Obj@ref"),
+                ]
+            ),
+            "movbp.asm": mock_lea_bare_file(
+                [
+                    movbp_value_method("movbp_local", local=True),
+                    movbp_value_method("movbp_global", local=False),
+                    movbp_distinct_method(),
+                    bp_generic_read_method("movbp_local_read", local=True),
+                    bp_generic_read_method("movbp_global_read", local=False),
+                    bp_generic_write_method("movbp_local_write", local=True),
+                    bp_generic_write_method("movbp_global_write", local=False),
+                ]
+            ),
+            "lea-static.asm": mock_lea_static_file(
+                [
+                    lea_static_base_method(),
+                    lea_static_rt_method("lea_static_rt", "stat0"),
+                    static_pair_method(),
+                ]
+            ),
+            "payload.asm": mock_lea_option_file(
+                [
+                    payload_raw_method("payload_raw_opt1", "Opt1"),
+                    payload_raw_method("payload_raw_opt0", "Opt0"),
+                    payload_generic_write_method("payload_gen_opt1", "Opt1"),
+                    payload_generic_write_method("payload_gen_opt0", "Opt0"),
+                ]
+            ),
+        },
+    )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -3380,6 +3785,7 @@ GENERATORS = {
     "checks-misc"      : generate_checks_misc,
     "calls"            : generate_calls,
     "mock-objects"     : generate_mock_objects,
+    "mock-lea"         : generate_mock_lea,
 }
 
 
