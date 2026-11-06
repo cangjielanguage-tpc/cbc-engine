@@ -32,13 +32,22 @@ struct TestTypeInfo {
     size_t size;
     uint8_t alignment;
     Utils::Vector<uint32_t> referenceOffsets;
+    // Enum-like terms (Image::EnumKind::OPTION0/OPTION1) model overlapping alternatives: every
+    // field ordinal is at data offset 0, so Execution::GetFieldOffset ignores the ordinal
+    // (this is what keeps the rewriter's payload.g lowering - LEA_GENERIC of ordinal 1 plus
+    // the object header - pointing at the payload word behind the header).
+    bool overlappingFields;
 
     TestTypeInfo(
-        size_t size, uint8_t alignment = alignof(std::max_align_t), Utils::Vector<uint32_t> referenceOffsets = {}
+        size_t size,
+        uint8_t alignment = alignof(std::max_align_t),
+        Utils::Vector<uint32_t> referenceOffsets = {},
+        bool overlappingFields = false
     )
         : size(size),
           alignment(alignment),
-          referenceOffsets(std::move(referenceOffsets))
+          referenceOffsets(std::move(referenceOffsets)),
+          overlappingFields(overlappingFields)
     {}
 };
 
@@ -116,5 +125,14 @@ Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Value::Primitive fr1,
     uintptr_t frameBot = 0
 );
+
+// Base regions returned by RTSupport::Execution::GetLocalBasePtr/GetGlobalBasePtr (the
+// rewrite-time queries behind movbp.local/.global and lea.static): two distinct static
+// mock-owned buffers. They have engine lifetime, like the synthetic-TI registry - rewritten
+// bytecode of any test embeds their addresses as immediates, so they must outlive every
+// engine. Tests pre-seed and inspect them directly through these accessors; the mock zeroes
+// both areas in InitializeMockInterpreter.
+void* MockLocalBaseArea();
+void* MockGlobalBaseArea();
 
 void InitializeMockInterpreter();

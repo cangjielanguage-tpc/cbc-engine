@@ -7,6 +7,7 @@
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
+#include "engine/decode/reader.h"
 #include "engine/options.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
@@ -305,11 +306,25 @@ MockInterfaceDispatch& InterfaceDispatchMock()
     return mock;
 }
 
+// Mock-owned base regions for movbp.local/.global and lea.static (todo-mock 3.3): distinct
+// static buffers with engine lifetime (like the synthetic-TI registry), because rewritten
+// bytecode embeds their addresses as immediates. Zeroed by InitializeMockInterpreter so every
+// test starts from a clean slate.
+static constexpr size_t BASE_AREA_SIZE = 512;
+static uint8_t g_localBaseArea[BASE_AREA_SIZE];
+static uint8_t g_globalBaseArea[BASE_AREA_SIZE];
+
+void* MockLocalBaseArea() { return g_localBaseArea; }
+
+void* MockGlobalBaseArea() { return g_globalBaseArea; }
+
 void InitializeMockInterpreter()
 {
     using namespace Interpretation;
     Engine::InitEnvOptions();
     InterfaceDispatchMock() = {};
+    memset(g_localBaseArea, 0, sizeof(g_localBaseArea));
+    memset(g_globalBaseArea, 0, sizeof(g_globalBaseArea));
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
 }
 
@@ -329,11 +344,12 @@ using Reference = Interpretation::Value::Reference;
 // Engine::FieldLayoutManager::GetFlatSize so that TI-derived addressing (LeaIndex stride,
 // copy sizes) stays consistent with the kind-derived strides of ld.arr/st.arr and the
 // load/store access widths.
-static TestTypeInfo& SyntheticTypeInfo(Engine::GlobalTerm term)
+static TestTypeInfo& SyntheticTypeInfo(Engine::Session& session, Engine::GlobalTerm term)
 {
     using TK = Engine::TermKind;
     size_t size = 2 * MetaInfo::ObjectHeaderSize();
     uint8_t alignment = sizeof(void*);
+    bool overlappingFields = false;
     switch (term.GetKind()) {
         case TK::VOID:
         case TK::UNIT:          size = 0; alignment = 1; break;
@@ -357,15 +373,27 @@ static TestTypeInfo& SyntheticTypeInfo(Engine::GlobalTerm term)
         case TK::NULLABLE:
         case TK::FUNCTIONAL:
         case TK::NON_NULLABLE:  size = sizeof(void*); alignment = sizeof(void*); break;
+        case TK::OPTION:        overlappingFields = true; break;
+        case TK::TYPE: {
+            // Image-declared types all resolve to TYPE-kind terms; the enum-ness lives in the
+            // type definition (same source the rewriter's tag.g/payload.g lowerings consult).
+            auto def      = Decode::Read(session, Engine::ExtractTypeDefIdentifier(term));
+            overlappingFields = def->enumKind == Image::EnumKind::OPTION0 || def->enumKind == Image::EnumKind::OPTION1;
+            break;
+        }
         default:                break;
     }
     static std::unordered_map<uintptr_t, TestTypeInfo> registry;
-    return registry.try_emplace(reinterpret_cast<uintptr_t>(term.data), size, alignment).first->second;
+    return registry
+        .try_emplace(
+            reinterpret_cast<uintptr_t>(term.data), size, alignment, Utils::Vector<uint32_t> {}, overlappingFields
+        )
+        .first->second;
 }
 
 std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
-    return TypeInfo(&SyntheticTypeInfo(term));
+    return TypeInfo(&SyntheticTypeInfo(session, term));
 }
 
 Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
@@ -431,9 +459,23 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
     *reinterpret_cast<uintptr_t*>(location) = object.value;
 }
 
+// Field layout rule for the synthetic TIs (todo-mock 3.3). The registry TIs carry no per-field
+// table, so the offset is derived from the ordinal alone and must stay consistent with the
+// image-layout offsets the rewriter derives for ld.field/st.field (resolution adds the object
+// header to the layout offset of reference-kind containers):
+// - enum-like terms (overlappingFields) put every alternative at data offset 0 - this is what
+//   the rewriter's payload.g lowering relies on (LEA_GENERIC of ordinal 1 + header -> the
+//   payload word behind the header) and matches new.some.g's GetFieldOffset(ti, 1, true);
+// - other object-like TIs are sequential 8-byte slots: ordinal * 8, exactly the image layout of
+//   slot-aligned (8-byte/ref) fields; for reference containers the rewriter's lea.g/offset
+//   lowerings add the object header on top, lea.g/offset of rec fields stay cell-relative;
+// - adjustByHeader (only InitSomeGeneric today) produces the absolute offset from the object
+//   base by adding the header.
 uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
 {
-    FATAL("Should not reach here. Get field offset");
+    auto* info     = Interpretation::Extract(ti);
+    uint32_t offs  = info->overlappingFields ? 0 : static_cast<uint32_t>(ordinal) * sizeof(void*);
+    return offs + (adjustByHeader ? MetaInfo::ObjectHeaderSize() : 0);
 }
 
 TypeInfo Execution::GetTypeInfo(Reference base)
@@ -491,11 +533,26 @@ StructLocationKind Execution::GetStructLocationKind(Reference base, uintptr_t de
     return HEAP;
 }
 
-Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
+// Base regions for movbp.local/.global and lea.static: distinct static mock-owned buffers
+// (see MockLocalBaseArea/MockGlobalBaseArea in the header for the lifetime contract).
+Reference Execution::GetGlobalBasePtr()
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_globalBaseArea) };
+}
 
-Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }
+Reference Execution::GetLocalBasePtr() { return Reference { .value = reinterpret_cast<uintptr_t>(g_localBaseArea) }; }
 
-uintptr_t Execution::DerivedPtrOfGlobal(uintptr_t derived) { FATAL("Should not reach here"); }
+// lea.static's LOAD_ADDR LD_LEA execution derives the static address as a global derived
+// pointer; mirror the real runtime's arch-conditional tagging (identity on x86_64, top-bit on
+// aarch64). UnwrapDerivedPtr stays FATAL: nothing on the mock paths unwraps derived pointers.
+uintptr_t Execution::DerivedPtrOfGlobal(uintptr_t derived)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    return derived;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return derived | DERIVED_PTR_GLOBAL_FLAG;
+#endif
+}
 
 uintptr_t Execution::UnwrapDerivedPtr(uint64_t derived, bool checked) { FATAL("Should not reach here"); }
 
