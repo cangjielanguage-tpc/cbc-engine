@@ -2,10 +2,13 @@
 
 #include "cbc/isa_rt.h"
 #include "engine/decode/reader.h"
+#include "inlining/inline_eligibility.h"
+#include "inlining/inline_plan.h"
 #include "interpreter/function_handle.h"
 #include "profiler/profiler_logger.h"
 #include "utils/assertion.h"
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -36,32 +39,6 @@ struct InlineRequest {
     uint64_t count;
     uint64_t expectedVersion;
 };
-
-struct InlineCallSite {
-    Interpretation::DynamicFunctionHandle* calleeFuh;
-    uint32_t cbcCallSiteOffset;
-    uint32_t runtimeCallSiteOffset;
-};
-
-struct InlinePlan {
-    Interpretation::DynamicFunctionHandle* callerFuh;
-    Interpretation::ExecBytecodeInfo* expectedBytecode;
-    uint64_t expectedVersion;
-    std::vector<InlineCallSite> callSites;
-};
-
-Stream::Output& operator<<(Stream::Output& out, const InlinePlan& plan)
-{
-    out.Print(
-        "InlinePlan { caller: {}, bytecode: {}, version: {} -> {}, callSites: {} }",
-        reinterpret_cast<const void*>(plan.callerFuh),
-        reinterpret_cast<const void*>(plan.expectedBytecode),
-        plan.expectedVersion,
-        plan.expectedVersion + 1,
-        plan.callSites.size()
-    );
-    return out;
-}
 
 struct InlinePlanKey {
     Interpretation::DynamicFunctionHandle* callerFuh;
@@ -204,12 +181,32 @@ private:
         };
     }
 
-    static std::vector<InlinePlan> BuildInlinePlans(const std::vector<InlineRequest>& requests)
+    static std::vector<InlinePlan> BuildInlinePlans(
+        Engine::Session& session, const std::vector<InlineRequest>& requests
+    )
     {
         std::vector<InlinePlan> plans;
         std::unordered_map<InlinePlanKey, size_t, InlinePlanKeyHash> planIndices;
 
         for (const auto& request : requests) {
+            auto* expectedCalleeBytecode = request.calleeFuh->bytecode.load();
+            const auto eligibility =
+                CheckInlineEligibility(session, request.callerFuh, request.calleeFuh, expectedCalleeBytecode);
+            if (!eligibility.IsAllowed()) {
+                Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
+                    out.PrintLn(
+                        "Inline rejected: caller {} ({}), callee {} ({}), cbc offset {}: {}",
+                        static_cast<const void*>(request.callerFuh),
+                        ResolveFunctionName(session, *request.callerFuh),
+                        static_cast<const void*>(request.calleeFuh),
+                        ResolveFunctionName(session, *request.calleeFuh),
+                        request.cbcCallSiteOffset,
+                        eligibility.reason
+                    );
+                });
+                continue;
+            }
+
             const InlinePlanKey key { request.callerFuh, request.expectedBytecode, request.expectedVersion };
             const auto [it, inserted] = planIndices.emplace(key, plans.size());
             if (inserted) {
@@ -222,8 +219,16 @@ private:
             }
             plans[it->second].callSites.push_back(InlineCallSite {
                 request.calleeFuh,
+                expectedCalleeBytecode,
+                expectedCalleeBytecode->version,
                 request.cbcCallSiteOffset,
                 request.runtimeCallSiteOffset,
+            });
+        }
+
+        for (auto& plan : plans) {
+            std::sort(plan.callSites.begin(), plan.callSites.end(), [](const auto& lhs, const auto& rhs) {
+                return lhs.cbcCallSiteOffset < rhs.cbcCallSiteOffset;
             });
         }
         return plans;
@@ -246,7 +251,7 @@ private:
             }
         }
         LogProfilerPass(callsFoLog, recordedCallCount, scanTimeUs);
-        InlineCalls(session, BuildInlinePlans(callsForInline));
+        InlineCalls(session, BuildInlinePlans(session, callsForInline));
     }
 
     void InlineCalls(Engine::Session& session, const std::vector<InlinePlan>& plans)
