@@ -2941,6 +2941,218 @@ def generate_calls() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# mock-objects: newobj/newarr/index/load.type.info over the synthetic TypeInfos
+# ---------------------------------------------------------------------------
+
+# CreateTypeInfo (test/mock/interpreter.cpp) resolves every bytecode-embedded
+# term to an immortal synthetic TestTypeInfo: object-like {size = 2 *
+# ObjectHeaderSize, align = sizeof(void*), no reference offsets} for
+# non-primitive terms, natural sizes for primitives. MockNewObj/MockNewArr
+# allocate from the mock heap and store that TI pointer in the object header,
+# so the in-asm identities below hold: the rewrite-time TI is pointer-identical
+# to the run-time one. Two quirks shape the method bodies: newarr defines IR1
+# with a REF liveness mark while index needs a REC-marked source (allocated
+# arrays are returned to the C++ test and seeded into the index workers of
+# index.asm instead), and the synthetic TI covers header + one payload slot, so
+# only the x I64@8 field of mem:Obj fits a newobj allocation (a second class
+# field would overflow it).
+# The CC of scc/bcc is comma-separated from the register operands, and the
+# length register IR2 of newarr/newarr(.g) is consumed via a prim liveness use
+# even when the method has no matching parameter.
+
+MOCK_REC_ARRAY = "@arr[mem:Rec@rec]"  # 16-byte elements (rec elem TI)
+MOCK_I64_ARRAY = "@arr[I64]"          # 8-byte elements (prim elem TI)
+
+MOCK_OBJ_FIELD_REFS = """
+@field_ref obj_x = mem:Obj@ref x I64
+"""
+
+MOCK_OBJ_TYPES = """
+@type mem:Rec
+  @flags PUBLIC RECORD
+  @field f0 I64
+    @flags PUBLIC
+  @end
+@end
+
+@type mem:Obj
+  @field x I64
+    @flags PUBLIC
+  @end
+@end
+
+"""
+
+
+def mock_obj_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n' + MOCK_OBJ_FIELD_REFS.lstrip("\n") + MOCK_OBJ_TYPES.lstrip(
+        "\n"
+    ) + "@type default\n" + body + "\n@end\n"
+
+
+def newobj_methods() -> list[Method]:
+    return [
+        # Returns the raw object pointer for the C++-side header inspection.
+        method("test_ptr", I64)
+            .raw("newobj mem:Obj@ref")
+            .raw("ret.ref IR1")
+            .build(),
+
+        # Stores a prim through the class field path (x I64@8) and returns the
+        # object pointer, so the C++ test checks the payload slot behind the
+        # untouched TI header.
+        method("test_field", I64)
+            .live(IR2)
+            .raw("newobj mem:Obj@ref")
+            .raw("st.field IR2, IR1, #obj_x")
+            .dead(IR2)
+            .raw("ret.ref IR1")
+            .build(),
+
+        # Two newobj results are distinct mock-heap objects (bcc RNE compares
+        # the raw pointer cells).
+        method("test_distinct", I64)
+            .raw("newobj mem:Rec@rec")
+            .raw("mov.ref IR4, IR1")
+            .dead(IR1)
+            .raw("newobj mem:Rec@rec")
+            .instr("movi", IR3, imm(1), w=64)
+            .raw("bcc.64 RNE, IR1, IR4, skip")
+            .instr("subi", IR3, IR3, imm(1), w=64)
+            .label("skip")
+            .dead(IR1, IR4)
+            .ret(IR3),
+
+        # The header TI is pointer-identical to the rewrite-time TI of the same
+        # term (load.type.info embeds it as a MovImm immediate).
+        method("test_ti", I64)
+            .raw("newobj mem:Rec@rec")
+            .raw("load.type.info IR2, mem:Rec@rec")
+            .raw("ld.raw.64 IR3, IR1, 0")
+            .raw("scc.64 EQ, IR4, IR2, IR3")
+            .dead(IR1, IR2, IR3)
+            .ret(IR4),
+
+        # newobj.g takes the TI from a register and still stores it in the
+        # header.
+        method("test_g", I64)
+            .raw("load.type.info IR4, mem:Rec@rec")
+            .raw("newobj.g IR4, mem:Rec@rec")
+            .raw("ld.raw.64 IR3, IR1, 0")
+            .raw("scc.64 EQ, IR5, IR4, IR3")
+            .dead(IR1, IR3, IR4)
+            .ret(IR5),
+    ]
+
+
+def newarr_methods() -> list[Method]:
+    def len_method(name: str, array_sig: str) -> Method:
+        return (
+            method(name, I64)
+            .live(IR2)
+            .raw(f"newarr {array_sig}")
+            .raw("arr.len IR3, IR1")
+            .dead(IR1)
+            .ret(IR3)
+        )
+
+    def ptr_method(name: str, array_sig: str) -> Method:
+        return (
+            method(name, I64)
+            .live(IR2)
+            .raw(f"newarr {array_sig}")
+            .raw("ret.ref IR1")
+            .build()
+        )
+
+    return [
+        len_method("test_len", MOCK_REC_ARRAY),
+        len_method("test_len_prim", MOCK_I64_ARRAY),
+        # newarr.g takes the TI from a register (load.type.info result).
+        (
+            method("test_len_g", I64)
+            .live(IR2)
+            .raw(f"load.type.info IR4, {MOCK_I64_ARRAY}")
+            .raw(f"newarr.g IR4, {MOCK_I64_ARRAY}")
+            .dead(IR4)
+            .raw("arr.len IR3, IR1")
+            .dead(IR1)
+            .ret(IR3)
+        ),
+        # Returns the raw array pointer for the C++-side layout inspection.
+        ptr_method("test_ptr", MOCK_REC_ARRAY),
+        ptr_method("test_ptr_prim", MOCK_I64_ARRAY),
+        # The header TI of a newarr allocation is the synthetic TI of the array
+        # term itself, identical to the rewrite-time one.
+        (
+            method("test_arr_ti", I64)
+            .live(IR2)
+            .raw(f"newarr {MOCK_REC_ARRAY}")
+            .dead(IR2)
+            .raw(f"load.type.info IR2, {MOCK_REC_ARRAY}")
+            .raw("ld.raw.64 IR3, IR1, 0")
+            .raw("scc.64 EQ, IR4, IR2, IR3")
+            .dead(IR1, IR2, IR3)
+            .ret(IR4)
+        ),
+    ]
+
+
+def index_methods() -> list[Method]:
+    # index dst/src must be REC-marked (the assembler marks both with useRec),
+    # hence @live.rec on the array parameter and on the result register; the
+    # elements round-trip through st.raw/ld.raw at the computed addresses.
+    def index_method(name: str, array_sig: str) -> Method:
+        return (
+            method(name, I64, params=(I64, I64, I64))
+            .live_rec(IR1, IR4)
+            .live(IR2, IR3)
+            .raw(f"index IR4, IR1, IR2, {array_sig}")
+            .raw("st.raw.64 IR3, IR4, 0")
+            .raw("ld.raw.64 IR5, IR4, 0")
+            .dead(IR1, IR2, IR3)
+            .ret(IR5)
+        )
+
+    return [
+        index_method("test_index", MOCK_REC_ARRAY),
+        index_method("test_index_prim", MOCK_I64_ARRAY),
+    ]
+
+
+def load_type_info_methods() -> list[Method]:
+    # The Bool spelling is the DSL's Boolean type keyword.
+    def lti_method(name: str, type_spelling: str) -> Method:
+        return (
+            method(name, I64)
+            .raw(f"load.type.info IR2, {type_spelling}")
+            .ret(IR2)
+        )
+
+    return [
+        lti_method("test_lti_rec", "mem:Rec@rec"),
+        lti_method("test_lti_i64", "I64"),
+        lti_method("test_lti_u8", "U8"),
+        lti_method("test_lti_f64", "F64"),
+        lti_method("test_lti_bool", "Bool"),
+        lti_method("test_lti_arr", MOCK_REC_ARRAY),
+    ]
+
+
+def generate_mock_objects() -> list[Path]:
+    return write_suite(
+        "mock-objects",
+        {
+            "newobj.asm"        : mock_obj_file(newobj_methods()),
+            "newarr.asm"        : mock_obj_file(newarr_methods()),
+            "index.asm"         : mock_obj_file(index_methods()),
+            "load-type-info.asm": mock_obj_file(load_type_info_methods()),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -2961,6 +3173,7 @@ GENERATORS = {
     "atomics"          : generate_atomics,
     "checks-misc"      : generate_checks_misc,
     "calls"            : generate_calls,
+    "mock-objects"     : generate_mock_objects,
 }
 
 
