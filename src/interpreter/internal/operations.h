@@ -211,8 +211,8 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
                 shift = bitWidth - 1;
             }
             stype base = Traits::sget(l);
-            swide res  = static_cast<swide>(base) << shift;
-            return { makeS(res), true };
+            uwide ures = static_cast<uwide>(base) << shift;
+            return { makeS(static_cast<swide>(ures)), true };
         }
         case Saturating::SASR: {
             // Provisional semantics until cjc defines saturating shifts:

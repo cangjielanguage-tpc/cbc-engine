@@ -145,6 +145,49 @@ TEST_ASM(CbcTest, FibRecRegs)
     ASSERT_EQ(res.u32, 13);
 }
 
+// A frame buffer addressed the way the interpreter addresses frame slots:
+// frame.start points past the last slot, every slot sits at a negative
+// offset (see CbcTest.FibRec).
+struct TestFrame {
+    static constexpr auto stackSlotCount = 100;
+
+    uint64_t slots[stackSlotCount];
+    Interpretation::Frame frame;
+
+    TestFrame() : frame { reinterpret_cast<uintptr_t>(slots + stackSlotCount) } {}
+};
+
+TEST_ASM(CbcTest, TypedSlotRoundTrip)
+{
+    TestFrame f;
+    {
+        auto code = OpenAndRewrite("test_typed_i64", "./generated-asm/frame-slots/typed_i64.asm")->code;
+        auto res  = Interpret(code, f.frame, U64(0x2a), U64(0));
+        ASSERT_EQ(res.u64, 0x2a);
+    }
+    {
+        auto code = OpenAndRewrite("test_typed_f64", "./generated-asm/frame-slots/typed_f64.asm")->code;
+        auto res  = InterpretFPRes(code, f.frame, F64(2.5), F64(0));
+        ASSERT_EQ(res.u64, F64(2.5).u64);
+    }
+}
+
+TEST_ASM(CbcTest, TypedSlotTwoSlots)
+{
+    TestFrame f;
+    auto code = OpenAndRewrite("test_typed_two", "./generated-asm/frame-slots/typed_two.asm")->code;
+    auto res  = Interpret(code, f.frame, U64(3), U64(4));
+    ASSERT_EQ(res.u64, 7);
+}
+
+TEST_ASM(CbcTest, TypedSlotStackRec)
+{
+    TestFrame f;
+    auto code = OpenAndRewrite("test_stack_rec", "./generated-asm/frame-slots/stack_rec.asm")->code;
+    auto res  = Interpret(code, f.frame, U64(0x2a), U64(0));
+    ASSERT_EQ(res.u64, 0x2a);
+}
+
 TEST_ASM(CbcTest, DirectCall)
 {
     auto res = Interpret(OpenAndRewrite("main", "direct-call.asm")->code, U32(0), U32(10));
@@ -831,3 +874,51 @@ INSTANTIATE_TEST_SUITE_P(
         BFXTestParams { "zeroed", sizeof(bfxZeroedCases) / sizeof(BFXCase), bfxZeroedCases }
     )
 );
+
+static int64_t SatSlsl(int64_t base, int64_t shift, int width)
+{
+    switch (width) {
+        case 8:  base = static_cast<int8_t>(base); break;
+        case 16: base = static_cast<int16_t>(base); break;
+        case 32: base = static_cast<int32_t>(base); break;
+        default: break;
+    }
+    if (shift < 0) {
+        shift = 0;
+    }
+    if (shift > width - 1) {
+        shift = width - 1;
+    }
+    unsigned __int128 ures = static_cast<unsigned __int128>(base) << shift;
+    __int128 res           = static_cast<__int128>(ures);
+    __int128 smin          = -(__int128(1) << (width - 1));
+    __int128 smax          = (__int128(1) << (width - 1)) - 1;
+    return static_cast<int64_t>(res < smin ? smin : (res > smax ? smax : res));
+}
+
+TEST_ASM(CbcTest, SatSlslNegativeBase)
+{
+    const int widths[] = { 8, 16, 32, 64 };
+    const int shifts[] = { 1, 2, 7, 15, 31, 63 };
+
+    for (auto width : widths) {
+        auto boundary  = static_cast<int64_t>(-(__int128(1) << (width - 2)));
+        int64_t bases[] = { -5, boundary, boundary - 1, std::numeric_limits<int64_t>::min() };
+        for (auto shift : shifts) {
+            if (shift > width) {
+                continue;
+            }
+            auto stem = "slsl_" + std::to_string(width) + "_" + std::to_string(shift);
+            auto code = OpenAndRewrite("test_" + stem, "./generated-asm/sat-arith/" + stem + ".asm")->code;
+            for (auto base : bases) {
+                auto res = Interpret(code, U64(base), U64(0));
+                if (width == 64) {
+                    ASSERT_EQ(res.u64, static_cast<uint64_t>(SatSlsl(base, shift, width)));
+                } else {
+                    ASSERT_EQ(res.u32, static_cast<uint32_t>(SatSlsl(base, shift, width)));
+                }
+            }
+        }
+    }
+}
+

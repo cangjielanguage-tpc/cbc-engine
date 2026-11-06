@@ -888,9 +888,11 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
     }
 
-    int32_t TypedSlotOffset(uint32_t typedSlot)
+    int32_t TypedSlotOffset(uint32_t typedSlot, uint32_t fieldOffset = 0)
     {
-        return (int32_t)frameLayout.typedOffset[typedSlot] - frameLayout.frameSize;
+        return static_cast<int32_t>(static_cast<int64_t>(frameLayout.typedOffset[typedSlot])
+                                    + static_cast<int64_t>(fieldOffset)
+                                    - static_cast<int64_t>(frameLayout.frameSize));
     }
 
     std::optional<RTSupport::TypeInfo> TypeSlotTypeInfo(uint16_t slot)
@@ -917,7 +919,7 @@ struct IsaRewriter : public IsaParser {
         });
 
         ASSERT(field->refType.term.IsRecord());
-        auto offset = TypedSlotOffset(slot) + fieldOffset;
+        auto offset = TypedSlotOffset(slot, fieldOffset);
         emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
     }
 
@@ -1005,7 +1007,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
         });
 
-        auto offset = TypedSlotOffset(slot) + fieldOffset;
+        auto offset = TypedSlotOffset(slot, fieldOffset);
         emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
     }
 
@@ -2052,7 +2054,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = TypedSlotOffset(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts, field->offset.value());
             emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -2069,7 +2071,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = TypedSlotOffset(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts, field->offset.value());
             emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -2086,7 +2088,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = TypedSlotOffset(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts, field->offset.value());
             emit.StoreFrameImm(Stk(field->fieldType.GetKind()), imm, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;

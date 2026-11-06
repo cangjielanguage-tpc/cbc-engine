@@ -334,7 +334,7 @@ struct IsaParserImpl {
     template <Width::Value width> static void MovImm(IsaParser& parser)
     {
         auto [dst, low4, hibits] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
-        parser.MovImm(width, dst, MergeLowHi(low4, hibits));
+        parser.MovImm(width, dst, static_cast<uint64_t>(MergeLowHi(low4, hibits)));
     }
 
     static void MovBasePtr(IsaParser& parser)
@@ -737,7 +737,7 @@ struct IsaParserImpl {
     {
         auto [cc, dst, lhs, low4, hibits] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
-        parser.SccImm(width, cc, dst, lhs, MergeLowHi(low4, hibits));
+        parser.SccImm(width, cc, dst, lhs, static_cast<uint64_t>(MergeLowHi(low4, hibits)));
     }
 
     static void InstanceOf(IsaParser& parser)
