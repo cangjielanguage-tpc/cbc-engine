@@ -619,3 +619,139 @@ TEST_ASM(CbcTest, MockThrowCatch)
         EXPECT_EQ(Interpret(code, U64(reinterpret_cast<uint64_t>(exc)), U64(0)).u64, 1);
     }
 }
+
+// ---------------------------------------------------------------------------
+// mock-checks: iof/assign.g/copy and the ref-shaped atomics over the todo-mock
+// 3.7 stubs
+// ---------------------------------------------------------------------------
+
+// The IsInstanceOf stub is TI-pointer identity with the object header (null is
+// not an instance), WriteStructField memcpys the flat payload (synthetic TI
+// size - ObjectHeaderSize) between the absolute data addresses, UnwrapDerivedPtr
+// is identity on x86_64, and the ref-shaped atomic hooks are seq-cst 8-byte
+// accesses of the absolute slot (obj + field offset). The registry TIs carry no
+// supertype information and are keyed by the interned term, so the identities
+// below hold within one image only - all comparisons stay in-asm or within a
+// single Interpret run; the cross-run checks rely on the deterministic mock-heap
+// allocation (the heap rewinds per run) rather than on TI pointers.
+
+TEST_ASM(CbcTest, MockIof)
+{
+    auto path = "./generated-asm/mock-checks/iof.asm";
+    // iof/iof.g over a fresh newobj allocation: 1 for the self term, 0 for the
+    // different-term object (the header TI mismatches the queried one).
+    for (auto [method, expected] :
+         {std::pair {"test_iof_self", 1ull},
+          std::pair {"test_iof_other", 0ull},
+          std::pair {"test_iof_g_self", 1ull},
+          std::pair {"test_iof_g_other", 0ull}}) {
+        SCOPED_TRACE(std::string(method));
+        auto code = OpenAndRewrite(method, path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, expected);
+    }
+    // The IOF lowerings read the reference without a null check, so a raw null
+    // (@live.ref register seeded 0) reaches IsInstanceOf and is rejected.
+    for (auto method : {"test_iof_null", "test_iof_g_null"}) {
+        SCOPED_TRACE(std::string(method));
+        auto code = OpenAndRewrite(method, path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, 0);
+    }
+}
+
+TEST_ASM(CbcTest, MockAssignGeneric)
+{
+    // assign.g lowers to ASSIGN_GENERIC: WriteStructField memcpys the payload
+    // word (synthetic TI size - header) from src+header to dst+header, so the
+    // destination header must stay untouched, the payload must move exactly,
+    // and the source must stay intact.
+    auto path = "./generated-asm/mock-checks/assign-g.asm";
+    {
+        // The destination header and payload arrive poisoned; the copy must
+        // leave the poison header, land the seed payload, and keep the source
+        // (its header still the run's registry TI, payload the seed).
+        auto code = OpenAndRewrite("test_assign_g", path)->code;
+        for (uint64_t seed : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE("test_assign_g seed=" + hex(seed));
+            EXPECT_EQ(Interpret(code, U64(seed), U64(0)).u64, 1);
+        }
+    }
+    {
+        // C++-side inspection: dst is allocated before src, so src sits at
+        // dst + allocation unit (the synthetic TI size); both headers carry
+        // the pointer-identical registry TI of the run.
+        auto code = OpenAndRewrite("test_assign_g_dst", path)->code;
+        for (uint64_t seed : {0x5a5aull, 0ull}) {
+            SCOPED_TRACE("test_assign_g_dst seed=" + hex(seed));
+            auto dst = Interpret(code, U64(seed), U64(0)).u64;
+            ExpectMockObjectHeader(dst);
+            EXPECT_EQ(HeaderWord(dst, RTSupport::MetaInfo::ObjectHeaderSize()), seed);
+            auto src = dst + 2 * RTSupport::MetaInfo::ObjectHeaderSize();
+            EXPECT_EQ(HeaderWord(src, 0), HeaderWord(dst, 0));
+            ExpectMockObjectHeader(src);
+            EXPECT_EQ(HeaderWord(src, RTSupport::MetaInfo::ObjectHeaderSize()), seed);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockCopyDerived)
+{
+    // copy/copy.g lower to COPY_DERIVED/COPY_DERIVED_GENERIC: the derived
+    // pointers unwrap to the object addresses (identity on x86_64, bases
+    // non-null = the HEAP leg) and the copy spans the full synthetic TI size
+    // (header + payload) - the clobbered source header overwrites the
+    // destination one (the family-2 behavior the mock exhibits), the payload
+    // follows, the guard object behind stays intact.
+    auto path = "./generated-asm/mock-checks/copy.asm";
+    for (auto name : {"test_copy", "test_copy_g"}) {
+        auto code = OpenAndRewrite(name, path)->code;
+        for (auto [hdr, pay] :
+             {std::pair {0x1234ull, 0x5678ull},
+              std::pair {0ull, 0xdeadbeefull},
+              std::pair {0xffffffffffffffffull, 0ull}}) {
+            SCOPED_TRACE(std::string(name) + " hdr=" + hex(hdr) + " pay=" + hex(pay));
+            EXPECT_EQ(Interpret(code, U64(hdr), U64(pay)).u64, 1);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockAtomicRefs)
+{
+    // atomic.load/store/cas/swap over the REF-typed field r0 lower to
+    // ATOMIC_LOAD/LD_REF, ATOMIC_STORE/ST_REF, CAS_REF and ATOMIC_SWAP_REF.
+    // The exchanged values are distinct mock-heap objects; the pointer values
+    // are asserted in-asm (REQ identities) and C++-side against the sibling
+    // run's allocation.
+    auto path = "./generated-asm/mock-checks/atomic-refs.asm";
+    auto valA = Interpret(OpenAndRewrite("test_atomic_val_ptr", path)->code, U64(0), U64(0)).u64;
+    ExpectMockObjectHeader(valA);
+    {
+        // The store/load round-trip returns the very valA pointer, and the
+        // slot behind the header physically holds it.
+        SCOPED_TRACE("test_atomic_st_ld");
+        EXPECT_EQ(Interpret(OpenAndRewrite("test_atomic_st_ld", path)->code, U64(0), U64(0)).u64, 1);
+        auto loaded = Interpret(OpenAndRewrite("test_atomic_st_ld_ptr", path)->code, U64(0), U64(0)).u64;
+        EXPECT_EQ(loaded, valA);
+        ExpectMockObjectHeader(loaded);
+        auto container = Interpret(OpenAndRewrite("test_atomic_st_ptr", path)->code, U64(0), U64(0)).u64;
+        EXPECT_NE(container, valA);
+        ExpectMockObjectHeader(container);
+        EXPECT_EQ(HeaderWord(container, RTSupport::MetaInfo::ObjectHeaderSize()), valA);
+    }
+    {
+        // The swap returns the previous ref (valA) and leaves valB in the slot
+        // (checked by the in-asm load identity).
+        SCOPED_TRACE("test_atomic_swap");
+        EXPECT_EQ(Interpret(OpenAndRewrite("test_atomic_swap", path)->code, U64(0), U64(0)).u64, 1);
+        auto old = Interpret(OpenAndRewrite("test_atomic_swap_old", path)->code, U64(0), U64(0)).u64;
+        EXPECT_EQ(old, valA);
+        ExpectMockObjectHeader(old);
+    }
+    {
+        // CAS success stores the new ref and reports 1; failure keeps the old
+        // one and reports 0 (both verified in-asm against the fresh loads).
+        for (auto method : {"test_atomic_cas_ok", "test_atomic_cas_fail"}) {
+            SCOPED_TRACE(std::string(method));
+            EXPECT_EQ(Interpret(OpenAndRewrite(method, path)->code, U64(0), U64(0)).u64, 1);
+        }
+    }
+}

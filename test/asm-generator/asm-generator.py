@@ -3965,6 +3965,338 @@ def generate_mock_throw() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# mock-checks: iof/assign.g/copy and the ref-shaped atomics over the todo-mock 3.7 stubs
+# ---------------------------------------------------------------------------
+
+# The stubbed IsInstanceOf/WriteStructField/UnwrapDerivedPtr and ref-atomic hooks
+# (todo-mock 3.7) shape these identities:
+# - iof/iof.g lower to IOF/IOF_GENERIC carrying the exact synthetic-TI pointer
+#   (immediate vs load.type.info register); MockNewObj writes that pointer into
+#   the header, so instanceof is TI-pointer identity with the header: true for
+#   the self term, false for a different-term object, false for a null base -
+#   the IOF lowerings pass the reference through without a null check, so the
+#   null case seeds a @live.ref register with 0;
+# - assign.g lowers to ASSIGN_GENERIC: WriteStructField memcpys the flat payload
+#   (synthetic TI size - ObjectHeaderSize = one payload word) from src+header to
+#   dst+header, so the payload moves while both object headers stay;
+# - copy/copy.g lower to COPY_DERIVED/COPY_DERIVED_GENERIC: UnwrapDerivedPtr is
+#   identity on x86_64, so plain object addresses serve as the derived pointers
+#   (bases non-null = the HEAP leg), and the copy spans the full synthetic TI
+#   size (header + payload) - the source header overwrites the destination one,
+#   as documented for the copy.local family in mock-objects;
+# - atomic.load/store/cas/swap over the REF-typed field r0 (at the payload slot
+#   behind the header) lower to ATOMIC_LOAD/LD_REF, ATOMIC_STORE/ST_REF,
+#   CAS_REF and ATOMIC_SWAP_REF: seq-cst 8-byte accesses of the absolute slot.
+#   The exchanged values are distinct mock-heap objects (newobj results); the
+#   in-asm REQ identities assert the exact pointers, and the ptr-returning
+#   variants let the C++ test compare against a sibling run's allocation (the
+#   heap rewinds per run, so equal prefixes allocate equal addresses).
+# Liveness: newobj always defines IR1, so every allocation's result is moved
+# aside with the @dead dance before the next one; the copy-derived operands
+# demand REF bases and REC derived registers (the @dead + @live.rec restamp of
+# the prim address copies); bcc REQ/RNE is the reference-identity compare (scc
+# operands are USE_PRIM).
+
+MOCK_CHECKS_FIELD_REFS = """
+@field_ref obj_r0 = mem:Obj@ref r0 mem:Obj@ref
+"""
+
+MOCK_CHECKS_TYPES = """
+@type mem:Rec
+  @flags PUBLIC RECORD
+  @field f0 I64
+    @flags PUBLIC
+  @end
+@end
+
+@type mem:Obj
+  @field r0 mem:Obj@ref
+    @flags PUBLIC
+  @end
+@end
+
+"""
+
+
+def mock_checks_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return ('@main_type "default"\n' + MOCK_CHECKS_FIELD_REFS.lstrip("\n") + MOCK_CHECKS_TYPES.lstrip(
+        "\n"
+    ) + "@type default\n" + body + "\n@end\n")
+
+
+def iof_method(name: str, queried: str, generic: bool) -> Method:
+    builder = method(f"test_{name}", I64).raw("newobj mem:Rec@rec")
+    if generic:
+        return (
+            builder
+            .raw(f"load.type.info IR3, {queried}")
+            .raw("iof.g IR2, IR1, IR3")
+            .dead(IR1, IR3)
+            .ret(IR2)
+        )
+    return builder.raw(f"iof IR2, IR1, {queried}").dead(IR1).ret(IR2)
+
+
+def iof_null_method(generic: bool) -> Method:
+    builder = method(f"test_iof_{'g_' if generic else ''}null", I64, params=(I64,)).live_ref(IR1)
+    if generic:
+        return (
+            builder
+            .raw("load.type.info IR3, mem:Rec@rec")
+            .raw("iof.g IR2, IR1, IR3")
+            .dead(IR1, IR3)
+            .ret(IR2)
+        )
+    return builder.raw("iof IR2, IR1, mem:Rec@rec").dead(IR1).ret(IR2)
+
+
+# The dst payload poison of the flag variant: a constant that cannot collide
+# with the registry TI pointers the copy must not overwrite. Kept below 2^63 -
+# the isa_parser's MovImm immediate path trips the UBSan build on values whose
+# signed reading is negative.
+MOCK_CHECKS_ASSIGN_POISON = 0x1234567890ABCDEF
+
+
+def assign_method(name: str, ret_dst: bool) -> Method:
+    # dst allocated first, src second: the deterministic mock-heap addresses
+    # put src at dst + allocation unit (the synthetic TI size), which the
+    # C++-side inspection of the ptr variant relies on.
+    builder = (
+        method(f"test_{name}", I64, params=(I64,))
+        .live(IR1)
+        .instr("mov.64", IR2, IR1)
+        .dead(IR1)
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR3, IR1")
+        .dead(IR1)
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR4, IR1")
+        .dead(IR1)
+    )
+    if ret_dst:
+        return (
+            builder
+            .instr("st.raw.64", IR2, IR4, imm(8))
+            .raw("load.type.info IR5, mem:Rec@rec")
+            .raw("assign.g IR3, IR4, IR5")
+            .dead(IR2, IR4, IR5)
+            .raw("ret.ref IR3")
+            .build()
+        )
+    return (
+        builder
+        .instr("movi.64", IR5, imm(MOCK_CHECKS_ASSIGN_POISON))
+        .instr("st.raw.64", IR5, IR3, imm(0))
+        .instr("st.raw.64", IR5, IR3, imm(8))
+        .instr("st.raw.64", IR2, IR4, imm(8))
+        .raw("load.type.info IR6, mem:Rec@rec")
+        .raw("assign.g IR3, IR4, IR6")
+        .instr("ld.raw.64", IR7, IR3, imm(0))
+        .instr("scc.64", "EQ", IR7, IR7, IR5)
+        .instr("ld.raw.64", IR8, IR3, imm(8))
+        .instr("scc.64", "EQ", IR8, IR8, IR2)
+        .instr("ld.raw.64", IR9, IR4, imm(0))
+        .instr("scc.64", "EQ", IR9, IR9, IR6)
+        .instr("ld.raw.64", IR10, IR4, imm(8))
+        .instr("scc.64", "EQ", IR10, IR10, IR2)
+        .instr("mul.64", IR7, IR7, IR8)
+        .instr("mul.64", IR7, IR7, IR9)
+        .instr("mul.64", IR7, IR7, IR10)
+        .dead(IR2, IR3, IR4, IR5, IR6, IR8, IR9, IR10)
+        .ret(IR7)
+    )
+
+
+def copy_checks_method(name: str, generic: bool) -> Method:
+    # Three adjacent newobj objects (dst, src, guard): the src header is
+    # clobbered with the hdr param and its payload with pay, the guard header
+    # with a distinct constant; the full-image copy must overwrite the dst
+    # header with the clobbered src one, move the payload, leave the guard.
+    copy_line = "copy IR2, IR7, IR3, IR8, mem:Rec@rec"
+    if generic:
+        copy_line = "copy.g IR2, IR7, IR3, IR8, IR10"
+    builder = (
+        method(f"test_{name}", I64, params=(I64, I64))
+        .live(IR1, IR2)
+        .instr("mov.64", IR5, IR1)
+        .instr("mov.64", IR6, IR2)
+        .dead(IR1, IR2)
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR2, IR1")
+        .instr("mov.64", IR7, IR1)
+        .dead(IR1)
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR3, IR1")
+        .instr("mov.64", IR8, IR1)
+        .dead(IR1)
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR4, IR1")
+        .dead(IR1)
+        .instr("st.raw.64", IR5, IR3, imm(0))
+        .instr("st.raw.64", IR6, IR3, imm(8))
+        .instr("movi.64", IR9, imm(MOCK_COPY_GUARD_SEED))
+        .instr("st.raw.64", IR9, IR4, imm(0))
+    )
+    if generic:
+        builder = builder.raw("load.type.info IR10, mem:Rec@rec")
+    builder = (
+        builder
+        .dead(IR7, IR8)
+        .live_rec(IR7, IR8)
+        .raw(copy_line)
+    )
+    if generic:
+        builder = builder.dead(IR10)
+    return (
+        builder
+        .instr("ld.raw.64", IR1, IR7, imm(0))
+        .instr("scc.64", "EQ", IR1, IR1, IR5)
+        .instr("ld.raw.64", IR10, IR7, imm(8))
+        .instr("scc.64", "EQ", IR10, IR10, IR6)
+        .instr("mul.64", IR1, IR1, IR10)
+        .dead(IR10)
+        .instr("ld.raw.64", IR10, IR4, imm(0))
+        .instr("scc.64", "EQ", IR10, IR10, IR9)
+        .instr("mul.64", IR1, IR1, IR10)
+        .dead(IR2, IR3, IR4, IR5, IR6, IR7, IR8, IR9, IR10)
+        .ret(IR1)
+    )
+
+
+def atomic_alloc_objects(builder: MethodBuilder, refs: tuple[str, ...]) -> MethodBuilder:
+    # newobj always defines IR1: each allocation is moved into its own register
+    # and IR1 dead'ed before the next one.
+    for reg in refs:
+        builder = builder.raw("newobj mem:Obj@ref").raw(f"mov.ref {reg}, IR1").dead(IR1)
+    return builder
+
+
+def atomic_st_ld_method(name: str, ret_loaded: bool) -> Method:
+    builder = (
+        atomic_alloc_objects(method(f"test_{name}", I64), (IR2, IR3))
+        .instr("atomic.store", IR3, IR2, "#obj_r0")
+        .instr("atomic.load", IR4, IR2, "#obj_r0")
+    )
+    if ret_loaded:
+        return builder.dead(IR2, IR3).raw("ret.ref IR4").build()
+    return (
+        builder
+        .instr("movi.64", IR5, imm(1))
+        .instr("bcc.64", "REQ", IR4, IR3, "ok")
+        .instr("subi.64", IR5, IR5, imm(1))
+        .label("ok")
+        .dead(IR2, IR3, IR4)
+        .ret(IR5)
+    )
+
+
+def atomic_st_ptr_method() -> Method:
+    # Returns the container: the C++ test reads the stored raw pointer in the
+    # slot behind the header.
+    return (
+        atomic_alloc_objects(method("test_atomic_st_ptr", I64), (IR2, IR3))
+        .instr("atomic.store", IR3, IR2, "#obj_r0")
+        .dead(IR3)
+        .raw("ret.ref IR2")
+        .build()
+    )
+
+
+def atomic_val_ptr_method() -> Method:
+    # Returns the second allocation (valA): the expected value of every
+    # sibling run sharing the allocation prefix.
+    return atomic_alloc_objects(method("test_atomic_val_ptr", I64), (IR2, IR3)).dead(IR2).raw("ret.ref IR3").build()
+
+
+def mock_checks_swap_method(name: str, ret_old: bool) -> Method:
+    builder = (
+        atomic_alloc_objects(method(f"test_{name}", I64), (IR2, IR3, IR4))
+        .instr("st.field", IR3, IR2, "#obj_r0")
+        .instr("atomic.swap", IR5, IR2, IR4, "#obj_r0")
+    )
+    if ret_old:
+        return builder.dead(IR2, IR3, IR4).raw("ret.ref IR5").build()
+    return (
+        builder
+        .instr("movi.64", IR6, imm(1))
+        .instr("bcc.64", "REQ", IR5, IR3, "ok1")
+        .instr("subi.64", IR6, IR6, imm(1))
+        .label("ok1")
+        .instr("atomic.load", IR7, IR2, "#obj_r0")
+        .instr("bcc.64", "REQ", IR7, IR4, "ok2")
+        .instr("subi.64", IR6, IR6, imm(1))
+        .label("ok2")
+        .dead(IR2, IR3, IR4, IR5, IR7)
+        .ret(IR6)
+    )
+
+
+def mock_checks_cas_method(name: str, ok: bool) -> Method:
+    # The ok case swaps valA (pre-stored) for valB and expects success + valB
+    # in the slot; the fail case expects valB against the valA slot and expects
+    # failure with the slot kept at valA.
+    builder = (
+        atomic_alloc_objects(method(f"test_{name}", I64), (IR2, IR3, IR4))
+        .instr("st.field", IR3, IR2, "#obj_r0")
+    )
+    if ok:
+        builder = builder.instr("atomic.cas", IR5, IR2, IR3, IR4, "#obj_r0")
+    else:
+        builder = builder.instr("atomic.cas", IR5, IR2, IR4, IR3, "#obj_r0")
+    return (
+        builder
+        .instr("movi.64", IR6, imm(1))
+        .instr("movi.64", IR7, imm(1 if ok else 0))
+        .instr("bcc.64", "EQ", IR5, IR7, "ok1")
+        .instr("subi.64", IR6, IR6, imm(1))
+        .label("ok1")
+        .instr("atomic.load", IR8, IR2, "#obj_r0")
+        .instr("bcc.64", "REQ", IR8, IR4 if ok else IR3, "ok2")
+        .instr("subi.64", IR6, IR6, imm(1))
+        .label("ok2")
+        .dead(IR2, IR3, IR4, IR5, IR7, IR8)
+        .ret(IR6)
+    )
+
+
+def generate_mock_checks() -> list[Path]:
+    return write_suite(
+        "mock-checks",
+        {
+            "iof.asm"        : mock_checks_file(
+                [
+                    iof_method("iof_self", "mem:Rec@rec", generic=False),
+                    iof_method("iof_other", "mem:Obj@ref", generic=False),
+                    iof_null_method(generic=False),
+                    iof_method("iof_g_self", "mem:Rec@rec", generic=True),
+                    iof_method("iof_g_other", "mem:Obj@ref", generic=True),
+                    iof_null_method(generic=True),
+                ]
+            ),
+            "assign-g.asm"   : mock_checks_file(
+                [assign_method("assign_g", ret_dst=False), assign_method("assign_g_dst", ret_dst=True)]
+            ),
+            "copy.asm"       : mock_checks_file(
+                [copy_checks_method("copy", generic=False), copy_checks_method("copy_g", generic=True)]
+            ),
+            "atomic-refs.asm": mock_checks_file(
+                [
+                    atomic_st_ld_method("atomic_st_ld", ret_loaded=False),
+                    atomic_st_ld_method("atomic_st_ld_ptr", ret_loaded=True),
+                    atomic_st_ptr_method(),
+                    atomic_val_ptr_method(),
+                    mock_checks_swap_method("atomic_swap", ret_old=False),
+                    mock_checks_swap_method("atomic_swap_old", ret_old=True),
+                    mock_checks_cas_method("atomic_cas_ok", ok=True),
+                    mock_checks_cas_method("atomic_cas_fail", ok=False),
+                ]
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -3988,6 +4320,7 @@ GENERATORS = {
     "mock-objects"     : generate_mock_objects,
     "mock-lea"         : generate_mock_lea,
     "mock-throw"       : generate_mock_throw,
+    "mock-checks"      : generate_mock_checks,
 }
 
 
