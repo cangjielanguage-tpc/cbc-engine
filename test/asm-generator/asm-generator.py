@@ -3856,6 +3856,115 @@ def generate_mock_lea() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# mock-throw: throw/catch minimal flow over the mocked HandleException
+# ---------------------------------------------------------------------------
+
+# todo-mock 3.5: `throw irX` lowers to the RT THROW (FATALs on a null operand
+# and returns the ThunkOp::HandleException thunk carrying the exception object,
+# with the reader parked right after the throw) and `catch irY` lowers to the
+# RT CATCH (reads IR_ACC - where the real trampoline's handler-found leg parks
+# the exception object - into irY, falling through only when it is non-null).
+# The mock models that leg unconditionally and has no exception regions, so the
+# catch pad is placed immediately after the throw in these images; the pending
+# exception is published through GetPendingException. Liveness quirks: throw
+# uses its operand with the REF mark and catch defines its destination with
+# REF, so the destination must be @dead'ed first (a live re-definition aborts
+# the assembler); scc operands are USE_PRIM (reference identity goes through
+# bcc REQ/RNE), while raw loads/stores accept either mark on the base.
+
+MOCK_THROW_EXC_TYPES = """
+@type mem:Exc
+  @field x I64
+    @flags PUBLIC
+  @end
+@end
+
+"""
+
+
+def mock_throw_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return ('@main_type "default"\n' + MOCK_THROW_EXC_TYPES.lstrip("\n") +
+            "@type default\n" + body + "\n@end\n")
+
+
+def catch_flag_method() -> Method:
+    # The full in-asm round-trip over registers kept live across the throw: the
+    # payload seeded before the throw reads back after the catch (IR2 survived),
+    # the caught object is the thrown one (IR3 survived, bcc REQ identity).
+    return (
+        method("test_catch", I64, params=(I64,))
+        .live(IR1)
+        .instr("mov.64", IR2, IR1)
+        .dead(IR1)
+        .raw("newobj mem:Exc@ref")
+        .raw("mov.ref IR3, IR1")
+        .instr("st.raw.64", IR2, IR1, imm(8))
+        .raw("throw IR1")
+        .dead(IR1, IR3)
+        .raw("catch IR1")
+        .live_ref(IR3)
+        .instr("movi.64", IR6, imm(1))
+        .instr("ld.raw.64", IR5, IR1, imm(8))
+        .instr("scc.64", "EQ", IR7, IR5, IR2)
+        .instr("mul.64", IR6, IR6, IR7)
+        .instr("bcc", "REQ", IR1, IR3, "ok", w=64)
+        .instr("subi.64", IR6, IR6, imm(1))
+        .label("ok")
+        .dead(IR1, IR2, IR3, IR5, IR7)
+        .ret(IR6)
+    )
+
+
+def caught_ptr_method() -> Method:
+    # Returns the caught object: the C++ test checks its header/payload and
+    # that it is still parked in IR_ACC (CATCH reads IR_ACC and the lowering
+    # moves it nowhere else before the ret).
+    return (
+        method("test_caught_ptr", I64, params=(I64,))
+        .live(IR1)
+        .instr("mov.64", IR2, IR1)
+        .dead(IR1)
+        .raw("newobj mem:Exc@ref")
+        .instr("st.raw.64", IR2, IR1, imm(8))
+        .raw("throw IR1")
+        .dead(IR1, IR2)
+        .raw("catch IR1")
+        .raw("ret.ref IR1")
+        .build()
+    )
+
+
+def throw_param_method() -> Method:
+    # The exception object fabricated outside the mock heap (a test-seeded
+    # buffer arriving as the parameter): the catch returns it unchanged.
+    return (
+        method("test_throw_param", I64, params=(I64,))
+        .live_ref(IR1)
+        .raw("mov.ref IR3, IR1")
+        .instr("movi.64", IR6, imm(1))
+        .raw("throw IR1")
+        .dead(IR1, IR3)
+        .raw("catch IR1")
+        .live_ref(IR3)
+        .instr("bcc", "REQ", IR1, IR3, "ok", w=64)
+        .instr("subi.64", IR6, IR6, imm(1))
+        .label("ok")
+        .dead(IR1, IR3)
+        .ret(IR6)
+    )
+
+
+def generate_mock_throw() -> list[Path]:
+    return write_suite(
+        "mock-throw",
+        {
+            "catch.asm": mock_throw_file([catch_flag_method(), caught_ptr_method(), throw_param_method()]),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -3878,6 +3987,7 @@ GENERATORS = {
     "calls"            : generate_calls,
     "mock-objects"     : generate_mock_objects,
     "mock-lea"         : generate_mock_lea,
+    "mock-throw"       : generate_mock_throw,
 }
 
 

@@ -544,3 +544,56 @@ TEST_ASM(CbcTest, MockPayloadGeneric)
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// mock-throw: throw/catch minimal flow over the mocked HandleException
+// ---------------------------------------------------------------------------
+
+// The mocked HandleException (todo-mock 3.5) models the handler-found leg of
+// the real trampoline flow: THROW saves the pc right after itself and returns
+// the thunk carrying the exception object; the mock stages it as the pending
+// exception and publishes it into IR_ACC through GetPendingException, so the
+// CATCH pad right after the throw reads it (the mock has no exception regions
+// - the pad must be the next instruction). The mock heap rewinds per run, so
+// the allocations are deterministic across the run pairs below.
+
+TEST_ASM(CbcTest, MockThrowCatch)
+{
+    auto path = "./generated-asm/mock-throw/catch.asm";
+    {
+        // The catch path is taken and everything live across the throw
+        // survives it: the flag is the product of the payload round-trip
+        // (seeded before the throw, read after the catch) and the
+        // caught==thrown identity.
+        auto code = OpenAndRewrite("test_catch", path)->code;
+        for (uint64_t seed : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE("test_catch seed=" + hex(seed));
+            EXPECT_EQ(Interpret(code, U64(seed), U64(0)).u64, 1);
+        }
+    }
+    {
+        // The caught object observable: returned through ret.ref and still
+        // parked in IR_ACC (CATCH reads IR_ACC and nothing moves it before the
+        // ret) - the mock heap rewinds per run, so both reads return the same
+        // pointer. Its header carries the synthetic TI and the payload the
+        // pre-throw seed.
+        auto code = OpenAndRewrite("test_caught_ptr", path)->code;
+        for (uint64_t seed : {0x1234ull, 0ull}) {
+            SCOPED_TRACE("test_caught_ptr seed=" + hex(seed));
+            auto caught = Interpret(code, U64(seed), U64(0)).u64;
+            EXPECT_EQ(InterpretAccRes(code, U64(seed), U64(0)).u64, caught);
+            ExpectMockObjectHeader(caught);
+            EXPECT_EQ(HeaderWord(caught, RTSupport::MetaInfo::ObjectHeaderSize()), seed);
+        }
+    }
+    {
+        // An exception object fabricated outside the mock heap (a test-seeded
+        // buffer arriving as the parameter) is caught unchanged.
+        auto code = OpenAndRewrite("test_throw_param", path)->code;
+        TestTypeInfo ti { 2 * RTSupport::MetaInfo::ObjectHeaderSize(), 8, {} };
+        alignas(16) uint64_t exc[2] = { 0 };
+        exc[0] = reinterpret_cast<uint64_t>(&ti);
+        exc[1] = 0x5a5a;
+        EXPECT_EQ(Interpret(code, U64(reinterpret_cast<uint64_t>(exc)), U64(0)).u64, 1);
+    }
+}

@@ -77,6 +77,13 @@ static void MockNewArr(Ectype* ectype, ThreadHandle th, TypeInfo elemType)
 
 static Type g_lastImplicitThrow = Type::Successful;
 
+// The modeled pending-exception slot (todo-mock 3.5). In the real runtime the slot is owned by
+// the CJNative runtime interface and surfaces through GetPendingException on the
+// common_landing_pad path (an exception thrown out of native code back into the interpreter).
+// ThunkOp::HandleException stages the thrown object there; reset per run like the
+// implicit-throw state.
+static uintptr_t g_pendingException = 0;
+
 // Frame geometry (mirrors the compiled trampoline, perform_2i_call in arch_os/*/trampolines.S):
 // frame.start points one past the last frame slot; frame slots are addressed as negative offsets
 // from it (slot N at frame.start + N * STACK_SLOT_SIZE - staticFrameSize, where staticFrameSize is
@@ -106,6 +113,23 @@ static void DoInterpretationLoop(
                 ectype->Put(IReg::IR7, U64(frameBot));
                 InterpreterI2CallTest(ectype, th, reinterpret_cast<DynamicFunctionHandle*>(thunk.arg));
                 break;
+            case ThunkOp::HandleException:
+                // todo-mock 3.5. Real flow (arch_os/*/trampolines.S .Lthunk_op_HandleException):
+                // the ASM resolves the throw point against the image exception regions
+                // (engine_get_exception_handler advances the reader to the region target) and,
+                // when a handler is found, publishes the exception object into ECTYPE_IACC -
+                // the register CATCH reads (interpretation_loop.cpp) - before restarting the
+                // loop at the position THROW_EXPLICIT saved (right after the throw). The mock
+                // has no exception regions, so catch-shaped asm in the suites places the CATCH
+                // pad immediately after the THROW, and the handler-found leg is modeled
+                // unconditionally: the thrown object (mock-heap allocated, synthetic-TI header
+                // per the d495fecf registry conventions) is staged as the pending exception and
+                // published into IR_ACC through GetPendingException. The no-handler leg (region
+                // lookup, frame unwinding and rethrow to the CJNative runtime) is not modeled:
+                // execution simply resumes after the throw.
+                g_pendingException = reinterpret_cast<uintptr_t>(thunk.arg);
+                ectype->Put(IReg::IR_ACC, Execution::GetPendingException());
+                break;
             case ThunkOp::ThrowImplicit:
                 g_lastImplicitThrow = static_cast<Type>(reinterpret_cast<uintptr_t>(thunk.arg));
                 return;
@@ -133,6 +157,7 @@ Value::Primitive Interpret(
 {
     heap.Reset();
     g_lastImplicitThrow = Type::Successful;
+    g_pendingException  = 0;
 
     Interpretation::Ectype ectype {};
     uint8_t bufIrs[sizeof(ectype.iregs)];
@@ -572,8 +597,7 @@ uintptr_t Execution::UnwrapDerivedPtr(uint64_t derived, bool checked) { FATAL("S
 
 Reference Execution::GetPendingException()
 {
-    FATAL("Should not reach here");
-    return Reference { .value = 0 };
+    return Reference { .value = Interpretation::g_pendingException };
 }
 
 Reference Execution::GetAndClearPendingException()
