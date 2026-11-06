@@ -550,13 +550,6 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
-// Exposed by the mock interpreter (test/mock/interpreter.cpp) but not declared
-// in mock/interpreter.h; needed for checked converts from float sources, whose
-// input InterpretThrows cannot seed (it has no FR0 parameter).
-namespace Interpretation {
-Type LastImplicitThrow();
-}
-
 template <typename T> using UnaryFunction = T (*)(T);
 
 template <typename T> using BinaryFunction = T (*)(T, T);

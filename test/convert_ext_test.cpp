@@ -294,8 +294,7 @@ TEST_P(CbcSpecializedConvertExt, test)
             auto ref     = CheckedConvertRefFpSrc(params.dst, input);
             SCOPED_TRACE(casePath + " input=" + hex(F64(input).u64));
             if (ref.overflow) {
-                Interpret(code, U64(0), U64(0), seed, F64(0));
-                EXPECT_EQ(Interpretation::LastImplicitThrow(), ref.error);
+                EXPECT_EQ(InterpretThrows(code, U64(0), U64(0), seed, F64(0)), ref.error);
             } else {
                 auto res = Interpret(code, U64(0), U64(0), seed, F64(0));
                 EXPECT_EQ(res.u64, ref.value);

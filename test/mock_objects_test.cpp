@@ -1,5 +1,27 @@
 #include "cbc_test_harness.h"
 
+// The convert-ext value table covers inf/NaN float sources; probe the FP-seeded
+// InterpretThrows entry (todo-mock 3.6) with a denormal, which the checked
+// range check must let through without a throw.
+TEST_ASM(CbcTest, CheckedConvertDenormalSource)
+{
+    auto code = OpenAndRewrite("test_I32_F32", "./generated-asm/convert-ext/checked/I32_F32.asm")->code;
+    EXPECT_EQ(
+        InterpretThrows(code, U64(0), U64(0), F32(std::numeric_limits<float>::denorm_min()), F64(0)),
+        Interpretation::Type::Successful
+    );
+}
+
+// The FP-seeded InterpretThrows overload must still stage the integer seeds:
+// nullcheck's IR1 reference decides between a clean run and NoneValueException.
+TEST_ASM(CbcTest, InterpretThrowsFPIntSeeds)
+{
+    auto code = OpenAndRewrite("test_nullcheck", "./generated-asm/checks-misc/nullcheck.asm")->code;
+    uint64_t obj = 0;
+    auto ref     = reinterpret_cast<uint64_t>(&obj);
+    EXPECT_EQ(InterpretThrows(code, U64(ref), U64(0), F64(0), F64(0)), Interpretation::Type::Successful);
+    EXPECT_EQ(InterpretThrows(code, U64(0), U64(0), F64(0), F64(0)), Interpretation::Type::NoneValueException);
+}
 // ---------------------------------------------------------------------------
 // mock-objects: newobj/newarr/index/load.type.info over the synthetic TypeInfos
 // ---------------------------------------------------------------------------

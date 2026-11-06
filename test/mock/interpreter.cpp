@@ -326,6 +326,18 @@ Interpretation::Type InterpretThrows(
     return Interpretation::LastImplicitThrow();
 }
 
+Interpretation::Type InterpretThrows(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+)
+{
+    Interpretation::Interpret<Cbc::IReg>(code, Interpretation::zeroFrame, ir1, ir2, fr0, fr1, Cbc::IReg::IR1);
+    return Interpretation::LastImplicitThrow();
+}
+
 Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Code code,
     Interpretation::Frame frame,

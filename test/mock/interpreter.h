@@ -126,6 +126,17 @@ Interpretation::Type InterpretThrows(
     Interpretation::Value::Primitive ir3
 );
 
+// Also seeds FR0/FR1 (float-source overflow cases, todo-mock 3.6); ir3 stays at
+// its historical zero. No defaulted parameters: sibling overloads sharing a
+// prefix must not compete over short call forms (see 88080975).
+Interpretation::Type InterpretThrows(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+);
+
 Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Code code,
     Interpretation::Frame frame,
