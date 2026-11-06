@@ -70,8 +70,10 @@ IR3 = "IR3"
 IR4 = "IR4"
 IR5 = "IR5"
 IR6 = "IR6"
+IR7 = "IR7"
 IR8 = "IR8"
 IR9 = "IR9"
+IR10 = "IR10"
 FR0 = "FR0"
 FR1 = "FR1"
 IRZ = "IRZ"
@@ -2959,6 +2961,30 @@ def generate_calls() -> list[Path]:
 # The CC of scc/bcc is comma-separated from the register operands, and the
 # length register IR2 of newarr/newarr(.g) is consumed via a prim liveness use
 # even when the method has no matching parameter.
+#
+# Family 2 (copy/tag/interf): copy.local(.g)/copy.to.local(.g)/copy.from.local(.g)
+# are raw memcpys of the synthetic TI's size (16 = header + payload for a rec), so
+# their round-trips cover the header word of the mock-heap objects - the source
+# header is clobbered before the copy to observe the overwrite - and a third
+# object allocated right after the destination guards against over-copy. The
+# useRec marks these ops demand (newobj defines REF) are re-stamped with the
+# @dead + @live.rec dance. The .g forms take the same registry TI from a
+# load.type.info register. tag.g rewrites to BRANCH_IS_REF + a ref load of the
+# payload word + SCC against IRZ; the mock's IsReference is constant true, so the
+# ref branch always runs and the tag is the payload-word non-nullness (REQ/RNE
+# per the option's enum kind). call.interf resolves through the interface's
+# method table (flagless method refs: MethodDefinition::GetABIFlags has no
+# abiKind bits, so any abi kind on the ref would fail the ABI compatibility
+# check) and dispatches through InterfaceDispatchMock: the C++ test supplies an
+# I2ICall thunk targeting the impl method of the same image and reads the
+# recorded dispatch (receiver TI from the object header, interf TI, methodNum).
+# Excluded: copy/copy.g (CopyDerived always unwraps the derived pointer through
+# UnwrapDerivedPtr, which FATALs), copy.typed*/copy.to.typed*/copy.from.typed*
+# (TypedSlotOffset in isa_rewriter.cpp still wraps negative offsets through the
+# unsigned subtraction that the UBSan build rejects), payload.g (LEA_GENERIC
+# calls the FATALing GetFieldOffset, todo-mock 3.3), new.none.g/new.some.g
+# (the NEWOBJ_ACC_G result must land in IR_ACC but the mock's NewObjectAcc
+# thunk puts it into IR1, todo-mock 3.4).
 
 MOCK_REC_ARRAY = "@arr[mem:Rec@rec]"  # 16-byte elements (rec elem TI)
 MOCK_I64_ARRAY = "@arr[I64]"          # 8-byte elements (prim elem TI)
@@ -3140,6 +3166,183 @@ def load_type_info_methods() -> list[Method]:
     ]
 
 
+# The copy round-trip: three newobj-allocated objects (source, destination, guard,
+# adjacent in the mock heap). The source header word is clobbered with the seed
+# (copy.local needs no live TI in it - the size comes from the bytecode-embedded
+# synthetic TI), the payload word carries the second seed, the guard header a
+# distinct constant. After the copy: the destination header equals the clobbered
+# seed (bytes [0, 8) were copied), the destination payload equals its seed (bytes
+# [8, 16) were copied), the guard stays intact (nothing beyond 16 was written).
+# The guarded copy line is spelled by the caller; `ti` selects the .g form, which
+# takes the same registry TI from a load.type.info register.
+MOCK_COPY_GUARD_SEED = 0xFEED
+
+
+def copy_method(name: str, copy_line: str, ti: bool) -> Method:
+    builder = (
+        method(name, I64, params=(I64, I64))
+        .live(IR1, IR2)
+        .instr("mov.64", IR5, IR1)
+        .instr("mov.64", IR6, IR2)
+        .dead(IR1, IR2)
+    )
+    if ti:
+        builder = builder.raw("load.type.info IR10, mem:Rec@rec")
+    builder = (
+        builder
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR2, IR1")
+        .dead(IR1)
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR3, IR1")
+        .dead(IR1)
+        .raw("newobj mem:Rec@rec")
+        .raw("mov.ref IR4, IR1")
+        .dead(IR1)
+        .instr("movi.64", IR7, imm(MOCK_COPY_GUARD_SEED))
+        .instr("st.raw.64", IR5, IR2, imm(0))
+        .instr("st.raw.64", IR6, IR2, imm(8))
+        .instr("st.raw.64", IR7, IR4, imm(0))
+        .dead(IR2, IR3)
+        .live_rec(IR2, IR3)
+        .raw(copy_line)
+        .instr("ld.raw.64", IR8, IR3, imm(0))
+        .instr("scc.64", "EQ", IR8, IR8, IR5)
+        .instr("ld.raw.64", IR9, IR3, imm(8))
+        .instr("scc.64", "EQ", IR9, IR9, IR6)
+        .instr("ld.raw.64", IR1, IR4, imm(0))
+        .instr("scc.64", "EQ", IR1, IR1, IR7)
+        .instr("mul.64", IR8, IR8, IR9)
+        .instr("mul.64", IR8, IR8, IR1)
+        .dead(IR2, IR3, IR4, IR5, IR6, IR7)
+    )
+    if ti:
+        builder = builder.dead(IR10)
+    return builder.ret(IR8)
+
+
+def copy_methods() -> list[Method]:
+    return [
+        copy_method("test_copy_local", "copy.local IR3, IR2, mem:Rec@rec", ti=False),
+        copy_method("test_copy_local_g", "copy.local.g IR3, IR2, IR10", ti=True),
+        copy_method("test_copy_to_local", "copy.to.local IR3, IRZ, IR2, mem:Rec@rec", ti=False),
+        copy_method("test_copy_to_local_g", "copy.to.local.g IR3, IRZ, IR2, IR10", ti=True),
+        copy_method("test_copy_from_local", "copy.from.local IRZ, IR3, IR2, mem:Rec@rec", ti=False),
+        copy_method("test_copy_from_local_g", "copy.from.local.g IRZ, IR3, IR2, IR10", ti=True),
+    ]
+
+
+# tag.g over Option<I64>-shaped enums: the option object is newobj-allocated and
+# the payload word (behind the header) holds the parameter; the underlying-TI
+# register comes from load.type.info (its value is only branched on, and the
+# mock's IsReference is constant true). The tag is the payload-word non-nullness
+# per the enum kind: Option1 { None, Some } -> RNE (non-null reads Some = 1),
+# Option0 { Some, None } -> REQ (null reads None = 1).
+MOCK_OPTION_TYPES = """
+@type mem:Opt1
+  @flags PUBLIC
+  @enum_kind Option1
+  @enum I64
+@end
+
+@type mem:Opt0
+  @flags PUBLIC
+  @enum_kind Option0
+  @enum I64
+@end
+
+"""
+
+
+def tag_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n' + MOCK_OPTION_TYPES.lstrip(
+        "\n"
+    ) + "@type default\n" + body + "\n@end\n"
+
+
+def tag_methods() -> list[Method]:
+    def tag_method(name: str, option: str) -> Method:
+        # newobj always defines IR1, so the payload param must move aside first.
+        # The option type defs carry no RECORD flag, so their spelling is @ref
+        # (a @rec term would fail the reference/record resolution check).
+        return (
+            method(name, I64, params=(I64,))
+            .live(IR1)
+            .instr("mov.64", IR2, IR1)
+            .dead(IR1)
+            .raw(f"newobj mem:{option}@ref")
+            .instr("st.raw.64", IR2, IR1, imm(8))
+            .raw("load.type.info IR3, I64")
+            .raw(f"tag.g IR4, IR1, IR3, mem:{option}@ref")
+            .dead(IR1, IR2, IR3)
+            .ret(IR4)
+        )
+
+    return [
+        tag_method("test_tag_opt1", "Opt1"),
+        tag_method("test_tag_opt0", "Opt0"),
+    ]
+
+
+MOCK_INTF_TYPES = """
+@type mem:Intf
+  @flags PUBLIC INTERFACE
+  @method foo(I64)I64
+    @flags PUBLIC ABSTRACT VIRTUAL
+  @end
+@end
+
+@type mem:Impl
+  @interfaces mem:Intf@ref
+  @method impl_foo(I64)I64
+    @flags PUBLIC VIRTUAL
+    @code
+      @live.prim IR1
+      load.type.info IR3, mem:Impl@ref
+      ld.raw.64 IR4, IR1, 0
+      scc.64 EQ, IR4, IR4, IR3
+      ld.raw.64 IR2, IR1, 8
+      addi.64 IR2, IR2, 0x1
+      mul.64 IR2, IR2, IR4
+      @dead IR1, IR3, IR4
+      mov.64 IR1, IR2
+      @dead IR2
+      ret.64 IR1
+    @end
+  @end
+@end
+
+@method_ref intf_foo = mem:Intf@ref foo(I64)I64
+
+"""
+
+
+def interf_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n' + MOCK_INTF_TYPES.lstrip(
+        "\n"
+    ) + "@type default\n" + body + "\n@end\n"
+
+
+def interf_methods() -> list[Method]:
+    # The receiver is staged as a plain I64 param (flagless method refs resolve
+    # with the STATIC abi kind); the result overwrites the receiver register, so
+    # it needs the @dead + @live.prim restamp after the call.
+    return [
+        method("main", I64, params=(I64,))
+            .live(IR1)
+            .instr("mov.64", IR2, IR1)
+            .dead(IR1)
+            .raw("newobj mem:Impl@ref")
+            .instr("st.raw.64", IR2, IR1, imm(8))
+            .raw("call.interf #intf_foo, IR1")
+            .dead(IR1)
+            .live(IR1)
+            .ret(IR1),
+    ]
+
+
 def generate_mock_objects() -> list[Path]:
     return write_suite(
         "mock-objects",
@@ -3148,6 +3351,9 @@ def generate_mock_objects() -> list[Path]:
             "newarr.asm"        : mock_obj_file(newarr_methods()),
             "index.asm"         : mock_obj_file(index_methods()),
             "load-type-info.asm": mock_obj_file(load_type_info_methods()),
+            "copy.asm"          : mock_obj_file(copy_methods()),
+            "tag.asm"           : tag_file(tag_methods()),
+            "interf.asm"        : interf_file(interf_methods()),
         },
     )
 

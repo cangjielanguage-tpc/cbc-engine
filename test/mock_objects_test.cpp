@@ -185,3 +185,91 @@ TEST_ASM(CbcTest, MockLoadTypeInfo)
         EXPECT_TRUE(ti->referenceOffsets.Empty());
     }
 }
+
+TEST_ASM(CbcTest, MockCopyLocal)
+{
+    // copy.local(.g)/copy.to.local(.g)/copy.from.local(.g) round-trip 16-byte
+    // rec cells between adjacent newobj-allocated mock-heap objects: the copy
+    // size is the synthetic TI's size, so the clobbered source header word is
+    // copied over the destination's untouched one, the payload word follows,
+    // and the guard object behind the destination stays intact. The .g forms
+    // take the same registry TI from a load.type.info register; the derived
+    // local forms run with a zero base (the LOCAL memcpy path - a heap base
+    // would need the still-FATALing Read/WriteStructField of todo-mock 3.7).
+    auto path = "./generated-asm/mock-objects/copy.asm";
+    for (auto name :
+         {"test_copy_local",
+          "test_copy_local_g",
+          "test_copy_to_local",
+          "test_copy_to_local_g",
+          "test_copy_from_local",
+          "test_copy_from_local_g"}) {
+        auto code = OpenAndRewrite(name, path)->code;
+        for (auto [hdr, pay] :
+             {std::pair {0x1234ull, 0x5678ull},
+              std::pair {0ull, 0xdeadbeefull},
+              std::pair {0xffffffffffffffffull, 0ull}}) {
+            SCOPED_TRACE(std::string(name) + " hdr=" + hex(hdr) + " pay=" + hex(pay));
+            EXPECT_EQ(Interpret(code, U64(hdr), U64(pay)).u64, 1);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockTagGeneric)
+{
+    // tag.g rewrites to BRANCH_IS_REF + a ref load of the payload word behind
+    // the header + SCC against IRZ; the mock's IsReference is constant true, so
+    // the reference branch always runs and the tag is the payload non-nullness
+    // per the option's enum kind: Option1 { None, Some } reads non-null as Some
+    // (1), Option0 { Some, None } reads null as None (1).
+    auto path = "./generated-asm/mock-objects/tag.asm";
+    for (auto [method, tagNonZero] :
+         {std::pair {"test_tag_opt1", 1ull}, std::pair {"test_tag_opt0", 0ull}}) {
+        auto code = OpenAndRewrite(method, path)->code;
+        for (uint64_t payload : {0ull, 0x5a5aull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE(std::string(method) + " payload=" + hex(payload));
+            EXPECT_EQ(Interpret(code, U64(payload), U64(0)).u64, payload != 0 ? tagNonZero : 1 - tagNonZero);
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockInterfaceCall)
+{
+    // call.interf resolves the interface's method table at rewrite time and
+    // reads the receiver TI from the mock-heap object header at run time; the
+    // InterfaceDispatchMock supplies the I2ICall thunk targeting the impl
+    // method of the same image and records the dispatch. The callee multiplies
+    // its payload+1 by an in-asm identity check (receiver header TI ==
+    // load.type.info of the same term), so the returned value proves both the
+    // dispatch and the argument/result plumbing. The non-generic spelling never
+    // queries the outer TI, and the .g form has no DSL spelling.
+    auto path = "./generated-asm/mock-objects/interf.asm";
+    auto code = OpenAndRewrite("main", path)->code;
+    // The same engine built the caller (GetEngineInstance points at it); the
+    // thunk target is its impl_foo handle.
+    Engine::Session session(Engine::GetEngineInstance());
+    auto calleeId = Engine::GetEngineInstance().FindMethod(session, path, "mem:Impl", "impl_foo");
+    ASSERT_TRUE(calleeId.has_value());
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
+    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, calleeId.value()));
+
+    auto& mock = InterfaceDispatchMock();
+    mock.enabled = true;
+    mock.thunk   = Interpretation::Thunk {.op = Interpretation::ThunkOp::I2ICall, .argUInt = reinterpret_cast<uint64_t>(fuh)};
+
+    for (uint64_t x : {0x1234ull, 0ull, 0xabcdefull}) {
+        SCOPED_TRACE("x=" + hex(x));
+        mock.dispatchCalls.Clear();
+        EXPECT_EQ(Interpret(code, U64(x), U64(0)).u64, x + 1);
+        ASSERT_EQ(mock.dispatchCalls.Size(), 1);
+        EXPECT_EQ(mock.dispatchCalls[0].methodNum, 0);
+        auto* receiver = reinterpret_cast<TestTypeInfo*>(mock.dispatchCalls[0].receiver.UInt());
+        ASSERT_NE(receiver, nullptr);
+        EXPECT_EQ(receiver->size, 2 * RTSupport::MetaInfo::ObjectHeaderSize());
+        EXPECT_EQ(receiver->alignment, sizeof(void*));
+        auto* interf = reinterpret_cast<TestTypeInfo*>(mock.dispatchCalls[0].reference.UInt());
+        ASSERT_NE(interf, nullptr);
+        EXPECT_NE(interf, receiver);
+        EXPECT_EQ(mock.outerTiCalls.Size(), 0);
+    }
+}
