@@ -9,6 +9,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <functional>
 #include <list>
 #include <mutex>
 #include <optional>
@@ -22,7 +23,7 @@ namespace Cbc::Profiler {
 bool enabled = true;
 
 namespace {
-constexpr auto COLLECTION_PERIOD  = std::chrono::milliseconds(100);
+constexpr auto COLLECTION_PERIOD  = std::chrono::milliseconds(10);
 constexpr uint64_t HOT_CALL_COUNT = 100;
 } // namespace
 
@@ -34,6 +35,54 @@ struct InlineRequest {
     uint32_t runtimeCallSiteOffset;
     uint64_t count;
     uint64_t expectedVersion;
+};
+
+struct InlineCallSite {
+    Interpretation::DynamicFunctionHandle* calleeFuh;
+    uint32_t cbcCallSiteOffset;
+    uint32_t runtimeCallSiteOffset;
+};
+
+struct InlinePlan {
+    Interpretation::DynamicFunctionHandle* callerFuh;
+    Interpretation::ExecBytecodeInfo* expectedBytecode;
+    uint64_t expectedVersion;
+    std::vector<InlineCallSite> callSites;
+};
+
+Stream::Output& operator<<(Stream::Output& out, const InlinePlan& plan)
+{
+    out.Print(
+        "InlinePlan { caller: {}, bytecode: {}, version: {} -> {}, callSites: {} }",
+        reinterpret_cast<const void*>(plan.callerFuh),
+        reinterpret_cast<const void*>(plan.expectedBytecode),
+        plan.expectedVersion,
+        plan.expectedVersion + 1,
+        plan.callSites.size()
+    );
+    return out;
+}
+
+struct InlinePlanKey {
+    Interpretation::DynamicFunctionHandle* callerFuh;
+    Interpretation::ExecBytecodeInfo* expectedBytecode;
+    uint64_t expectedVersion;
+
+    bool operator==(const InlinePlanKey& other) const
+    {
+        return callerFuh == other.callerFuh && expectedBytecode == other.expectedBytecode &&
+               expectedVersion == other.expectedVersion;
+    }
+};
+
+struct InlinePlanKeyHash {
+    size_t operator()(const InlinePlanKey& key) const
+    {
+        const auto callerHash   = std::hash<Interpretation::DynamicFunctionHandle*> {}(key.callerFuh);
+        const auto bytecodeHash = std::hash<Interpretation::ExecBytecodeInfo*> {}(key.expectedBytecode);
+        const auto versionHash  = std::hash<uint64_t> {}(key.expectedVersion);
+        return callerHash ^ (bytecodeHash << 1) ^ (versionHash << 2);
+    }
 };
 
 class FiberProfileManager {
@@ -141,8 +190,8 @@ private:
             return std::nullopt;
         }
 
-        const auto callee = bytecode->code.literals->at(args.xi12.imm12).uintptr;
-        auto* calleeFuh   = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
+        const auto callee                = bytecode->code.literals->at(args.xi12.imm12).uintptr;
+        auto* calleeFuh                  = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
         const auto runtimeCallSiteOffset = static_cast<uint32_t>(edge.callSite - bytecodeStart);
         const auto cbcCallSiteOffset =
             bytecode->offsetsIndex.FindMappedOffset(Cbc::InstructionType::REWRITTEN, runtimeCallSiteOffset);
@@ -151,23 +200,40 @@ private:
         }
 
         return InlineRequest {
-            callerFuh,
-            bytecode,
-            calleeFuh,
-            *cbcCallSiteOffset,
-            runtimeCallSiteOffset,
-            count,
-            bytecode->version,
+            callerFuh, bytecode, calleeFuh, *cbcCallSiteOffset, runtimeCallSiteOffset, count, bytecode->version,
         };
+    }
+
+    static std::vector<InlinePlan> BuildInlinePlans(const std::vector<InlineRequest>& requests)
+    {
+        std::vector<InlinePlan> plans;
+        std::unordered_map<InlinePlanKey, size_t, InlinePlanKeyHash> planIndices;
+
+        for (const auto& request : requests) {
+            const InlinePlanKey key { request.callerFuh, request.expectedBytecode, request.expectedVersion };
+            const auto [it, inserted] = planIndices.emplace(key, plans.size());
+            if (inserted) {
+                plans.push_back(InlinePlan {
+                    request.callerFuh,
+                    request.expectedBytecode,
+                    request.expectedVersion,
+                    {},
+                });
+            }
+            plans[it->second].callSites.push_back(InlineCallSite {
+                request.calleeFuh,
+                request.cbcCallSiteOffset,
+                request.runtimeCallSiteOffset,
+            });
+        }
+        return plans;
     }
 
     void ProcessCollectedCalls(const CallCounters& counters, uint64_t recordedCallCount, uint64_t scanTimeUs)
     {
         Engine::Session session(Engine::GetEngineInstance());
         std::vector<ProfiledCall> callsFoLog;
-        callsFoLog.reserve(counters.size());
         std::vector<InlineRequest> callsForInline;
-        callsForInline.reserve(counters.size());
         for (const auto& [edge, count] : counters) {
             auto call = ResolveCall(edge, count);
             if (!call.has_value()) {
@@ -180,16 +246,36 @@ private:
             }
         }
         LogProfilerPass(callsFoLog, recordedCallCount, scanTimeUs);
-        InlineCalls(session, callsForInline);
+        InlineCalls(session, BuildInlinePlans(callsForInline));
     }
 
-    void InlineCalls(Engine::Session& session, const std::vector<InlineRequest>& calls)
+    void InlineCalls(Engine::Session& session, const std::vector<InlinePlan>& plans)
     {
         auto& manager = Interpretation::FunctionHandleManager::Of(session);
-        for (const auto& call : calls) {
-            manager.RebuildAndPublish(
-                session, call.callerFuh, call.expectedBytecode, call.expectedVersion
-            );
+        for (const auto& plan : plans) {
+            Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
+                out << "Rebuilding " << plan << Stream::endl;
+            });
+
+            auto* published =
+                manager.RebuildAndPublish(session, plan.callerFuh, plan.expectedBytecode, plan.expectedVersion);
+            Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
+                if (published != nullptr) {
+                    out.PrintLn(
+                        "Rebuild succeeded: bytecode {} version {}, code {}+{}",
+                        reinterpret_cast<const void*>(published),
+                        published->version,
+                        reinterpret_cast<const void*>(published->code.bytecode),
+                        published->code.bytecodeSize
+                    );
+                } else {
+                    out.PrintLn(
+                        "Rebuild failed: bytecode {} version {} is no longer current",
+                        reinterpret_cast<const void*>(plan.expectedBytecode),
+                        plan.expectedVersion
+                    );
+                }
+            });
         }
     }
 
