@@ -274,6 +274,79 @@ TEST_ASM(CbcTest, MockInterfaceCall)
     }
 }
 
+TEST_ASM(CbcTest, MockNewOption)
+{
+    // new.none.g/new.some.g lower to NEWOBJ_ACC_G - the engine's ACC-form
+    // allocation, whose result the real thunk stores in IR_ACC (Init*Generic
+    // reads its write base and the final Mov(dst, IR_ACC) reads the result
+    // from there) - so MockNewObj must place the object into IR_ACC for the
+    // flows to work at all. The mock's IsReference is constant true:
+    // none.g leaves the zeroed payload word (None for both enum kinds) and
+    // some.g stores the raw param behind the header; tag.g/payload.g read the
+    // very same words back.
+    auto path = "./generated-asm/mock-objects/new-option.asm";
+    for (auto kind : {std::string {"opt0"}, std::string {"opt1"}}) {
+        {
+            SCOPED_TRACE("test_none_" + kind);
+            auto code = OpenAndRewrite("test_none_" + kind, path)->code;
+            auto obj  = Interpret(code, U64(0), U64(0)).u64;
+            ExpectMockObjectHeader(obj);
+            EXPECT_EQ(HeaderWord(obj, RTSupport::MetaInfo::ObjectHeaderSize()), 0ull);
+        }
+        {
+            // tag.g over the fresh None object: Option1 { None, Some } reads
+            // the null payload as 0, Option0 { Some, None } as 1.
+            auto tag = OpenAndRewrite("test_none_tag_" + kind, path)->code;
+            EXPECT_EQ(Interpret(tag, U64(0), U64(0)).u64, kind == "opt0" ? 1 : 0);
+        }
+        {
+            // The fresh Some object: the raw payload parameter is stored
+            // behind the header and reads back raw.
+            auto some = OpenAndRewrite("test_some_" + kind, path)->code;
+            for (uint64_t payload : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+                SCOPED_TRACE("test_some_" + kind + " payload=" + hex(payload));
+                auto obj = Interpret(some, U64(payload), U64(0)).u64;
+                ExpectMockObjectHeader(obj);
+                EXPECT_EQ(HeaderWord(obj, RTSupport::MetaInfo::ObjectHeaderSize()), payload);
+            }
+        }
+        {
+            // payload.g round-trips the stored payload word.
+            auto payloadG = OpenAndRewrite("test_some_payload_" + kind, path)->code;
+            for (uint64_t payload : {0x5a5aull, 0ull, 0xffffffffffffffffull}) {
+                SCOPED_TRACE("test_some_payload_" + kind + " payload=" + hex(payload));
+                EXPECT_EQ(Interpret(payloadG, U64(payload), U64(0)).u64, payload);
+            }
+        }
+    }
+}
+
+TEST_ASM(CbcTest, MockAccResultRegister)
+{
+    // IR_ACC observability (todo-mock 3.4, mock level): the acc forms have no
+    // DSL spelling, so the none/some flows stand in for them - their
+    // NEWOBJ_ACC_G allocation lands in IR_ACC and the lowering's final
+    // Mov(dst, IR_ACC) leaves it there through the ret. The fresh allocations
+    // are deterministic (the mock heap rewinds per run), so the
+    // InterpretAccRes runs must return the very pointer the dst-reading
+    // Interpret runs returned.
+    auto path = "./generated-asm/mock-objects/new-option.asm";
+    for (auto name : {"test_none_opt0", "test_none_opt1"}) {
+        SCOPED_TRACE(name);
+        auto code = OpenAndRewrite(name, path)->code;
+        EXPECT_EQ(InterpretAccRes(code, U64(0), U64(0)).u64, Interpret(code, U64(0), U64(0)).u64);
+        EXPECT_NE(InterpretAccRes(code, U64(0), U64(0)).u64, 0);
+    }
+    for (auto name : {"test_some_opt0", "test_some_opt1"}) {
+        SCOPED_TRACE(name);
+        auto code = OpenAndRewrite(name, path)->code;
+        for (uint64_t payload : {0x1234ull, 0ull}) {
+            SCOPED_TRACE("payload=" + hex(payload));
+            EXPECT_EQ(InterpretAccRes(code, U64(payload), U64(0)).u64, Interpret(code, U64(payload), U64(0)).u64);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // mock-lea: lea family / offset / movbp / lea.static / payload.g over the mock base pointers
 // ---------------------------------------------------------------------------

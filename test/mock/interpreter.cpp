@@ -42,7 +42,7 @@ static TestTypeInfo* Extract(TypeInfo type)
     return (TestTypeInfo*)p;
 }
 
-static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
+static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type, bool onAcc)
 {
     auto typeInfo = Extract(type);
     auto mem      = heap.Allocate(typeInfo->size, alignof(std::max_align_t));
@@ -50,7 +50,12 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
     TestTypeInfo** header = (TestTypeInfo**)mem;
     *header               = typeInfo;
 
-    ectype->Put(IReg::IR1, Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
+    // The engine's ACC-form allocation (NEWOBJ_ACC_G behind newobj.acc/new.none.g/new.some.g/
+    // box.g) leaves the object in IR_ACC only: the real thunk stores it at ECTYPE_IACC_NUM
+    // (arch_os/*/trampolines.S), InitSomeGeneric reads its write base from IR_ACC
+    // (interpretation_loop.cpp) and the rewriter moves the result out of IR_ACC. The plain
+    // NewObject form keeps landing in IR1.
+    ectype->Put(onAcc ? IReg::IR_ACC : IReg::IR1, Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
 }
 
 // Array layout must match the runtime constants the rewriter emits against:
@@ -94,8 +99,8 @@ static void DoInterpretationLoop(
             break;
         }
         switch (thunk.op) {
-            case ThunkOp::NewObject:
-            case ThunkOp::NewObjectAcc: MockNewObj(ectype, th, TypeInfo(thunk.arg)); break;
+            case ThunkOp::NewObject: MockNewObj(ectype, th, TypeInfo(thunk.arg), false); break;
+            case ThunkOp::NewObjectAcc: MockNewObj(ectype, th, TypeInfo(thunk.arg), true); break;
             case ThunkOp::NewArray: MockNewArr(ectype, th, TypeInfo(thunk.arg)); break;
             case ThunkOp::I2ICall:
                 ectype->Put(IReg::IR7, U64(frameBot));
@@ -264,6 +269,15 @@ Interpretation::Value::Primitive Interpret(
 {
     return Interpretation::Interpret<Cbc::IReg>(
         code, Interpretation::zeroFrame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1, ir3
+    );
+}
+
+Interpretation::Value::Primitive InterpretAccRes(
+    Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
+)
+{
+    return Interpretation::Interpret<Cbc::IReg>(
+        code, Interpretation::zeroFrame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR_ACC
     );
 }
 

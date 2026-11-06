@@ -2982,11 +2982,10 @@ def generate_calls() -> list[Path]:
 # Excluded: copy/copy.g (CopyDerived always unwraps the derived pointer through
 # UnwrapDerivedPtr, which FATALs), copy.typed*/copy.to.typed*/copy.from.typed*
 # (TypedSlotOffset in isa_rewriter.cpp still wraps negative offsets through the
-# unsigned subtraction that the UBSan build rejects), new.none.g/new.some.g
-# (the NEWOBJ_ACC_G result must land in IR_ACC but the mock's NewObjectAcc
-# thunk puts it into IR1, todo-mock 3.4). payload.g was excluded for the same
-# FATALing GetFieldOffset and moved to the mock-lea suite once todo-mock 3.3
-# stubbed it.
+# unsigned subtraction that the UBSan build rejects). new.none.g/new.some.g
+# moved to new-option.asm once todo-mock 3.4 put the NEWOBJ_ACC_G result into
+# IR_ACC; payload.g was excluded for the same FATALing GetFieldOffset and moved
+# to the mock-lea suite once todo-mock 3.3 stubbed it.
 
 MOCK_REC_ARRAY = "@arr[mem:Rec@rec]"  # 16-byte elements (rec elem TI)
 MOCK_I64_ARRAY = "@arr[I64]"          # 8-byte elements (prim elem TI)
@@ -3345,6 +3344,98 @@ def interf_methods() -> list[Method]:
     ]
 
 
+# new.none.g/new.some.g (todo-mock 3.4): both lower to NEWOBJ_ACC_G - the
+# engine's ACC-form allocation, whose result lands in IR_ACC (the real thunk
+# stores it there; InitNoneGenericOpt0/InitSomeGeneric read their write base
+# from IR_ACC) - plus a final Mov(dst, IR_ACC), so the mock's NewObjectAcc
+# thunk must put the object into IR_ACC for the flows to work at all. The
+# option/underlying TI registers hold the registry TIs via load.type.info;
+# new.some.g's src is the raw payload value (the mock's IsReference is constant
+# true, so InitSomeGeneric stores it behind the header via WriteObjectInstance
+# and InitNoneGenericOpt0 is a no-op). The fresh allocations are deterministic
+# (the mock heap rewinds per run), so the same method run through the
+# IR_ACC-reading mock entry point (InterpretAccRes) returns the very pointer
+# the dst-reading run sees.
+
+def new_none_ptr_method(option: str) -> Method:
+    # Returns the fresh None object: the C++ test checks the option TI in the
+    # header and the null payload word behind it.
+    return (
+        method(f"test_none_{option.lower()}", I64)
+        .raw("load.type.info IR3, I64")
+        .raw(f"load.type.info IR4, mem:{option}@ref")
+        .raw(f"new.none.g IR1, IR3, IR4, mem:{option}@ref")
+        .dead(IR3, IR4)
+        .raw("ret.ref IR1")
+        .build()
+    )
+
+
+def new_none_tag_method(option: str) -> Method:
+    # The fresh None object read through tag.g: Option1 { None, Some } (RNE)
+    # reads the null payload as 0, Option0 { Some, None } (REQ) as 1 - the
+    # none.g objects are genuinely None-valued for both enum kinds.
+    return (
+        method(f"test_none_tag_{option.lower()}", I64)
+        .raw("load.type.info IR3, I64")
+        .raw(f"load.type.info IR4, mem:{option}@ref")
+        .raw(f"new.none.g IR1, IR3, IR4, mem:{option}@ref")
+        .raw(f"tag.g IR5, IR1, IR3, mem:{option}@ref")
+        .dead(IR1, IR3, IR4)
+        .ret(IR5)
+    )
+
+
+def new_some_ptr_method(option: str) -> Method:
+    # Returns the fresh Some object with the payload parameter stored behind
+    # the header; the C++ test reads the payload word back raw.
+    return (
+        method(f"test_some_{option.lower()}", I64, params=(I64,))
+        .live(IR1)
+        .instr("mov.64", IR2, IR1)
+        .dead(IR1)
+        .raw("load.type.info IR3, I64")
+        .raw(f"load.type.info IR4, mem:{option}@ref")
+        .raw(f"new.some.g IR1, IR2, IR3, IR4, mem:{option}@ref")
+        .dead(IR2, IR3, IR4)
+        .raw("ret.ref IR1")
+        .build()
+    )
+
+
+def new_some_payload_method(option: str) -> Method:
+    # The full round-trip: the some.g payload is read back in-asm through
+    # payload.g (its LEA_GENERIC of ordinal 1 folds to the payload word behind
+    # the header over the overlapping option TI).
+    return (
+        method(f"test_some_payload_{option.lower()}", I64, params=(I64,))
+        .live(IR1)
+        .instr("mov.64", IR2, IR1)
+        .dead(IR1)
+        .raw("load.type.info IR3, I64")
+        .raw(f"load.type.info IR4, mem:{option}@ref")
+        .raw(f"new.some.g IR1, IR2, IR3, IR4, mem:{option}@ref")
+        .dead(IR2)
+        .raw(f"payload.g IR5, IR1, IR3, IR4, mem:{option}@ref")
+        .dead(IR1, IR3, IR4)
+        .raw("ret.ref IR5")
+        .build()
+    )
+
+
+def new_option_methods() -> list[Method]:
+    return [
+        new_none_ptr_method("Opt0"),
+        new_none_ptr_method("Opt1"),
+        new_none_tag_method("Opt0"),
+        new_none_tag_method("Opt1"),
+        new_some_ptr_method("Opt0"),
+        new_some_ptr_method("Opt1"),
+        new_some_payload_method("Opt0"),
+        new_some_payload_method("Opt1"),
+    ]
+
+
 def generate_mock_objects() -> list[Path]:
     return write_suite(
         "mock-objects",
@@ -3355,6 +3446,7 @@ def generate_mock_objects() -> list[Path]:
             "load-type-info.asm": mock_obj_file(load_type_info_methods()),
             "copy.asm"          : mock_obj_file(copy_methods()),
             "tag.asm"           : tag_file(tag_methods()),
+            "new-option.asm"    : tag_file(new_option_methods()),
             "interf.asm"        : interf_file(interf_methods()),
         },
     )

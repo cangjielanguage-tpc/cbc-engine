@@ -105,6 +105,14 @@ Interpretation::Value::Primitive Interpret(
     Interpretation::Value::Primitive ir3
 );
 
+// Like Interpret, but reads the result from IReg::IR_ACC - the register the
+// engine's ACC-form ops place results in (NEWOBJ_ACC_G thunk, todo-mock 3.4).
+// The acc forms have no DSL spelling, so IR_ACC observability is exercised
+// through flows that allocate on ACC internally (new.none.g/new.some.g).
+Interpretation::Value::Primitive InterpretAccRes(
+    Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
+);
+
 // Runs the code and returns the type of the implicit exception it throws
 // (Interpretation::Type::Successful if it runs to completion).
 Interpretation::Type InterpretThrows(
