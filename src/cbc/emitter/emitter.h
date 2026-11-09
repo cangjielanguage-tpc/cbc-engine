@@ -66,6 +66,7 @@ public:
 
     void Unary(FloatOperations op, Width Width, FReg d, FReg s);
     void FMathUnary(FloatMathOp op, Width width, FReg d, FReg s);
+    void FPowi(Width width, FReg d, FReg b, IReg e);
 
     void Ret();
     void Mov(IReg d, IReg s);

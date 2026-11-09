@@ -613,6 +613,11 @@ template <> inline ArithmeticResult ArithFPMath<Width::W64>(FloatMathOp::Value o
         case FloatMathOp::LOG:   return { Value::Primitive { .f64 = std::log(s.f64) }, true };
         case FloatMathOp::CEIL:  return { Value::Primitive { .f64 = std::ceil(s.f64) }, true };
         case FloatMathOp::FLOOR: return { Value::Primitive { .f64 = std::floor(s.f64) }, true };
+        case FloatMathOp::LOG10: return { Value::Primitive { .f64 = std::log10(s.f64) }, true };
+        case FloatMathOp::LOG2:  return { Value::Primitive { .f64 = std::log2(s.f64) }, true };
+        case FloatMathOp::EXP:   return { Value::Primitive { .f64 = std::exp(s.f64) }, true };
+        case FloatMathOp::EXP2:  return { Value::Primitive { .f64 = std::exp2(s.f64) }, true };
+        case FloatMathOp::TRUNC: return { Value::Primitive { .f64 = std::trunc(s.f64) }, true };
 
         default: FATAL("Unexpected FP math op: %d", op);
     }
@@ -627,9 +632,33 @@ template <> inline ArithmeticResult ArithFPMath<Width::W32>(FloatMathOp::Value o
         case FloatMathOp::LOG:   return { Value::Primitive { .f32 = std::log(s.f32) }, true };
         case FloatMathOp::CEIL:  return { Value::Primitive { .f32 = std::ceil(s.f32) }, true };
         case FloatMathOp::FLOOR: return { Value::Primitive { .f32 = std::floor(s.f32) }, true };
+        case FloatMathOp::LOG10: return { Value::Primitive { .f32 = std::log10(s.f32) }, true };
+        case FloatMathOp::LOG2:  return { Value::Primitive { .f32 = std::log2(s.f32) }, true };
+        case FloatMathOp::EXP:   return { Value::Primitive { .f32 = std::exp(s.f32) }, true };
+        case FloatMathOp::EXP2:  return { Value::Primitive { .f32 = std::exp2(s.f32) }, true };
+        case FloatMathOp::TRUNC: return { Value::Primitive { .f32 = std::trunc(s.f32) }, true };
 
         default: FATAL("Unexpected FP math op: %d", op);
     }
+}
+
+// FP base raised to a signed 64-bit integer exponent. The W32 path computes in
+// double and narrows the result to float for better precision than float pow.
+template <Width::Value width> static inline ArithmeticResult ArithFPowI(Value::Primitive b, Value::Primitive e);
+
+template <> inline ArithmeticResult ArithFPowI<Width::W64>(Value::Primitive b, Value::Primitive e)
+{
+    return { Value::Primitive { .f64 = std::pow(b.f64, static_cast<double>(static_cast<int64_t>(e.u64))) }, true };
+}
+
+template <> inline ArithmeticResult ArithFPowI<Width::W32>(Value::Primitive b, Value::Primitive e)
+{
+    return {
+        Value::Primitive { .f32 = static_cast<float>(
+                                std::pow(static_cast<double>(b.f32), static_cast<double>(static_cast<int64_t>(e.u64)))
+                            ) },
+        true
+    };
 }
 
 template <CC::Value cc, Width::Value width> inline static bool Compare(Value::Primitive l, Value::Primitive r);

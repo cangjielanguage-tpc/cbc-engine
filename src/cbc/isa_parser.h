@@ -193,6 +193,9 @@ protected:
     virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) = 0;
     virtual void FMathUnary64(Format::FloatMathOp op, FReg dst, FReg src) = 0;
 
+    virtual void FPowi32(FReg dst, FReg base, IReg exp) = 0;
+    virtual void FPowi64(FReg dst, FReg base, IReg exp) = 0;
+
     friend struct IsaParserImpl;
     Decoder::FatByteReader reader;
     Utils::Vector<Location> callArgs;

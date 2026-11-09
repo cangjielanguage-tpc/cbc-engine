@@ -561,6 +561,18 @@ struct IsaParserImpl {
         parser.FMathUnary64(Format::FloatMathOp::From(op), dst, src);
     }
 
+    static void FPowi32(IsaParser& parser)
+    {
+        auto [_, dst, base, exp] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.FPowi32(dst, base, exp);
+    }
+
+    static void FPowi64(IsaParser& parser)
+    {
+        auto [_, dst, base, exp] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.FPowi64(dst, base, exp);
+    }
+
     static void LoadTailParam(IsaParser& parser)
     {
         auto [dst, tailReg, ldk, _, num] =
