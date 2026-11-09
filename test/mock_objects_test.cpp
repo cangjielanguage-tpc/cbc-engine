@@ -369,6 +369,74 @@ TEST_ASM(CbcTest, MockAccResultRegister)
     }
 }
 
+TEST_ASM(CbcTest, MockBoxGeneric)
+{
+    // box.g (the generic boxing family): the rewriter lowers it to
+    // NEWOBJ_ACC_G (isa_rewriter.cpp:2179 BoxGeneric -> emitter.cpp:589) +
+    // STORE_GENERIC_1 of the boxed value into the box at the object header
+    // offset (emitter.cpp:660 Emitter::StoreGeneric picks the _1 form for
+    // offsets in (0, 255); box.g always passes ObjectHeaderSize()) plus the
+    // final Mov(dst, IR_ACC) (AdjustReg, isa_rewriter.cpp:361) - so the
+    // NEWOBJ_ACC_G result stays in IR_ACC through the ret and InterpretAccRes
+    // returns the same box pointer. unbox dst, src, tpe rewrites to LOAD_OBJ
+    // at the same offset with the tpe's access kind (isa_rewriter.cpp:2207
+    // Unbox; no unbox.g spelling exists - assembler probe): the builtin tpe
+    // Ldk(bt) widens per the tpe (operations.h:853 Load<T>: u8 zero-extends /
+    // s8 sign-extends), the REF tpe lowers to LD_REF (raw). The engine store
+    // goes through StoreGeneric (interpretation_loop.cpp:67) and the mock's
+    // constant-true IsReference (test/mock/interpreter.cpp:604) routes it to
+    // WriteObjectInstance (test/mock/interpreter.cpp:476): the full 8-byte
+    // word of the boxed value lands in the payload slot behind the header.
+    // All flows box over the object-like synthetic TI (size 16 = header + one
+    // payload slot), because the mock allocates exactly typeInfo->size bytes.
+    auto path = "./generated-asm/mock-objects/box.asm";
+    {
+        // The box is a mock-heap object: synthetic-TI header + the payload
+        // word holding the boxed value bits.
+        auto code = OpenAndRewrite("test_box_ptr", path)->code;
+        for (uint64_t value : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE("test_box_ptr value=" + hex(value));
+            auto box = Interpret(code, U64(value), U64(0)).u64;
+            ExpectMockObjectHeader(box);
+            EXPECT_EQ(HeaderWord(box, RTSupport::MetaInfo::ObjectHeaderSize()), value);
+            EXPECT_EQ(InterpretAccRes(code, U64(value), U64(0)).u64, box);
+        }
+    }
+    {
+        // unbox U8 zero-extends the payload's low byte: 0x1a5 boxes the full
+        // word but reads back 0xa5.
+        auto code = OpenAndRewrite("test_box_u8", path)->code;
+        for (auto [value, low] : {std::pair {0xa5ull, 0xa5ull}, std::pair {0x1a5ull, 0xa5ull}, std::pair {0x100ull, 0ull}}) {
+            SCOPED_TRACE("test_box_u8 value=" + hex(value));
+            EXPECT_EQ(Interpret(code, U64(value), U64(0)).u32, low);
+        }
+    }
+    {
+        // unbox I8 sign-extends the payload's low byte.
+        auto code = OpenAndRewrite("test_box_i8", path)->code;
+        for (auto [value, sext] :
+             {std::pair {0x80ull, 0xffffff80ull}, std::pair {0x7full, 0x7full}, std::pair {0x1ffull, 0xffffffffull}}) {
+            SCOPED_TRACE("test_box_i8 value=" + hex(value));
+            EXPECT_EQ(Interpret(code, U64(value), U64(0)).u32, sext);
+        }
+    }
+    {
+        // unbox I64 round-trips the full payload word.
+        auto code = OpenAndRewrite("test_box_i64", path)->code;
+        for (uint64_t value : {0x1234ull, 0ull, 0xffffffffffffffffull}) {
+            SCOPED_TRACE("test_box_i64 value=" + hex(value));
+            EXPECT_EQ(Interpret(code, U64(value), U64(0)).u64, value);
+        }
+    }
+    {
+        // Boxing a ref: the raw payload word and the unboxed ref both equal
+        // the boxed object pointer (the in-asm scc pair).
+        SCOPED_TRACE(std::string(path) + " test_box_ref");
+        auto code = OpenAndRewrite("test_box_ref", path)->code;
+        EXPECT_EQ(Interpret(code, U64(0), U64(0)).u64, 1);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // mock-lea: lea family / offset / movbp / lea.static / payload.g over the mock base pointers
 // ---------------------------------------------------------------------------

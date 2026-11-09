@@ -3625,6 +3625,97 @@ def new_option_methods() -> list[Method]:
     ]
 
 
+# box.g/unbox (the generic boxing family): the rewriter lowers box.g
+# (isa_rewriter.cpp:2179 BoxGeneric) to NEWOBJ_ACC_G (emitter.cpp:589
+# NewObjGenericOnAcc - the ACC-form allocation whose result the mock's
+# NewObjectAcc thunk puts into IR_ACC, test/mock/interpreter.cpp:111 ->
+# MockNewObj(onAcc)) plus STORE_GENERIC_1 of the boxed value into IR_ACC at the
+# object header offset (emitter.cpp:660 Emitter::StoreGeneric picks the _1 form
+# for offsets in (0, 255); box.g always passes ObjectHeaderSize() =
+# sizeof(void*) = 8, runtime.h:139, so STORE_GENERIC/_4 are unreachable through
+# it) plus the final Mov(dst, IR_ACC) (AdjustReg, isa_rewriter.cpp:361). There
+# is no unbox.g spelling (assembler probe): unbox dst, src, tpe rewrites to
+# LOAD_OBJ at the same offset with the tpe's access kind (isa_rewriter.cpp:2207
+# Unbox; the builtin tpe's Ldk(bt) at isa_rewriter.cpp:127 - u8 zero-extends /
+# i8 sign-extends / 64 raw - or LD_REF for a ref tpe; REC tpe would need
+# ReadStructField - the rec flows stay payload.g/tag.g's). The engine executes
+# the store through StoreGeneric (interpretation_loop.cpp:67): the mock's
+# IsReference is constant true (test/mock/interpreter.cpp:604), so it always
+# takes the WriteObjectInstance path (test/mock/interpreter.cpp:476) - the full
+# 8-byte word of the boxed value lands in the payload slot behind the header,
+# and unbox widens it per the tpe (operations.h:853 Load<T>: u8 zero-extends /
+# s8 sign-extends, LD_64/LD_REF raw). The box TI must be object-like (size 16 =
+# header + one payload slot): the mock allocates exactly typeInfo->size bytes
+# (test/mock/interpreter.cpp:49), so a prim TI would leave the payload write
+# past the allocation. unbox of a box.g-written box is the "read through the
+# generic-slot write" leg: the DSL st.g is hardwired to NoneFieldReference
+# (offset 0, the already-covered STORE_GENERIC), so box.g's STORE_GENERIC_1 is
+# the only DSL path to the offset-carrying generic stores. Note NEWBOX/NEWBOX2
+# (emitter.cpp:1312/1321, the non-generic box/box.ts thunks - all three route
+# the mock's NewObjectAcc, interpretation_loop.cpp:722/775/785) are a different
+# family outside this chunk's mnemonic list.
+
+def box_ptr_method() -> Method:
+    # Returns the box pointer for the C++-side header/payload inspection; the
+    # NEWOBJ_ACC_G result stays in IR_ACC through the ret (only reads follow),
+    # so InterpretAccRes returns the same pointer.
+    return (
+        method("test_box_ptr", I64, params=(I64,))
+        .live(IR1)
+        .raw("load.type.info IR3, mem:Obj@ref")
+        .raw("box.g IR1, IR2, IR3")
+        .dead(IR1, IR3)
+        .raw("ret.ref IR2")
+        .build()
+    )
+
+
+def box_unbox_method(name: str, tpe: str) -> Method:
+    # Boxes the prim parameter and reads it back through the tpe's access kind.
+    return (
+        method(name, I64, params=(I64,))
+        .live(IR1)
+        .raw("load.type.info IR3, mem:Obj@ref")
+        .raw("box.g IR1, IR2, IR3")
+        .dead(IR1, IR3)
+        .raw(f"unbox IR4, IR2, {tpe}")
+        .dead(IR2)
+        .ret(IR4)
+    )
+
+
+def box_ref_method() -> Method:
+    # Boxes a fresh object: the payload word and the unboxed ref (the REF tpe
+    # unbox lowers to LD_REF) must both equal the original pointer. The unbox
+    # dst is REC-marked by the analyzer for a non-builtin tpe, so the compare
+    # operands need the @dead + @live.prim re-stamp.
+    return (
+        method("test_box_ref", I64)
+        .raw("newobj mem:Obj@ref")
+        .raw("load.type.info IR3, mem:Obj@ref")
+        .raw("box.g IR1, IR2, IR3")
+        .raw("ld.raw.64 IR6, IR2, 0x8")
+        .raw("unbox IR4, IR2, mem:Obj@ref")
+        .dead(IR1, IR2, IR3, IR4, IR6)
+        .live(IR1, IR4, IR6)
+        .instr("scc.64", "EQ", IR7, IR6, IR1)
+        .instr("scc.64", "EQ", IR8, IR4, IR1)
+        .instr("mul.64", IR7, IR7, IR8)
+        .dead(IR1, IR4, IR6, IR8)
+        .ret(IR7)
+    )
+
+
+def box_methods() -> list[Method]:
+    return [
+        box_ptr_method(),
+        box_unbox_method("test_box_u8", "U8"),
+        box_unbox_method("test_box_i8", "I8"),
+        box_unbox_method("test_box_i64", "I64"),
+        box_ref_method(),
+    ]
+
+
 def generate_mock_objects() -> list[Path]:
     return write_suite(
         "mock-objects",
@@ -3637,6 +3728,7 @@ def generate_mock_objects() -> list[Path]:
             "tag.asm"           : tag_file(tag_methods()),
             "new-option.asm"    : tag_file(new_option_methods()),
             "interf.asm"        : interf_file(interf_methods()),
+            "box.asm"           : mock_obj_file(box_methods()),
         },
     )
 
