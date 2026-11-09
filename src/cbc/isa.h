@@ -469,17 +469,22 @@ public:
     X(COS,   0b001, "cos")                                                                                             \
     X(LOG,   0b010, "log")                                                                                             \
     X(CEIL,  0b011, "ceil")                                                                                            \
-    X(FLOOR, 0b100, "floor")
+    X(FLOOR, 0b100, "floor")                                                                                           \
+    X(LOG10, 0b101, "log10")                                                                                           \
+    X(LOG2,  0b110, "log2")                                                                                            \
+    X(EXP,   0b111, "exp")                                                                                             \
+    X(EXP2,  0b1000, "exp2")                                                                                           \
+    X(TRUNC, 0b1001, "trunc")
 
 #define FloatMathOpEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        FloatMathOpValue(FloatMathOpEnum) LAST = FLOOR
+        FloatMathOpValue(FloatMathOpEnum) LAST = TRUNC
     };
 
 #undef FloatMathOpEnum
 
-    static constexpr Value values[] = { SIN, COS, LOG, CEIL, FLOOR };
+    static constexpr Value values[] = { SIN, COS, LOG, CEIL, FLOOR, LOG10, LOG2, EXP, EXP2, TRUNC };
 
     constexpr FloatMathOp(const Value raw) : _value(raw) {}
 

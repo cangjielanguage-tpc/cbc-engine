@@ -869,6 +869,10 @@ struct IsaRewriter : public IsaParser {
         emit.FMathUnary(op, Format::Width::W64, dst, src);
     }
 
+    virtual void FPowi32(FReg dst, FReg base, IReg exp) override { emit.FPowi(Format::Width::W32, dst, base, exp); }
+
+    virtual void FPowi64(FReg dst, FReg base, IReg exp) override { emit.FPowi(Format::Width::W64, dst, base, exp); }
+
     void Ld(AnyReg dst, IReg base, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);

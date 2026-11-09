@@ -516,6 +516,24 @@ void Emitter::FMathUnary(FloatMathOp op, Width width, FReg d, FReg s)
     );
 }
 
+void Emitter::FPowi(Width width, FReg d, FReg b, IReg e)
+{
+    ASSERT(width == Width::W32 || width == Width::W64);
+    auto opcode = width == Width::W32 ? RT::Opcode::FPOWI32 : RT::Opcode::FPOWI64;
+    Encode(
+        segment,
+        RT::B3xrrr {
+            .opc = opcode,
+            .xr =
+                XR {
+                    .imm = Imm4(0),
+                    .r   = d,
+                },
+            .rr = { .x = b, .y = e },
+        }
+    );
+}
+
 void Emitter::Mov(RT::Opcode opcode, Reg d, Reg s)
 {
     Encode(segment, RT::B2rr { .opc = opcode, .rr = RR { .x = d, .y = s } });
