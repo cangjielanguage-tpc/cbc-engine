@@ -216,7 +216,12 @@ endif()
 
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME -DINT_SYMS")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
+if(APPLE)
+  # -gz (compressed debug sections) is ELF-only and breaks Mach-O linking.
+  set(CMAKE_CXX_FLAGS_DEBUG "-g ${DEBUG_OPTIONS}")
+else()
+  set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
+endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 include(CheckIPOSupported)

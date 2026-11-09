@@ -5,7 +5,11 @@
 
 #include "engine-common.h"
 
+#ifdef __APPLE__
+char const *interpreter_lib = "libcbcengine.dylib";
+#else
 char const *interpreter_lib = "libcbcengine.so";
+#endif
 
 Engine g_engine;
 

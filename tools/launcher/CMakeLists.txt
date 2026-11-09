@@ -78,4 +78,12 @@ if(NOT APPLE)
   target_link_libraries(cbc-preload PRIVATE
     dl
   )
+else()
+  # The __DATA,__interpose replacement calls the real CJ_MRT_CjRuntimeInit,
+  # resolved through normal linkage against the cangjie runtime.
+  target_link_libraries(cbc-preload PRIVATE "${CJ_RUNTIME_LIB}")
+  set_target_properties(cbc-preload PROPERTIES
+    BUILD_RPATH "${CANGJIE_HOME}/runtime/lib/${CJ_ARCH_DIR}"
+    INSTALL_RPATH "${CANGJIE_HOME}/runtime/lib/${CJ_ARCH_DIR}"
+  )
 endif()
