@@ -253,6 +253,7 @@ def build(args, project_dir, build_dir, generate_coverage_report=True):
     run_command(make_cmd, cwd=build_dir)
 
     if args.run_tests:
+        clean_asm_cache(project_dir)
         print("------------------------------------------------")
         print("Running tests via CTest...")
         print("------------------------------------------------")
@@ -325,6 +326,17 @@ def build_helper_lib(args, project_dir, build_dir):
         ]
         run_command_args(static_link_command, cwd=build_dir, env=env)
         print(f"Output: {static_output_path}")
+
+
+def clean_asm_cache(project_dir):
+    # The autogen .cbc cache (test/auto-generated) is keyed on .asm mtime only,
+    # so it cannot tell that a different run may use a different toolchain
+    # assembler. Purge it before every test batch: tests always reassemble from
+    # the current toolchain, keeping the produced bytecode tied to it.
+    autogen_dir = os.path.join(project_dir, "test", "auto-generated")
+    if os.path.isdir(autogen_dir):
+        print(f"  Cleaning assembler cache {autogen_dir}...")
+        shutil.rmtree(autogen_dir)
 
 
 def precommit(args, project_dir, build_root_dir):
