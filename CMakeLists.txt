@@ -11,6 +11,23 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 
 
 set(CMAKE_CXX_STANDARD 17)
+
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("
+    static_assert(sizeof(_Float16) == 2);
+    int main(int argc, char**) {
+        volatile double source = argc;
+        volatile _Float16 half = static_cast<_Float16>(source);
+        volatile _Float16 sum = static_cast<_Float16>(half + half);
+        volatile float single = static_cast<float>(sum);
+        volatile double wide = static_cast<double>(sum);
+        return static_cast<int>(single + wide);
+    }
+" CPP_COMPILER_HAS_FLOAT16)
+if(NOT CPP_COMPILER_HAS_FLOAT16)
+  message(FATAL_ERROR "C++ compiler does not have support for _Float16 or it`s conversions")
+endif()
+
 include(CTest)
 
 set(ADDITIONAL_COMPILER_WARNINGS

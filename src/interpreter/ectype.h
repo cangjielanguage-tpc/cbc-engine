@@ -4,6 +4,7 @@
 #include "asm_export.h"
 #include "cbc/isa.h"
 #include "interpreter/loggers.h"
+#include "utils/float16.h"
 #include "utils/logger.h"
 #include <cstddef>
 #include <cstdint>
@@ -25,12 +26,28 @@ struct Reference {
 union Primitive {
     uint64_t u64;
     uint32_t u32;
+    Utils::Float16 f16;
     float f32;
     double f64;
 };
 
 static_assert(sizeof(float) == 4);
 static_assert(sizeof(double) == 8);
+
+inline uint16_t F16Bits(Primitive value)
+{
+    uint16_t bits;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+inline Primitive MakeF16Bits(uint16_t bits)
+{
+    Primitive value { .u64 = 0 };
+    value.f16 = 0; // make f16 active union member
+    std::memcpy(&value.f16, &bits, sizeof(bits));
+    return value;
+}
 }; // namespace Value
 
 union IRegContainer {

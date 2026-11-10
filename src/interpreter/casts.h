@@ -32,9 +32,11 @@ template <typename T> inline Value::Primitive MakeIntPrim(T value)
 
 template <typename T> inline Value::Primitive MakeFpPrim(T value)
 {
-    static_assert(std::is_floating_point_v<T>, "floating point value is expected");
+    static_assert(std::is_floating_point_v<T> || std::is_same_v<T, Utils::Float16>, "floating point value is expected");
     Value::Primitive res = { .u64 = 0 };
-    if constexpr (std::is_same_v<T, float>) {
+    if constexpr (std::is_same_v<T, Utils::Float16>) {
+        res.f16 = value;
+    } else if constexpr (std::is_same_v<T, float>) {
         res.f32 = value;
     } else {
         res.f64 = value;
@@ -65,6 +67,7 @@ template <typename To, typename From> inline Value::Primitive CastFpToInt(From v
 template <typename From> inline Value::Primitive CastFrom32(ConvertType toType, From value)
 {
     switch (toType) {
+        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
         case ConvertType::I8:  return CastInt<int8_t>(value);
         case ConvertType::U8:  return CastInt<uint8_t>(value);
         case ConvertType::I16: return CastInt<int16_t>(value);
@@ -79,6 +82,7 @@ template <typename From> inline Value::Primitive CastFrom32(ConvertType toType, 
 inline Value::Primitive CastFromI64(ConvertType toType, int64_t value)
 {
     switch (toType) {
+        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
         case ConvertType::I32: return CastInt<int32_t>(value);
         case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
         case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
@@ -89,6 +93,7 @@ inline Value::Primitive CastFromI64(ConvertType toType, int64_t value)
 inline Value::Primitive CastFromU64(ConvertType toType, uint64_t value)
 {
     switch (toType) {
+        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
         case ConvertType::I32: return CastInt<int32_t>(value);
         case ConvertType::U32: return CastInt<uint32_t>(value);
         case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
@@ -97,7 +102,7 @@ inline Value::Primitive CastFromU64(ConvertType toType, uint64_t value)
     }
 }
 
-inline Value::Primitive CastFromF32(ConvertType toType, float value)
+template <typename From> inline Value::Primitive CastFloatingToIntegral(ConvertType toType, From value)
 {
     switch (toType) {
         case ConvertType::I8:  return CastFpToInt<int8_t>(value);
@@ -108,24 +113,36 @@ inline Value::Primitive CastFromF32(ConvertType toType, float value)
         case ConvertType::U32: return CastFpToInt<uint32_t>(value);
         case ConvertType::I64: return CastFpToInt<int64_t>(value);
         case ConvertType::U64: return CastFpToInt<uint64_t>(value);
-        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
         default:               return UnsupportedCastTo(toType);
+    }
+}
+
+inline Value::Primitive CastFromF16(ConvertType toType, Utils::Float16 value)
+{
+    switch (toType) {
+        case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
+        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
+        default:
+            // widen exactly before comparing against integer bounds
+            return CastFloatingToIntegral(toType, static_cast<float>(value));
+    }
+}
+
+inline Value::Primitive CastFromF32(ConvertType toType, float value)
+{
+    switch (toType) {
+        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
+        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
+        default:               return CastFloatingToIntegral(toType, value);
     }
 }
 
 inline Value::Primitive CastFromF64(ConvertType toType, double value)
 {
     switch (toType) {
-        case ConvertType::I8:  return CastFpToInt<int8_t>(value);
-        case ConvertType::U8:  return CastFpToInt<uint8_t>(value);
-        case ConvertType::I16: return CastFpToInt<int16_t>(value);
-        case ConvertType::U16: return CastFpToInt<uint16_t>(value);
-        case ConvertType::I32: return CastFpToInt<int32_t>(value);
-        case ConvertType::U32: return CastFpToInt<uint32_t>(value);
-        case ConvertType::I64: return CastFpToInt<int64_t>(value);
-        case ConvertType::U64: return CastFpToInt<uint64_t>(value);
+        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
         case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
-        default:               return UnsupportedCastTo(toType);
+        default:               return CastFloatingToIntegral(toType, value);
     }
 }
 
@@ -137,10 +154,10 @@ inline Value::Primitive CastPrim(ConvertType toType, ConvertType fromType, Value
         case ConvertType::I64: return CastFromI64(toType, static_cast<int64_t>(val.u64));
         case ConvertType::U64: return CastFromU64(toType, val.u64);
 
+        case ConvertType::F16: return CastFromF16(toType, val.f16);
         case ConvertType::F32: return CastFromF32(toType, val.f32);
         case ConvertType::F64: return CastFromF64(toType, val.f64);
 
-        // TODO: support fp16 arithmetics and casts
         default: return UnsupportedCastFrom(fromType);
     }
 }
@@ -359,6 +376,7 @@ inline CheckedCastResult CheckedCastPrim(ConvertType toType, ConvertType fromTyp
     ASSERT(!toType.IsFloatingPoint());
 
     switch (fromType) {
+        case ConvertType::F16: return CheckedCastFromFloating(toType, static_cast<double>(val.f16));
         case ConvertType::F32: return CheckedCastFromFloating(toType, val.f32);
         case ConvertType::F64: return CheckedCastFromFloating(toType, val.f64);
         default:               return CheckedCastFromIntegral(toType, fromType, val);

@@ -570,7 +570,24 @@ inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FMUL: return { Value::Primitive { .f32 = l.f32 * r.f32 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f32 = l.f32 / r.f32 }, true };
         case FloatOperations::FPOW: return { Value::Primitive { .f32 = std::pow(l.f32, r.f32) }, true };
+        
+        default: FATAL("Unexpected FP op: %d", op);
+    }
+}
 
+template <>
+inline ArithmeticResult ArithFP<Width::W16>(FloatOperations::Value op, Value::Primitive l, Value::Primitive r)
+{
+    switch (op) {
+        case FloatOperations::FADD: return { Value::Primitive { .f16 = l.f16 + r.f16 }, true };
+        case FloatOperations::FSUB: return { Value::Primitive { .f16 = l.f16 - r.f16 }, true };
+        case FloatOperations::FMUL: return { Value::Primitive { .f16 = l.f16 * r.f16 }, true };
+        case FloatOperations::FDIV: return { Value::Primitive { .f16 = l.f16 / r.f16 }, true };
+        case FloatOperations::FPOW:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(
+                                            std::pow(static_cast<double>(l.f16), static_cast<double>(r.f16))
+                                        ) },
+                     true };
         default: FATAL("Unexpected FP op: %d", op);
     }
 }
@@ -597,7 +614,21 @@ template <> inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value o
         case FloatOperations::FSQRT: return { Value::Primitive { .f32 = std::sqrt(s.f32) }, true };
         case FloatOperations::FABS:  return { Value::Primitive { .f32 = std::fabs(s.f32) }, true };
         case FloatOperations::FNEG:  return { Value::Primitive { .f32 = -s.f32 }, true };
+        
+        default: FATAL("Unexpected FP op: %d", op);
+    }
+}
 
+template <> inline ArithmeticResult ArithFP<Width::W16>(FloatOperations::Value op, Value::Primitive s)
+{
+    switch (op) {
+        case FloatOperations::FSQRT:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::sqrt(static_cast<double>(s.f16))) },
+                     true };
+        case FloatOperations::FABS: return { Value::MakeF16Bits(Value::F16Bits(s) & 0x7fff), true };
+        case FloatOperations::FNEG: 
+            // use bit operations instead of -s.f16 to avoid Clang's half-to-float widening on x86_64, which can quiet signaling NaNs
+            return { Value::MakeF16Bits(Value::F16Bits(s) ^ 0x8000), true };
         default: FATAL("Unexpected FP op: %d", op);
     }
 }
@@ -619,6 +650,24 @@ template <> inline ArithmeticResult ArithFPMath<Width::W64>(FloatMathOp::Value o
         case FloatMathOp::EXP2:  return { Value::Primitive { .f64 = std::exp2(s.f64) }, true };
         case FloatMathOp::TRUNC: return { Value::Primitive { .f64 = std::trunc(s.f64) }, true };
 
+        default: FATAL("Unexpected FP math op: %d", op);
+    }
+}
+
+template <> inline ArithmeticResult ArithFPMath<Width::W16>(FloatMathOp::Value op, Value::Primitive s)
+{
+    const double value = static_cast<double>(s.f16);
+    switch (op) {
+        case FloatMathOp::SIN:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::sin(value)) }, true };
+        case FloatMathOp::COS:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::cos(value)) }, true };
+        case FloatMathOp::LOG:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::log(value)) }, true };
+        case FloatMathOp::CEIL:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::ceil(value)) }, true };
+        case FloatMathOp::FLOOR:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::floor(value)) }, true };
         default: FATAL("Unexpected FP math op: %d", op);
     }
 }
@@ -753,6 +802,24 @@ template <> inline bool Compare<CC::FNLT, Width::W32>(Value::Primitive l, Value:
     return !(l.f32 < r.f32);
 }
 
+template <> inline bool Compare<CC::FEQ, Width::W16>(Value::Primitive l, Value::Primitive r) { return l.f16 == r.f16; }
+
+template <> inline bool Compare<CC::FNE, Width::W16>(Value::Primitive l, Value::Primitive r) { return l.f16 != r.f16; }
+
+template <> inline bool Compare<CC::FLT, Width::W16>(Value::Primitive l, Value::Primitive r) { return l.f16 < r.f16; }
+
+template <> inline bool Compare<CC::FGE, Width::W16>(Value::Primitive l, Value::Primitive r) { return l.f16 >= r.f16; }
+
+template <> inline bool Compare<CC::FNLT, Width::W16>(Value::Primitive l, Value::Primitive r)
+{
+    return !(l.f16 < r.f16);
+}
+
+template <> inline bool Compare<CC::FNGE, Width::W16>(Value::Primitive l, Value::Primitive r)
+{
+    return !(l.f16 >= r.f16);
+}
+
 template <> inline bool Compare<CC::FEQ, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.f64 == r.f64; }
 
 template <> inline bool Compare<CC::FNE, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.f64 != r.f64; }
@@ -812,6 +879,20 @@ private:
     intptr_t offset;
     bool isGlobal;
 };
+
+template <> inline void MemoryLocation::Store<Utils::Float16>(Format::Reg src, Ectype* ectype)
+{
+    const auto primitive = ectype->GetPrimitive(src.FR());
+    std::memcpy(base + offset, &primitive, sizeof(primitive.f16));
+}
+
+template <> inline void MemoryLocation::Load<Utils::Float16>(Format::Reg dst, Ectype* ectype)
+{
+    Value::Primitive primitive { .u64 = 0 };
+    primitive.f16 = 0; // activate the half member before copying its bytes
+    std::memcpy(&primitive.f16, base + offset, sizeof(primitive.f16));
+    ectype->Put(dst.FR(), primitive);
+}
 
 template <> inline void MemoryLocation::Store<float>(Format::Reg src, Ectype* ectype)
 {
@@ -876,6 +957,7 @@ inline void MemoryLocation::StorePrim(StoreAccessKind::Value stk, Format::Reg sr
         case StoreAccessKind::ST_16:  Store<uint16_t>(src, ectype); return;
         case StoreAccessKind::ST_32:  Store<uint32_t>(src, ectype); return;
         case StoreAccessKind::ST_64:  Store<uint64_t>(src, ectype); return;
+        case StoreAccessKind::ST_F16: Store<Utils::Float16>(src, ectype); return;
         case StoreAccessKind::ST_F32: Store<float>(src, ectype); return;
         case StoreAccessKind::ST_F64: Store<double>(src, ectype); return;
         default:                      FATAL("Unexpected stk");
@@ -903,6 +985,7 @@ inline void MemoryLocation::LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst,
         case LoadAccessKind::LD_S8:      Load<int8_t>(dst, ectype); return;
         case LoadAccessKind::LD_S16:     Load<int16_t>(dst, ectype); return;
         case LoadAccessKind::LD_S32TO64: Load<int32_t>(dst, ectype); return;
+        case LoadAccessKind::LD_F16:     Load<Utils::Float16>(dst, ectype); return;
         case LoadAccessKind::LD_F32:     Load<float>(dst, ectype); return;
         case LoadAccessKind::LD_F64:     Load<double>(dst, ectype); return;
         case LoadAccessKind::LD_LEA:     Lea(dst, ectype); return;
@@ -920,6 +1003,7 @@ inline uint32_t CalcLoadArrayOffset(LoadAccessKind::Value ldk, IReg idx, Ectype*
     switch (ldk) {
         case LoadAccessKind::LD_S8: // fallthrough
         case LoadAccessKind::LD_U8:  elemSize = 1; break;
+        case LoadAccessKind::LD_F16: // fallthrough
         case LoadAccessKind::LD_S16: // fallthrough
         case LoadAccessKind::LD_U16: elemSize = 2; break;
         case LoadAccessKind::LD_F32: // fallthrough
@@ -937,6 +1021,7 @@ inline uint32_t CalcStoreArrayOffset(StoreAccessKind::Value stk, IReg idx, Ectyp
     uint32_t elemSize;
     switch (stk) {
         case StoreAccessKind::ST_8:   elemSize = 1; break;
+        case StoreAccessKind::ST_F16: // fallthrough
         case StoreAccessKind::ST_16:  elemSize = 2; break;
         case StoreAccessKind::ST_F32: // fallthrough
         case StoreAccessKind::ST_32:  elemSize = 4; break;
