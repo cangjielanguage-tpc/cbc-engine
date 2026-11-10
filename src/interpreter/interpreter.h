@@ -744,20 +744,22 @@ public:
 
     inline void CopyTypeSlot(int32_t dstOffset, int32_t srcOffset, RTSupport::TypeInfo ti)
     {
-        auto dst  = frame.start + dstOffset;
-        auto src  = frame.start + srcOffset;
+        auto dst  = frame.start + static_cast<uintptr_t>(static_cast<int64_t>(dstOffset));
+        auto src  = frame.start + static_cast<uintptr_t>(static_cast<int64_t>(srcOffset));
         auto size = RTSupport::MetaInfo::GetTypeSize(ti);
         memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(src), size);
     }
 
     inline void CopyToTypeSlot(int32_t dstOffset, IReg srcBaseReg, IReg srcReg, RTSupport::TypeInfo ti)
     {
-        CopyDerivedToLocal(frame.start + dstOffset, srcBaseReg, srcReg, ti);
+        auto dst = frame.start + static_cast<uintptr_t>(static_cast<int64_t>(dstOffset));
+        CopyDerivedToLocal(dst, srcBaseReg, srcReg, ti);
     }
 
     inline void CopyFromTypeSlot(IReg dstBaseReg, IReg dstReg, int32_t srcOffset, RTSupport::TypeInfo ti)
     {
-        CopyLocalToDerived(dstBaseReg, dstReg, frame.start + srcOffset, ti);
+        auto src = frame.start + static_cast<uintptr_t>(static_cast<int64_t>(srcOffset));
+        CopyLocalToDerived(dstBaseReg, dstReg, src, ti);
     }
 
     inline void LeaIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray = true)
