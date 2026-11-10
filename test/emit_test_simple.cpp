@@ -1,3 +1,9 @@
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <tuple>
+#include <utility>
+
 #include "emit_test_common.h"
 
 namespace Cbc {
@@ -378,95 +384,260 @@ TEST(EmitTest, Simple_FAbs)
     EXPECT_EQ(res2.f64, +0.0);
 }
 
-TEST(EmitTest, Simple_FMathUnarySin)
+// ---------------------------------------------------------------------------
+// Parameterized float math: (op, value) pairs
+// ---------------------------------------------------------------------------
+
+struct FloatMathUnaryCase {
+    FloatMathOp op;
+};
+
+FloatMathUnaryCase floatMathUnaryCases[] = {
+    { FloatMathOp::SIN },   { FloatMathOp::COS },   { FloatMathOp::LOG },  { FloatMathOp::CEIL },
+    { FloatMathOp::FLOOR }, { FloatMathOp::LOG10 }, { FloatMathOp::LOG2 }, { FloatMathOp::EXP },
+    { FloatMathOp::EXP2 },  { FloatMathOp::TRUNC }
+};
+
+double floatMathUnaryValues64[] = {
+    4.2,     -4.2,  2.0,    -2.0,  0.5,  -0.5, 1.0,  -1.0,   3.0,  10.0, 100.0, 0.1, 1024.0, 123456.789,
+    1e-10,   1e10,  1e-300, 1e300, 1e17, 0.0,  -0.0, 709.0, -709.0, 1023.0,
+    std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::min(), std::numeric_limits<double>::max(),
+    std::numeric_limits<double>::denorm_min(), std::numeric_limits<double>::infinity(),
+    -std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()
+};
+
+float floatMathUnaryValues32[] = {
+    4.2f,    -4.2f, 2.0f,   -2.0f, 0.5f, -0.5f, 1.0f, -1.0f, 3.0f, 10.0f, 100.0f, 0.1f, 1024.0f, 123456.789f,
+    1e-10f,  1e10f, 1e-30f, 1e30f, 0.0f, -0.0f, 88.0f, -88.0f,
+    std::numeric_limits<float>::epsilon(), std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+    std::numeric_limits<float>::denorm_min(), std::numeric_limits<float>::infinity(),
+    -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()
+};
+
+struct FPowiCase {
+    double base;
+    int64_t exponent;
+};
+
+FPowiCase fpowiCases[] = {
+    { 2.0, 10 }, { 3.0, -2 }, { 5.0, 0 }, { 2.0, 63 }, { 0.5, -1 }, { 2.0, -63 }, { -2.0, 3 }, { -2.0, 4 },
+    { 1.5, 100 }, { 0.0, 5 }, { 0.0, 0 }, { 2.0, INT64_MAX }, { 2.0, INT64_MIN }
+};
+
+std::pair<double, double> fpowCases[] = {
+    { 2.0, 10.0 },
+    { 3.0, -2.0 },
+    { 4.2, 7.3 },
+    { 0.0, 0.0 },
+    { 0.0, -1.0 },
+    { 0.0, 2.5 },
+    { -2.0, 3.0 },
+    { -2.0, 0.5 },
+    { 1.0, std::numeric_limits<double>::quiet_NaN() },
+    { std::numeric_limits<double>::quiet_NaN(), 0.0 },
+    { std::numeric_limits<double>::infinity(), 0.0 },
+    { -std::numeric_limits<double>::infinity(), 2.0 },
+    { 2.0, std::numeric_limits<double>::infinity() },
+    { 2.0, -std::numeric_limits<double>::infinity() },
+    { 0.5, -1.0 },
+    { std::numeric_limits<double>::max(), 2.0 },
+    { std::numeric_limits<double>::max(), -2.0 },
+    { -8.0, 1.0 / 3.0 },
+    { 1e-300, 2.0 },
+    { 123.456, 1.5 }
+};
+
+double FPMathUnaryExpected64(FloatMathOp op, double v)
 {
+    switch (op) {
+        case FloatMathOp::SIN:   return std::sin(v);
+        case FloatMathOp::COS:   return std::cos(v);
+        case FloatMathOp::LOG:   return std::log(v);
+        case FloatMathOp::CEIL:  return std::ceil(v);
+        case FloatMathOp::FLOOR: return std::floor(v);
+        case FloatMathOp::LOG10: return std::log10(v);
+        case FloatMathOp::LOG2:  return std::log2(v);
+        case FloatMathOp::EXP:   return std::exp(v);
+        case FloatMathOp::EXP2:  return std::exp2(v);
+        case FloatMathOp::TRUNC: return std::trunc(v);
+    }
+    return std::numeric_limits<double>::quiet_NaN();
+}
+
+float FPMathUnaryExpected32(FloatMathOp op, float v)
+{
+    switch (op) {
+        case FloatMathOp::SIN:   return std::sin(v);
+        case FloatMathOp::COS:   return std::cos(v);
+        case FloatMathOp::LOG:   return std::log(v);
+        case FloatMathOp::CEIL:  return std::ceil(v);
+        case FloatMathOp::FLOOR: return std::floor(v);
+        case FloatMathOp::LOG10: return std::log10(v);
+        case FloatMathOp::LOG2:  return std::log2(v);
+        case FloatMathOp::EXP:   return std::exp(v);
+        case FloatMathOp::EXP2:  return std::exp2(v);
+        case FloatMathOp::TRUNC: return std::trunc(v);
+    }
+    return std::numeric_limits<float>::quiet_NaN();
+}
+
+class EmitFloatMathUnary64 :
+    public EmitTest, public ::testing::WithParamInterface<std::tuple<FloatMathUnaryCase, double>> {
+};
+
+class EmitFloatMathUnary32 :
+    public EmitTest, public ::testing::WithParamInterface<std::tuple<FloatMathUnaryCase, float>> {
+};
+
+class EmitFPow : public EmitTest, public ::testing::WithParamInterface<std::pair<double, double>> {};
+
+class EmitFPowi : public EmitTest, public ::testing::WithParamInterface<FPowiCase> {};
+
+std::string FloatMathUnaryName64(const ::testing::TestParamInfo<std::tuple<FloatMathUnaryCase, double>>& info)
+{
+    return std::string(std::get<0>(info.param).op.CStr()) + "_v" + Hex(F64(std::get<1>(info.param)).u64);
+}
+
+std::string FloatMathUnaryName32(const ::testing::TestParamInfo<std::tuple<FloatMathUnaryCase, float>>& info)
+{
+    return std::string(std::get<0>(info.param).op.CStr()) + "_v" + Hex(F32(std::get<1>(info.param)).u32);
+}
+
+std::string FPowCaseName(const ::testing::TestParamInfo<std::pair<double, double>>& info)
+{
+    return "v" + Hex(F64(info.param.first).u64) + "_v" + Hex(F64(info.param.second).u64);
+}
+
+std::string FPowiCaseName(const ::testing::TestParamInfo<FPowiCase>& info)
+{
+    int64_t exponent   = info.param.exponent;
+    uint64_t magnitude = exponent < 0 ? 0ull - static_cast<uint64_t>(exponent) : static_cast<uint64_t>(exponent);
+    std::string suffix = exponent < 0 ? "neg" + std::to_string(magnitude) : std::to_string(magnitude);
+    return "v" + Hex(F64(info.param.base).u64) + "_e" + suffix;
+}
+
+TEST_P(EmitFloatMathUnary64, Computes)
+{
+    auto [c, value]  = GetParam();
+    FloatMathOp op   = c.op;
     Emitter e;
-    e.FMathUnary(FloatMathOp::SIN, Width::W64, FReg::FR0, FReg::FR1);
+    e.FMathUnary(op, Width::W64, FReg::FR0, FReg::FR1);
     e.Ret();
 
     auto code = e.Build(heap);
     CHECK_DISASM(
         code,
-        "0x000: sin.64 FR0 FR1",
+        "0x000: " + std::string(op.CStr()) + ".64 FR0 FR1",
         "0x003: ret"
     );
-
-    double arg = 0.5;
-    auto res   = InterpretFPRes(code, F64(0), F64(arg));
-    EXPECT_EQ(res.f64, std::sin(arg));
+    auto res = InterpretFPRes(code, F64(0), F64(value));
+    EXPECT_EQ(res.u64, F64(FPMathUnaryExpected64(op, value)).u64);
 }
 
-TEST(EmitTest, Simple_FMathUnaryCos32)
+TEST_P(EmitFloatMathUnary32, Computes)
 {
+    auto [c, value]  = GetParam();
+    FloatMathOp op   = c.op;
     Emitter e;
-    e.FMathUnary(FloatMathOp::COS, Width::W32, FReg::FR0, FReg::FR1);
+    e.FMathUnary(op, Width::W32, FReg::FR0, FReg::FR1);
     e.Ret();
 
     auto code = e.Build(heap);
     CHECK_DISASM(
         code,
-        "0x000: cos.32 FR0 FR1",
+        "0x000: " + std::string(op.CStr()) + ".32 FR0 FR1",
         "0x003: ret"
     );
-
-    float arg = 0.25;
-    auto res  = InterpretFPRes(code, F32(0), F32(arg));
-    EXPECT_EQ(res.f32, std::cos(arg));
+    auto res = InterpretFPRes(code, F32(0), F32(value));
+    EXPECT_EQ(res.u32, F32(FPMathUnaryExpected32(op, value)).u32);
 }
 
-TEST(EmitTest, Simple_FMathUnaryLog)
+TEST_P(EmitFPow, Computes64)
 {
+    auto [l, r] = GetParam();
     Emitter e;
-    e.FMathUnary(FloatMathOp::LOG, Width::W64, FReg::FR0, FReg::FR1);
+    e.Binary(FloatOperations::FPOW, Width::W64, FReg::FR0, FReg::FR0, FReg::FR1);
     e.Ret();
 
     auto code = e.Build(heap);
     CHECK_DISASM(
         code,
-        "0x000: log.64 FR0 FR1",
+        "0x000: fpow.64 FR0 FR0 FR1",
         "0x003: ret"
     );
-
-    double arg = 0.25;
-    auto res  = InterpretFPRes(code, F64(0), F64(arg));
-    EXPECT_EQ(res.f64, std::log(arg));
+    auto res = InterpretFPRes(code, F64(l), F64(r));
+    EXPECT_EQ(res.u64, F64(std::pow(l, r)).u64);
 }
 
-TEST(EmitTest, Simple_FMathUnaryCeil)
+TEST_P(EmitFPow, Computes32)
 {
+    auto [l, r] = GetParam();
     Emitter e;
-    e.FMathUnary(FloatMathOp::CEIL, Width::W64, FReg::FR0, FReg::FR1);
+    e.Binary(FloatOperations::FPOW, Width::W32, FReg::FR0, FReg::FR0, FReg::FR1);
     e.Ret();
 
     auto code = e.Build(heap);
     CHECK_DISASM(
         code,
-        "0x000: ceil.64 FR0 FR1",
+        "0x000: fpow.32 FR0 FR0 FR1",
         "0x003: ret"
     );
-
-    double arg = 0.25;
-    auto res  = InterpretFPRes(code, F64(0), F64(arg));
-    EXPECT_EQ(res.f64, std::ceil(arg));
+    auto res = InterpretFPRes(code, F32(static_cast<float>(l)), F32(static_cast<float>(r)));
+    EXPECT_EQ(res.u32, F32(std::pow(static_cast<float>(l), static_cast<float>(r))).u32);
 }
 
-TEST(EmitTest, Simple_FMathUnaryFloor)
+TEST_P(EmitFPowi, Computes64)
 {
+    auto c = GetParam();
     Emitter e;
-    e.FMathUnary(FloatMathOp::FLOOR, Width::W64, FReg::FR0, FReg::FR1);
+    e.FPowi(Width::W64, FReg::FR0, FReg::FR1, IReg::IR1);
     e.Ret();
 
     auto code = e.Build(heap);
     CHECK_DISASM(
         code,
-        "0x000: floor.64 FR0 FR1",
+        "0x000: fpowi.64 FR0 FR1 IR1",
         "0x003: ret"
     );
-
-    double arg = 0.25;
-    auto res  = InterpretFPRes(code, F64(0), F64(arg));
-    EXPECT_EQ(res.f64, std::floor(arg));
+    auto res = InterpretFPRes(code, U64(c.exponent), U64(0), F64(0), F64(c.base));
+    EXPECT_EQ(res.u64, F64(std::pow(c.base, static_cast<double>(c.exponent))).u64);
 }
+
+TEST_P(EmitFPowi, Computes32)
+{
+    auto c = GetParam();
+    Emitter e;
+    e.FPowi(Width::W32, FReg::FR0, FReg::FR1, IReg::IR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: fpowi.32 FR0 FR1 IR1",
+        "0x003: ret"
+    );
+    auto base = static_cast<float>(c.base);
+    auto res  = InterpretFPRes(code, U64(c.exponent), U64(0), F32(0), F32(base));
+    EXPECT_EQ(res.u32, F32(static_cast<float>(std::pow(static_cast<double>(base), static_cast<double>(c.exponent)))).u32);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    EmitTest,
+    EmitFloatMathUnary64,
+    ::testing::Combine(::testing::ValuesIn(floatMathUnaryCases), ::testing::ValuesIn(floatMathUnaryValues64)),
+    FloatMathUnaryName64
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    EmitTest,
+    EmitFloatMathUnary32,
+    ::testing::Combine(::testing::ValuesIn(floatMathUnaryCases), ::testing::ValuesIn(floatMathUnaryValues32)),
+    FloatMathUnaryName32
+);
+
+INSTANTIATE_TEST_SUITE_P(EmitTest, EmitFPow, ::testing::ValuesIn(fpowCases), FPowCaseName);
+
+INSTANTIATE_TEST_SUITE_P(EmitTest, EmitFPowi, ::testing::ValuesIn(fpowiCases), FPowiCaseName);
 
 // ---------------------------------------------------------------------------
 // Conversions
