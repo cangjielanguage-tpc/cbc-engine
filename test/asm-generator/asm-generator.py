@@ -1689,6 +1689,178 @@ def typed_f32_load_method() -> Method:
     )
 
 
+# ---------------------------------------------------------------------------
+# frame-slots: typed slot copies (copy.typed(.g), copy.to.typed(.g),
+# copy.from.typed(.g))
+# ---------------------------------------------------------------------------
+
+# RecC has flat size 12 (c I64 @0, d F32 @8), so its typed slot footprint is
+# AlignUp(12, STACK_SLOT_SIZE) = 16 bytes (isa_rewriter.cpp:2318/:2326) with a
+# 4-byte tail (the d upper half + padding) that st.typed/ld.typed cannot
+# address: only a full-slot memcpy moves it.
+FRAME_SLOTS_RECC_PREAMBLE = """
+@field_ref recc_c = default:RecC@rec c I64
+@field_ref recc_d = default:RecC@rec d F32
+
+@type default:RecC
+  @flags PUBLIC RECORD
+  @field c I64
+    @flags PUBLIC
+  @end
+  @field d F32
+    @flags PUBLIC
+  @end
+@end
+"""
+
+RECC_TYPE = "default:RecC@rec"
+
+
+def typed_copy_method() -> Method:
+    """copy.typed $1, $0: the rewriter resolves both slots' TIs and asserts
+    they are equal (isa_rewriter.cpp:1086-1092); the interpreter memcpy's
+    GetTypeSize(ti) = 16 bytes slot-to-slot (interpreter.h:745-752,
+    RT COPY_TYPESLOT isa_rt.h:194, interpretation_loop.cpp:995). copy.typed
+    carries no register operands, so the assembler books no liveness marks
+    (Assembler.scala:1154) and no @live/@dead dance is needed around it.
+    The dst/src spelling pins the operand order (NewAsmParser.scala:1352:
+    copy.typed takes (dst, src) - flipped semantics would leave $1 holding
+    the test-seeded junk and $0 clobbered, failing both read-backs)."""
+    return (
+        method("test_typed_copy", I64, params=(I64,), default_w=64)
+        .directive(f"@typed_slots {REC_TYPE}, {REC_TYPE}")
+        .live(IR1)
+        .plain("st.typed", IR1, "$0", "#rec_x")
+        .plain("@dead", IR1)
+        .plain("copy.typed", "$1", "$0")
+        .plain("ld.typed", IR1, "$1", "#rec_x")
+        .plain("ld.typed", IR3, "$0", "#rec_x")
+        .instr("add", IR1, IR1, IR3, w=64)
+        .ret()
+    )
+
+
+def typed_copy_pad_method() -> Method:
+    """copy.typed on RecC slots: only field c is stored, so the untouched
+    d+padding word must travel from $0 to $1 verbatim (full-slot memcpy,
+    interpreter.h:745-752) - a field-wise copy would leave the test-seeded
+    junk in $1's tail."""
+    return (
+        method("test_typed_copy_pad", I64, params=(I64,), default_w=64)
+        .directive(f"@typed_slots {RECC_TYPE}, {RECC_TYPE}")
+        .live(IR1)
+        .plain("st.typed", IR1, "$0", "#recc_c")
+        .plain("@dead", IR1)
+        .plain("copy.typed", "$1", "$0")
+        .plain("ld.typed", IR1, "$1", "#recc_c")
+        .ret()
+    )
+
+
+def typed_copy_g_method() -> Method:
+    """copy.typed.g $1, $0, IR3: the TI comes from a prim register fed by
+    load.type.info (Assembler.scala:1204 usePrim; the rewriter never resolves
+    it - isa_rewriter.cpp:1106-1109, RT COPY_TYPESLOT_GENERIC isa_rt.h:197,
+    interpretation_loop.cpp:1016). The registry TYPE-kind TI is 2 *
+    ObjectHeaderSize = 16 bytes (test/mock/interpreter.cpp:402/:425), matching
+    the Rec slot footprint, so the .g copy is a full-slot copy as well."""
+    return (
+        method("test_typed_copy_g", I64, params=(I64,), default_w=64)
+        .directive(f"@typed_slots {REC_TYPE}, {REC_TYPE}")
+        .live(IR1)
+        .plain("st.typed", IR1, "$0", "#rec_x")
+        .plain("@dead", IR1)
+        .raw("load.type.info IR3, default:Rec@rec")
+        .plain("copy.typed.g", "$1", "$0", IR3)
+        .plain("@dead", IR3)
+        .plain("ld.typed", IR1, "$1", "#rec_x")
+        .plain("ld.typed", IR3, "$0", "#rec_x")
+        .instr("add", IR1, IR1, IR3, w=64)
+        .ret()
+    )
+
+
+def _typed_copy_derived_method(
+    name: str, mnemonic: str, operands: tuple[str, ...], addr_slot: str, ti: bool
+) -> MethodBuilder:
+    """Common body for copy.to.typed(.g)/copy.from.typed(.g): the derived
+    address comes from ld.stack.rec (a REC-marked register, matching the
+    assembler's useRec bookkeeping, Assembler.scala:1161/:1168) and the base
+    is IRZ - GetStructLocationKind(base=0) takes the LOCAL path
+    (runtime.cpp:260-275), a plain memcpy of GetTypeSize(ti) = 16 bytes
+    (interpreter.h:753-764, handlers interpretation_loop.cpp:1002/:1009,
+    RT opcodes isa_rt.h:195/:196).
+
+    copy.to.typed $dst, IRZ, <addr of src slot>  (NewAsmParser.scala:1353)
+    copy.from.typed IRZ, <addr of dst slot>, $src (NewAsmParser.scala:1354)
+    """
+    builder = (
+        method(name, I64, params=(I64,), default_w=64)
+        .directive(f"@typed_slots {REC_TYPE}, {REC_TYPE}")
+        .live(IR1)
+        .plain("st.typed", IR1, "$0", "#rec_x")
+        .plain("@dead", IR1)
+        .plain("ld.stack.rec", IR2, addr_slot)
+    )
+    if ti:
+        builder = (
+            builder
+            .raw("load.type.info IR3, default:Rec@rec")
+            .plain(mnemonic, *operands, IR3)
+            .plain("@dead", IR3)
+        )
+    else:
+        builder = builder.plain(mnemonic, *operands)
+    return builder.plain("ld.typed", IR1, "$1", "#rec_x").plain(
+        "ld.typed", IR4, "$0", "#rec_x"
+    ).instr("add", IR1, IR1, IR4, w=64)
+
+
+def typed_copy_to_method() -> Method:
+    """copy.to.typed $1, IRZ, IR2 with IR2 = address of slot $0: copies the
+    slot $0 contents into slot $1 through the CopyDerivedToLocal LOCAL path."""
+    return (
+        _typed_copy_derived_method(
+            "test_typed_copy_to", "copy.to.typed", ("$1", IRZ, IR2), "$0", ti=False
+        )
+        .ret()
+    )
+
+
+def typed_copy_from_method() -> Method:
+    """copy.from.typed IRZ, IR2, $0 with IR2 = address of slot $1: copies the
+    slot $0 contents out to the address register through the CopyLocalToDerived
+    LOCAL path."""
+    return (
+        _typed_copy_derived_method(
+            "test_typed_copy_from", "copy.from.typed", (IRZ, IR2, "$0"), "$1", ti=False
+        )
+        .ret()
+    )
+
+
+def typed_copy_to_g_method() -> Method:
+    """copy.to.typed.g: register-TI variant of test_typed_copy_to (RT
+    COPY_TO_TYPESLOT_GENERIC, isa_rt.h:198, interpretation_loop.cpp:1024)."""
+    return (
+        _typed_copy_derived_method(
+            "test_typed_copy_to_g", "copy.to.typed.g", ("$1", IRZ, IR2), "$0", ti=True
+        )
+        .ret()
+    )
+
+
+def typed_copy_from_g_method() -> Method:
+    """copy.from.typed.g: register-TI variant of test_typed_copy_from (RT
+    COPY_FROM_TYPESLOT_GENERIC, isa_rt.h:199, interpretation_loop.cpp:1032)."""
+    return (
+        _typed_copy_derived_method(
+            "test_typed_copy_from_g", "copy.from.typed.g", (IRZ, IR2, "$0"), "$1", ti=True
+        )
+        .ret()
+    )
+
+
 def frame_rt_method(name: str, st_kind: str, ld_kind: str) -> Method:
     ref = st_kind == "ref"
     builder = method(f"test_{name}", I64, params=(I64,)).slots(1)
@@ -1764,7 +1936,24 @@ def generate_frame_slots() -> list[Path]:
     rt_files["st8.asm"] = asm_file(frame_st8_methods())
     return (
         write_suite("frame-slots/rt", rt_files)
-        + write_suite("frame-slots", {"long.asm": asm_file(frame_long_methods())})
+        + write_suite(
+            "frame-slots",
+            {
+                "long.asm": asm_file(frame_long_methods()),
+                "typed_copy.asm": asm_file_with_preamble(
+                    FRAME_SLOTS_PREAMBLE + FRAME_SLOTS_RECC_PREAMBLE,
+                    [
+                        typed_copy_method(),
+                        typed_copy_pad_method(),
+                        typed_copy_g_method(),
+                        typed_copy_to_method(),
+                        typed_copy_from_method(),
+                        typed_copy_to_g_method(),
+                        typed_copy_from_g_method(),
+                    ],
+                ),
+            },
+        )
     )
 
 

@@ -419,3 +419,167 @@ TEST_ASM(CbcTest, TypedSlotF32)
     auto res = InterpretFPRes(ld->code, frame, F32(0), F32(0));
     EXPECT_EQ(res.u32, static_cast<uint32_t>(FloatSlotValues(true).back().in));
 }
+// ---------------------------------------------------------------------------
+// frame-slots: typed slot copies (copy.typed(.g), copy.to.typed(.g),
+// copy.from.typed(.g))
+// ---------------------------------------------------------------------------
+
+// The DSL spellings (NewAsmParser.scala:1351-1357) lower through the assembler
+// (Assembler.scala:1154 copyTypeSlot - no register operands, hence no liveness
+// bookkeeping; :1204 copyTypeSlot(g) books the TI register with usePrim;
+// :1161/:1168 copyFrom/ToTypeSlot useRec the address register) to the RT
+// opcodes COPY_TYPESLOT, COPY_TYPESLOT_GENERIC, COPY_TO_TYPESLOT(GENERIC),
+// COPY_FROM_TYPESLOT(GENERIC) (isa_rt.h:194-199).
+//
+// At rewrite time the non-.g forms resolve the TI of both involved slots and
+// assert they are equal (isa_rewriter.cpp:1086-1092); the .g forms never
+// resolve the TI - it travels in a register and the RT handler reads it with
+// GetPrimitive (interpretation_loop.cpp:1016/:1024/:1032). The registry
+// TYPE-kind TI (load.type.info default:Rec@rec) is 2 * ObjectHeaderSize = 16
+// bytes (test/mock/interpreter.cpp:402, TYPE case at :425), matching the Rec
+// slot footprint, so the register-TI copies are full-slot copies as well.
+//
+// At run time CopyTypeSlot memcpy's GetTypeSize(ti) bytes between
+// frame.start + dstOffset and frame.start + srcOffset
+// (interpreter.h:745-752); CopyToTypeSlot/CopyFromTypeSlot go through
+// CopyDerivedToLocal/CopyLocalToDerived (interpreter.h:753-764), which take
+// the LOCAL branch (plain memcpy) when the base register is IRZ -
+// GetStructLocationKind(base=0) (runtime.cpp:260-275). Every offset is
+// negative (two 16-byte slots below frame start), so each of these sites
+// depended on the sign-extending double cast
+// `frame.start + static_cast<uintptr_t>(static_cast<int64_t>(offset))`
+// (commit 72521659): the debug (UBSan halt_on_error) leg of this suite is the
+// acceptance proof for that fix.
+//
+// Geometry: both slots are declared `default:Rec@rec` (flat size 16,
+// isa_rewriter.cpp:2318) -> slot footprint AlignUp(16, STACK_SLOT_SIZE) = 16
+// (isa_rewriter.cpp:2326), staticFrameSize 32; slot $0 = typedOffset 0 - 32 =
+// qwords [-4]/[-3], slot $1 = qwords [-2]/[-1] relative to frame start.
+// typed_copy.asm must stay in sync with the method names used here
+// (asm-generator.py typed_copy_* methods).
+TEST_ASM(CbcTest, TypedSlotCopy)
+{
+    constexpr auto stackSlotCount = 100;
+    uint64_t frameSlots[stackSlotCount] = { 0 };
+    Interpretation::Frame frame { reinterpret_cast<uintptr_t>(frameSlots + stackSlotCount) };
+
+    // $0's f field and both $1 qwords are junk the methods never store: after
+    // the copy the whole 16-byte slot $1 must equal slot $0, i.e. the
+    // never-stored f traveled into $1's upper qword and the junk left $1.
+    constexpr uint64_t seedF     = 0xDEADBEEFCAFEF00D;
+    constexpr uint64_t junkLow   = 0x5152535455565758;
+    constexpr uint64_t junkHigh  = 0x6162636465666768;
+
+    auto info = OpenAndRewrite("test_typed_copy", "./generated-asm/frame-slots/typed_copy.asm");
+    ASSERT_EQ(info->staticFrameSize, 4 * sizeof(uint64_t));
+    for (uint64_t p1 : { uint64_t { 0x2A2B }, uint64_t { 0x123456789ABCDEF0 },
+                         uint64_t { 0xF0F1F2F3F4F5F6F7 } }) {
+        SCOPED_TRACE("typed_copy in=" + hex(p1));
+        frameSlots[stackSlotCount - 4] = p1;
+        frameSlots[stackSlotCount - 3] = seedF;
+        frameSlots[stackSlotCount - 2] = junkLow;
+        frameSlots[stackSlotCount - 1] = junkHigh;
+        // ld.typed $1.x + ld.typed $0.x: the copy must land in $1 (dst, src
+        // operand order) and leave the source $0 intact -> sum 2 * p1.
+        auto res = Interpret(info->code, frame, U64(p1), U64(0));
+        EXPECT_EQ(res.u64, 2 * p1);
+        EXPECT_EQ(frameSlots[stackSlotCount - 4], p1);
+        EXPECT_EQ(frameSlots[stackSlotCount - 3], seedF);
+        EXPECT_EQ(frameSlots[stackSlotCount - 2], p1);
+        EXPECT_EQ(frameSlots[stackSlotCount - 1], seedF);
+    }
+
+    // RecC { c I64, d F32 } has flat size 12 -> the 16-byte slot carries a
+    // 4-byte tail (d's upper half + padding) that st.typed/ld.typed cannot
+    // address. Only a full-slot memcpy moves it: after copy.typed $1, $0 the
+    // tail junk must have traveled to $1 verbatim, while a field-wise copy
+    // would have left the $1-seeded junk in place.
+    auto pad = OpenAndRewrite("test_typed_copy_pad", "./generated-asm/frame-slots/typed_copy.asm");
+    ASSERT_EQ(pad->staticFrameSize, 4 * sizeof(uint64_t));
+    for (uint64_t p1 : { uint64_t { 0x2A2B2C2D2E2F3031 }, uint64_t { 0xF0F0F0F0F0F0F0F0 } }) {
+        SCOPED_TRACE("typed_copy_pad in=" + hex(p1));
+        // $0 tail: d = bits 0xAABBCCDD at bytes [8, 12), padding 0x21222324 at
+        // bytes [12, 16) - one never-stored qword.
+        frameSlots[stackSlotCount - 4] = p1;
+        frameSlots[stackSlotCount - 3] = 0x21222324AABBCCDD;
+        frameSlots[stackSlotCount - 2] = junkLow;
+        frameSlots[stackSlotCount - 1] = junkHigh;
+        auto res = Interpret(pad->code, frame, U64(p1), U64(0));
+        EXPECT_EQ(res.u64, p1);
+        EXPECT_EQ(frameSlots[stackSlotCount - 2], p1);
+        EXPECT_EQ(frameSlots[stackSlotCount - 1], 0x21222324AABBCCDD);
+    }
+}
+
+// copy.typed.g $1, $0, IR3 with IR3 = load.type.info default:Rec@rec: the TI
+// never goes through the rewriter's resolver (isa_rewriter.cpp:1106-1109), the
+// RT handler reads it from the register (interpretation_loop.cpp:1016-1022)
+// and the interpreter memcpy's GetTypeSize(ti) = 16 bytes
+// (interpreter.h:745-752). Same junk-travel assertions as TypedSlotCopy.
+TEST_ASM(CbcTest, TypedSlotCopyGeneric)
+{
+    constexpr auto stackSlotCount = 100;
+    uint64_t frameSlots[stackSlotCount] = { 0 };
+    Interpretation::Frame frame { reinterpret_cast<uintptr_t>(frameSlots + stackSlotCount) };
+
+    constexpr uint64_t seedF    = 0xDEADBEEFCAFEF00D;
+    constexpr uint64_t junkLow  = 0x5152535455565758;
+    constexpr uint64_t junkHigh = 0x6162636465666768;
+
+    auto info = OpenAndRewrite("test_typed_copy_g", "./generated-asm/frame-slots/typed_copy.asm");
+    ASSERT_EQ(info->staticFrameSize, 4 * sizeof(uint64_t));
+    for (uint64_t p1 : { uint64_t { 0x2A2B }, uint64_t { 0x123456789ABCDEF0 },
+                         uint64_t { 0xF0F1F2F3F4F5F6F7 } }) {
+        SCOPED_TRACE("typed_copy_g in=" + hex(p1));
+        frameSlots[stackSlotCount - 4] = p1;
+        frameSlots[stackSlotCount - 3] = seedF;
+        frameSlots[stackSlotCount - 2] = junkLow;
+        frameSlots[stackSlotCount - 1] = junkHigh;
+        auto res = Interpret(info->code, frame, U64(p1), U64(0));
+        EXPECT_EQ(res.u64, 2 * p1);
+        EXPECT_EQ(frameSlots[stackSlotCount - 2], p1);
+        EXPECT_EQ(frameSlots[stackSlotCount - 1], seedF);
+    }
+}
+
+// copy.to.typed $1, IRZ, IR2 / copy.from.typed IRZ, IR2, $0 (and their .g
+// register-TI variants) with IR2 = ld.stack.rec of the peer slot: the base is
+// IRZ, so GetStructLocationKind takes the LOCAL branch
+// (runtime.cpp:260-275) and the copy is a plain memcpy through
+// CopyToTypeSlot/CopyFromTypeSlot (interpreter.h:753-764). copy.to.typed
+// copies [IR2] -> slot $1; copy.from.typed copies slot $0 -> [IR2] - both
+// produce $1 == $0 (sum of the x read-backs = 2 * p1), with the never-stored
+// f traveling either way.
+TEST_ASM(CbcTest, TypedSlotCopyDerived)
+{
+    constexpr auto stackSlotCount = 100;
+    uint64_t frameSlots[stackSlotCount] = { 0 };
+    Interpretation::Frame frame { reinterpret_cast<uintptr_t>(frameSlots + stackSlotCount) };
+
+    constexpr uint64_t seedF    = 0xDEADBEEFCAFEF00D;
+    constexpr uint64_t junkLow  = 0x5152535455565758;
+    constexpr uint64_t junkHigh = 0x6162636465666768;
+
+    const std::pair<const char*, const char*> methods[] = {
+        { "test_typed_copy_to", "./generated-asm/frame-slots/typed_copy.asm" },
+        { "test_typed_copy_from", "./generated-asm/frame-slots/typed_copy.asm" },
+        { "test_typed_copy_to_g", "./generated-asm/frame-slots/typed_copy.asm" },
+        { "test_typed_copy_from_g", "./generated-asm/frame-slots/typed_copy.asm" },
+    };
+    for (const auto& [name, path] : methods) {
+        auto info = OpenAndRewrite(name, path);
+        ASSERT_EQ(info->staticFrameSize, 4 * sizeof(uint64_t));
+        for (uint64_t p1 : { uint64_t { 0x2A2B }, uint64_t { 0x123456789ABCDEF0 },
+                             uint64_t { 0xF0F1F2F3F4F5F6F7 } }) {
+            SCOPED_TRACE(std::string(name) + " in=" + hex(p1));
+            frameSlots[stackSlotCount - 4] = p1;
+            frameSlots[stackSlotCount - 3] = seedF;
+            frameSlots[stackSlotCount - 2] = junkLow;
+            frameSlots[stackSlotCount - 1] = junkHigh;
+            auto res = Interpret(info->code, frame, U64(p1), U64(0));
+            EXPECT_EQ(res.u64, 2 * p1);
+            EXPECT_EQ(frameSlots[stackSlotCount - 2], p1);
+            EXPECT_EQ(frameSlots[stackSlotCount - 1], seedF);
+        }
+    }
+}
