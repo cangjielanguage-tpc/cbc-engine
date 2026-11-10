@@ -166,6 +166,7 @@ public:
     static RT::Opcode opcode(bool isImm, Width width)
     {
         switch (width) {
+            case Width::W16: return isImm ? RT::Opcode::BCC16I : RT::Opcode::BCC16L;
             case Width::W32: return isImm ? RT::Opcode::BCC32I : RT::Opcode::BCC32L;
             case Width::W64: return isImm ? RT::Opcode::BCC64I : RT::Opcode::BCC64L;
             default:         FATAL("unexpected Width: %s", width.CStr()); return RT::Opcode::BCC32I;
@@ -458,11 +459,21 @@ void Emitter::BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
+static RT::Opcode FloatOpcode(Width width, RT::Opcode half, RT::Opcode single, RT::Opcode dbl)
+{
+    switch (width) {
+        case Width::W16: return half;
+        case Width::W32: return single;
+        case Width::W64: return dbl;
+        default:         FATAL("unexpected floating width: %s", width.CStr());
+    }
+}
+
 void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
 {
-    ASSERT(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W16 || width == Width::W32 || width == Width::W64);
 
-    auto opcode = width == Width::W32 ? RT::Opcode::FBIN32 : RT::Opcode::FBIN64;
+    auto opcode = FloatOpcode(width, RT::Opcode::FBIN16, RT::Opcode::FBIN32, RT::Opcode::FBIN64);
 
     Encode(
         segment,
@@ -480,9 +491,9 @@ void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
 
 void Emitter::Unary(FloatOperations op, Width width, FReg d, FReg s)
 {
-    ASSERT(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W16 || width == Width::W32 || width == Width::W64);
 
-    auto opcode = width == Width::W32 ? RT::Opcode::FUN32 : RT::Opcode::FUN64;
+    auto opcode = FloatOpcode(width, RT::Opcode::FUN16, RT::Opcode::FUN32, RT::Opcode::FUN64);
 
     Encode(
         segment,
@@ -500,8 +511,8 @@ void Emitter::Unary(FloatOperations op, Width width, FReg d, FReg s)
 
 void Emitter::FMathUnary(FloatMathOp op, Width width, FReg d, FReg s)
 {
-    ASSERT(width == Width::W32 || width == Width::W64);
-    auto opcode = width == Width::W32 ? RT::Opcode::FMATHUN32 : RT::Opcode::FMATHUN64;
+    ASSERT(width == Width::W16 || width == Width::W32 || width == Width::W64);
+    auto opcode = FloatOpcode(width, RT::Opcode::FMATHUN16, RT::Opcode::FMATHUN32, RT::Opcode::FMATHUN64);
     Encode(
         segment,
         RT::B3xrrr {
@@ -562,6 +573,14 @@ void Emitter::MovImm(Width width, IReg d, uint64_t imm)
     }
 }
 
+void Emitter::FMovI16(FReg d, Utils::Float16 imm)
+{
+    Encode(
+        segment,
+        RT::B4xri16 { .opc = RT::Opcode::FMOVI16, .xr = XR { .imm = 0, .r = d }, .imm16 = Imm16 { .fimm = imm } }
+    );
+}
+
 void Emitter::FMovI32(FReg d, float imm)
 {
     Encode(
@@ -580,7 +599,8 @@ void Emitter::FMovI64(FReg d, double imm)
 
 void Emitter::Bcc(CC cc, Width width, Reg l, Reg r, Label label)
 {
-    ASSERT(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W16 || width == Width::W32 || width == Width::W64);
+    ASSERT(width != Width::W16 || cc.IsFloatingPoint());
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
 }
 
@@ -1062,6 +1082,7 @@ void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset)
         stk = StoreAccessKind::ST_64;
     }
     switch (stk) {
+        case StoreAccessKind::ST_F16: stk = StoreAccessKind::ST_16; break;
         case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
         case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
         default:                      break;
@@ -1098,8 +1119,9 @@ void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)
 
 void Emitter::SCC(CC cc, Width width, IReg d, FReg l, FReg r)
 {
-    ASSERT(width == Width::W32 || width == Width::W64);
-    auto opc = width == Width::W32 ? RT::Opcode::FSCC32 : RT::Opcode::FSCC64;
+    ASSERT(width != Width::W16 || cc.IsFloatingPoint());
+    ASSERT(width == Width::W16 || width == Width::W32 || width == Width::W64);
+    auto opc = FloatOpcode(width, RT::Opcode::FSCC16, RT::Opcode::FSCC32, RT::Opcode::FSCC64);
     Encode(segment, RT::B3xrrr {
         .opc = opc,
         .xr = {

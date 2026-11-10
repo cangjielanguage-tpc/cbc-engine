@@ -277,6 +277,7 @@ struct IsaParserImpl {
     {
         auto [cc, lhs, rhs, lowOffset, hiOffset] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadS16().Get();
+        ASSERT(width != Width::W16 || Format::CC(cc).IsFloatingPoint());
         parser.Bcc(width, cc, lhs, rhs, MergeLowHi(lowOffset, hiOffset));
     }
 
@@ -284,6 +285,7 @@ struct IsaParserImpl {
     {
         auto [cc, lhs, rhs, lowOffset, hiOffset] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadS32().Get();
+        ASSERT(width != Width::W16 || Format::CC(cc).IsFloatingPoint());
         parser.Bcc(width, cc, lhs, rhs, MergeLowHi(lowOffset, hiOffset));
     }
 
@@ -442,7 +444,11 @@ struct IsaParserImpl {
 
     template <Width::Value width> static void FMovImm(IsaParser& parser)
     {
-        if constexpr (width == Width::W32) {
+        if constexpr (width == Width::W16) {
+            auto [unused, dst, imm] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+            Utils::Float16 fimm     = Utils::Float16FromBits(static_cast<uint16_t>(imm));
+            parser.FMovImm(dst, fimm);
+        } else if constexpr (width == Width::W32) {
             auto [unused, dst, imm] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU32().Get();
             float fimm              = imm;
             parser.FMovImm(width, dst, fimm);
@@ -547,6 +553,12 @@ struct IsaParserImpl {
     {
         auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
         parser.ZeroVal(dst, ti);
+    }
+
+    static void FMathUnary16(IsaParser& parser)
+    {
+        auto [op, _, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.FMathUnary16(Format::FloatMathOp::From(op), dst, src);
     }
 
     static void FMathUnary32(IsaParser& parser)
@@ -742,6 +754,7 @@ struct IsaParserImpl {
     template <Width::Value width> static void Scc(IsaParser& parser)
     {
         auto [cc, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        ASSERT(width != Width::W16 || Format::CC(cc).IsFloatingPoint());
         parser.Scc(width, cc, dst, lhs, rhs);
     }
 
@@ -862,6 +875,7 @@ struct IsaParserImpl {
         switch (opc) {
             case Cbc::RegGroup::Ret32:     parser.Ret(Width::W32, reg); break;
             case Cbc::RegGroup::Ret64:     parser.Ret(Width::W64, reg); break;
+            case Cbc::RegGroup::FRet16:    parser.FRet(Width::W16, reg); break;
             case Cbc::RegGroup::FRet32:    parser.FRet(Width::W32, reg); break;
             case Cbc::RegGroup::FRet64:    parser.FRet(Width::W64, reg); break;
             case Cbc::RegGroup::DivCheck:  parser.DivCheck(reg); break;

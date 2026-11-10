@@ -46,7 +46,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     int totalFloatArgs       = 0;
 
     Cbc::TrackedAbiAssigner abi([&](Cbc::Location target, Cbc::CbcTypeKind kind) {
-        if (kind == Cbc::CbcTypeKind::F64 || kind == Cbc::CbcTypeKind::F32) {
+        if (Cbc::IsFloat(kind)) {
             totalFloatArgs++;
             return;
         }
@@ -90,7 +90,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         abi.Consume(Cbc::CbcTypeKind::I64);
     }
 
-    bool hasTailReg = (totalIntArgs > IREG_PARAM_PASSING_AMOUNT);
+    bool hasTailReg = (totalIntArgs > IREG_PARAM_PASSING_AMOUNT || totalFloatArgs > FREG_ABI_AMOUNT);
     if (hasTailReg) {
         stackPtrParams |= (1u << IReg::TAIL_REG);
     }
