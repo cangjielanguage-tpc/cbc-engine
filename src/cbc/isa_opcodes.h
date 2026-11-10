@@ -173,6 +173,12 @@
     X(CopyFromTypeSlotGeneric, CopyFromTypeSlotGeneric)                                                                \
     X(FPowi32, FPowi32)                                                                                                \
     X(FPowi64, FPowi64)                                                                                                \
+    X(Float16, FloatOp<Width::W16>)                                                                                    \
+    X(FMov16, FMov<Width::W16>)                                                                                        \
+    X(FMov16i, FMovImm<Width::W16>)                                                                                    \
+    X(Bcc16, BranchGeneric<Width::W16>[w])                                                                             \
+    X(Scc16, Scc<Width::W16>)                                                                                          \
+    X(FMathUnary16, FMathUnary16)                                                                                      \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
@@ -201,4 +207,5 @@
     X(Throw)                                                                                                           \
     X(RetRef)                                                                                                          \
     X(NullCheck)                                                                                                       \
+    X(FRet16)                                                                                                          \
     X(_END)

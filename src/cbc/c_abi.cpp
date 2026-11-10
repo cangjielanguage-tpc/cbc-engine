@@ -13,7 +13,7 @@ namespace Cbc {
 static CbcTypeKind PieceKind(uint32_t size, bool isFloat)
 {
     if (isFloat) {
-        return size == 8 ? CbcTypeKind::F64 : CbcTypeKind::F32;
+        return size <= 2 ? CbcTypeKind::F16 : (size <= 4 ? CbcTypeKind::F32 : CbcTypeKind::F64);
     }
     if (size > 4) {
         return CbcTypeKind::I64;

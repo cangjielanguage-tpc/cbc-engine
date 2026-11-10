@@ -13,6 +13,7 @@
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/literals.h"
 #include "runtimesupport/runtime.h"
+#include "utils/float16.h"
 #include "utils/heap.h"
 
 namespace Cbc {
@@ -74,6 +75,7 @@ public:
     void Mov(IReg d, FReg s);
     void Mov(FReg d, IReg s);
     void MovImm(Width width, IReg d, uint64_t imm);
+    void FMovI16(FReg d, Utils::Float16 value);
     void FMovI32(FReg d, float imm);
     void FMovI64(FReg d, double imm);
 

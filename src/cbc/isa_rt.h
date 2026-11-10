@@ -17,10 +17,13 @@
     X(FMOV, B2rr, "fmov $0fr $1fr")                                                                                    \
     X(MOVI2F, B2rr, "i2f $0fr $1ir")                                                                                   \
     X(MOVF2I, B2rr, "f2i $0ir $1fr")                                                                                   \
+    X(FMOVI16, B4xri16, "fmovi.16 $1fr bits=$2U16")                                                                    \
     X(FMOVI32, B6xri32, "fmovi.32 $1fr $2F32")                                                                         \
     X(FMOVI64, B10xri64, "fmovi.64 $1fr $2F64")                                                                        \
+    X(BCC16I, B4xi12rr, "fbcc.16 $0cc $2fr $3fr $1I12")                                                                \
     X(BCC32I, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12")                                                                 \
     X(BCC64I, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12")                                                                 \
+    X(BCC16L, B4xi12rr, "fbcc.16 $0cc $2fr $3fr $1I12L")                                                               \
     X(BCC32L, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12L")                                                                \
     X(BCC64L, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12L")                                                                \
     X(BCCI32I, B5xi12ri12, "bcc.32 $0cc $2ir $3I12 $1I12")                                                             \
@@ -39,10 +42,13 @@
     X(BINI64I, B4xi12rr, "$0bin.64 $2ir $3ir $1I12")                                                                   \
     X(BINI32L, B4xi12rr, "$0bin.32 $2ir $3ir $1I12L")                                                                  \
     X(BINI64L, B4xi12rr, "$0bin.64 $2ir $3ir $1I12L")                                                                  \
+    X(FBIN16, B3xrrr, "$0fop.16 $1fr $2fr $3fr")                                                                       \
     X(FBIN32, B3xrrr, "$0fop.32 $1fr $2fr $3fr")                                                                       \
     X(FBIN64, B3xrrr, "$0fop.64 $1fr $2fr $3fr")                                                                       \
+    X(FUN16, B3xrrr, "$0fop.16 $1fr $3fr")                                                                             \
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
+    X(FMATHUN16, B3xrrr, "$0fmatop.16 $1fr $3fr")                                                                      \
     X(FMATHUN32, B3xrrr, "$0fmatop.32 $1fr $3fr")                                                                      \
     X(FMATHUN64, B3xrrr, "$0fmatop.64 $1fr $3fr")                                                                      \
     X(FPOWI32, B3xrrr, "fpowi.32 $1fr $2fr $3ir")                                                                      \
@@ -102,6 +108,7 @@
     /* Float Load/Store instructions end*/                                                                             \
     X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
     X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
+    X(FSCC16, B3xrrr, "fscc.16 $0cc $1ir $2fr $3fr")                                                                   \
     X(FSCC32, B3xrrr, "fscc.32 $0cc $1ir $2fr $3fr")                                                                   \
     X(FSCC64, B3xrrr, "fscc.64 $0cc $1ir $2fr $3fr")                                                                   \
     X(SCCI32I, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12")                                                               \
@@ -323,14 +330,14 @@ struct B3xri8 {
 struct B4xri16 {
     Opcode opc;
     Format::XR xr;
-    Format::Imm16 imm;
+    Format::Imm16 imm16;
 
     static B4xri16 Decode(Decoder::ByteReader& reader)
     {
-        auto opc = Opcode::Decode(reader);
-        auto xr  = Format::XR::Decode(reader);
-        auto imm = Format::Imm16::Decode(reader);
-        return B4xri16 { opc, xr, imm };
+        auto opc   = Opcode::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
+        auto imm16 = Format::Imm16::Decode(reader);
+        return B4xri16 { opc, xr, imm16 };
     }
 };
 

@@ -34,6 +34,7 @@ void Encode(ByteBuffer& buf, RT::IOF command);
 void Encode(ByteBuffer& buf, RT::B5xi12ri12 command);
 void Encode(ByteBuffer& buf, RT::VirtualCall command);
 void Encode(ByteBuffer& buf, RT::B5i32 command);
+void Encode(ByteBuffer& buf, RT::B4xri16 command);
 void Encode(ByteBuffer& buf, RT::B6xri32 command);
 void Encode(ByteBuffer& buf, RT::B10xri64 command);
 void Encode(ByteBuffer& buf, RT::B9i64 command);

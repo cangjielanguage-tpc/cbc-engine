@@ -62,6 +62,7 @@ static LDK Ldk(CbcTypeKind tk)
         case TK::I32: return LDK::LD_32;
         case TK::U64:
         case TK::I64: return LDK::LD_64;
+        case TK::F16: return LDK::LD_F16;
         case TK::F32: return LDK::LD_F32;
         case TK::F64: return LDK::LD_F64;
 
@@ -87,6 +88,7 @@ static STK Stk(TK tk)
         case TK::I32: return STK::ST_32;
         case TK::U64:
         case TK::I64: return STK::ST_64;
+        case TK::F16: return STK::ST_F16;
         case TK::F32: return STK::ST_F32;
         case TK::F64: return STK::ST_F64;
 
@@ -115,7 +117,7 @@ STK Stk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_I64:     return STK::ST_64;
         case Interpretation::BUILTIN_UADDR:   return STK::ST_64;
         case Interpretation::BUILTIN_IADDR:   return STK::ST_64;
-        case Interpretation::BUILTIN_F16:     return STK::ST_16;
+        case Interpretation::BUILTIN_F16:     return STK::ST_F16;
         case Interpretation::BUILTIN_F32:     return STK::ST_F32;
         case Interpretation::BUILTIN_F64:     return STK::ST_F64;
         case Interpretation::BUILTIN_RUNE:    return STK::ST_32;
@@ -139,7 +141,7 @@ LDK Ldk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_I64:     return LDK::LD_64;
         case Interpretation::BUILTIN_UADDR:   return LDK::LD_64;
         case Interpretation::BUILTIN_IADDR:   return LDK::LD_64;
-        case Interpretation::BUILTIN_F16:     return LDK::LD_U16;
+        case Interpretation::BUILTIN_F16:     return LDK::LD_F16;
         case Interpretation::BUILTIN_F32:     return LDK::LD_F32;
         case Interpretation::BUILTIN_F64:     return LDK::LD_F64;
         case Interpretation::BUILTIN_RUNE:    return LDK::LD_32;
@@ -736,13 +738,15 @@ struct IsaRewriter : public IsaParser {
 
     void FMov(Format::Width width, FReg d, FReg s) override { emit.Mov(d, s); }
 
-    void FloatToInt(Format::Width width, IReg d, FReg s) override { emit.Mov(d, s); }
+    void FloatToInt(Format::Width, IReg d, FReg s) override { emit.Mov(d, s); }
 
-    void IntToFloat(Format::Width width, FReg d, IReg s) override { emit.Mov(d, s); }
+    void IntToFloat(Format::Width, FReg d, IReg s) override { emit.Mov(d, s); }
 
     void MovRef(IReg d, IReg s) override { emit.Mov(d, s); }
 
     void MovImm(Format::Width width, IReg d, uint64_t value) override { emit.MovImm(width, d, value); }
+
+    void FMovImm(FReg d, Utils::Float16 value) override { emit.FMovI16(d, value); }
 
     virtual void FMovImm(Format::Width width, FReg d, double value) override
     {
@@ -857,6 +861,11 @@ struct IsaRewriter : public IsaParser {
         emit.Bind(refPath);
         emit.MovImm(Format::Width::W64, IReg::From(dst), 0);
         emit.Bind(end);
+    }
+
+    virtual void FMathUnary16(Format::FloatMathOp op, FReg dst, FReg src) override
+    {
+        emit.FMathUnary(op, Format::Width::W16, dst, src);
     }
 
     virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) override

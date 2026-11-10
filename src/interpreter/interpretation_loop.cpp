@@ -327,6 +327,12 @@ LABEL(GC_POINT) {
 
     return { ThunkOp::GcPoint, RTSupport::Execution::GcPoint() };
 }
+LABEL(FMOVI16) {
+    auto args = B4xri16::Decode(reader);
+    LOG_INSTR;
+    interpreter.MovI(args.xr.r.FR(), args.imm16.fimm);
+    NEXT;
+}
 LABEL(FMOVI32) {
     auto args = B6xri32::Decode(reader);
     LOG_INSTR;
@@ -339,11 +345,27 @@ LABEL(FMOVI64) {
     interpreter.MovI(args.xr.r.FR(), args.imm64.dimm);
     NEXT;
 }
+LABEL(BCC16I) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W16>(
+        args.xi12.imm4.CC(), args.rr.x.FR(), args.rr.y.FR(), args.xi12.imm12
+    );
+    JUMP;
+}
 LABEL(BCC32I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
     int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
+    );
+    JUMP;
+}
+LABEL(BCC16L) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W16>(
+        args.xi12.imm4.CC(), args.rr.x.FR(), args.rr.y.FR(), args.xi12.imm12
     );
     JUMP;
 }
@@ -675,6 +697,14 @@ LABEL(CBINI64W) {
     Type type = interpreter.template BinaryImm<Width::W64>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
     NEXT_OR_THROW_CHECKED_BINARY(type);
 }
+LABEL(FBIN16) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template Binary<Width::W16>(
+        args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.x.FR(), args.rr.y.FR()
+    );
+    NEXT_COND(successful);
+}
 LABEL(FBIN32) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
@@ -691,6 +721,13 @@ LABEL(FBIN64) {
     );
     NEXT_COND(successful);
 }
+LABEL(FUN16) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful =
+        interpreter.template Unary<Width::W16>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
+    NEXT_COND(successful);
+}
 LABEL(FUN32) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
@@ -703,6 +740,13 @@ LABEL(FUN64) {
     LOG_INSTR;
     bool successful =
         interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
+    NEXT_COND(successful);
+}
+LABEL(FMATHUN16) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful =
+        interpreter.template FMathUnary<Width::W16>(args.xr.imm.FloatMathOp(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
 LABEL(FMATHUN32) {
@@ -889,14 +933,14 @@ LABEL(NEWARR_G) {
 LABEL(LOAD_ADDR) {
     auto args = B4xri16::Decode(reader);
     LOG_INSTR;
-    auto location   = literals->at(args.imm.imm).u64;
+    auto location   = literals->at(args.imm16.imm).u64;
     bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
     NEXT_COND(successful);
 }
 LABEL(STORE_ADDR) {
     auto args = B4xri16::Decode(reader);
     LOG_INSTR;
-    auto location   = literals->at(args.imm.imm).u64;
+    auto location   = literals->at(args.imm16.imm).u64;
     bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
     NEXT_COND(successful);
 }
@@ -1253,6 +1297,12 @@ LABEL(SCC64) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
     interpreter.template SCC<Width::W64>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT;
+}
+LABEL(FSCC16) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template SCC<Width::W16>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.FR(), args.rr.y.FR());
     NEXT;
 }
 LABEL(FSCC32) {

@@ -297,6 +297,7 @@ TermKind Term::GetKind() const { return data->identifier.GetKind(); }
 bool Term::IsFloat() const
 {
     switch (GetKind()) {
+        case TermKind::F16:
         case TermKind::F32:
         case TermKind::F64: return true;
         default:            return false;
