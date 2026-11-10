@@ -40,3 +40,5 @@ cd ${BUILD_DIR}
 
 cjc --fobf-layout --fno-obf-export-symbols --fobf-source-path --obf-sym-output-mapping libcbcengine-helper.obf.map \
 cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so
+
+cjc --emit-chir --output-type=staticlib -o cbcengine-helper.chir cbcengine-helper.cj
