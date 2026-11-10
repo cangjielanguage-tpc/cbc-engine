@@ -266,8 +266,8 @@ def generate_arith() -> list[Path]:
 # float-arith: CbcSpecializedFloatOps/CbcSpecializedDoubleOps and SimpleArithFloatMov32/Mov64
 # ---------------------------------------------------------------------------
 
-FLOAT_UNARY_OPS = ["NEG", "SQRT", "ABS"]
-FLOAT_BINARY_OPS = ["ADD", "SUB", "MUL", "DIV"]
+FLOAT_UNARY_OPS = ["NEG", "SQRT", "ABS", "SIN", "COS", "LOG", "CEIL", "FLOOR", "LOG10", "LOG2", "EXP", "EXP2", "TRUNC"]
+FLOAT_BINARY_OPS = ["ADD", "SUB", "MUL", "DIV", "POW"]
 
 
 def float_ops_method(name: str, width: int) -> Method:
@@ -281,6 +281,18 @@ def float_ops_method(name: str, width: int) -> Method:
     return (
         method(f"test_{name}", float_type, params=params, default_w=width)
         .instr(f"f{name.lower()}", FR0, *operands)
+        .fret()
+    )
+
+
+def float_powi_method(width: int) -> Method:
+    """fpowi: FR0 = FR1 raised to the signed I64 exponent in IR1 (the base is
+    F32/F64, the exponent stays I64 in both widths)."""
+    float_type = AsmType(f"F{width}")
+    return (
+        method("test_FPOWI", float_type, params=(float_type, I64), default_w=width)
+        .live(IR1)
+        .instr("fpowi", FR0, FR1, IR1)
         .fret()
     )
 
@@ -316,6 +328,7 @@ def generate_float_arith() -> list[Path]:
         }
         for name in FLOAT_UNARY_OPS + FLOAT_BINARY_OPS:
             files[f"{name}.asm"] = asm_file([float_ops_method(name, width)])
+        files["FPOWI.asm"] = asm_file([float_powi_method(width)])
         written += write_suite(f"float-arith/{width}", files)
     return written
 

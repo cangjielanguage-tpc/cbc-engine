@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <iterator>
 #include <limits>
 #include <sstream>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "cbc/isa_disasm.h"
@@ -615,55 +618,49 @@ template <typename T> T mulFunc(T l, T r) { return l * r; }
 
 template <typename T> T divFunc(T l, T r) { return l / r; }
 
-UnaryFunction<float> floatUnaryOps[] = { negFunc<float>, std::sqrt, std::abs };
+UnaryFunction<float> floatUnaryOps[] = { negFunc<float>, std::sqrt, std::abs,   std::sin,   std::cos,
+                                         std::log,       std::ceil, std::floor, std::log10, std::log2,
+                                         std::exp,       std::exp2, std::trunc };
 constexpr size_t floatUnaryOpsCount  = std::size(floatUnaryOps);
 
-BinaryFunction<float> floatBinaryOps[] = { addFunc<float>, subFunc<float>, mulFunc<float>, divFunc<float> };
+BinaryFunction<float> floatBinaryOps[] = { addFunc<float>, subFunc<float>, mulFunc<float>, divFunc<float>, std::pow };
 constexpr size_t floatBinaryOpsCount   = std::size(floatBinaryOps);
 
-UnaryFunction<double> doubleUnaryOps[] = { negFunc<double>, std::sqrt, std::abs };
+UnaryFunction<double> doubleUnaryOps[] = { negFunc<double>, std::sqrt, std::abs,   std::sin,   std::cos,
+                                           std::log,        std::ceil, std::floor, std::log10, std::log2,
+                                           std::exp,        std::exp2, std::trunc };
 constexpr size_t doubleUnaryOpsCount   = std::size(doubleUnaryOps);
 
-BinaryFunction<double> doubleBinaryOps[] = { addFunc<double>, subFunc<double>, mulFunc<double>, divFunc<double> };
-constexpr size_t doubleBinaryOpsCount    = std::size(doubleBinaryOps);
+BinaryFunction<double> doubleBinaryOps[] = {
+    addFunc<double>, subFunc<double>, mulFunc<double>, divFunc<double>, std::pow
+};
+constexpr size_t doubleBinaryOpsCount = std::size(doubleBinaryOps);
 
-const char* unaryFunctionNames[] = { "NEG", "SQRT", "ABS" };
+const char* unaryFunctionNames[] = { "NEG",   "SQRT",  "ABS",  "SIN", "COS",  "LOG",  "CEIL",
+                                     "FLOOR", "LOG10", "LOG2", "EXP", "EXP2", "TRUNC" };
 
-const char* binaryFunctionNames[] = { "ADD", "SUB", "MUL", "DIV" };
+const char* binaryFunctionNames[] = { "ADD", "SUB", "MUL", "DIV", "POW" };
 
+// Asm-level suites run a representative subset per op; the full op x value
+// sweep over libm edge cases lives in the Emitter-level suites, which do not
+// pay the external-assembler cost per case.
 std::pair<float, float> floatValues[] = {
     { 4.2f, 7.3f },
     { 0.0f, -0.0f },
-    { -0.0f, -0.0f },
-    { std::numeric_limits<float>::quiet_NaN(), 12.34f },
-    { std::numeric_limits<float>::infinity(), 12.34f },
     { std::numeric_limits<float>::infinity(), 0.0f },
-    { -std::numeric_limits<float>::infinity(), 12.34f },
-    { std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity() },
-    { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN() },
-    { std::numeric_limits<float>::max(), 2.0f },
     { std::numeric_limits<float>::max(), -std::numeric_limits<float>::max() },
-    { 16777216.0f, 1.0f },
-    { 16777216.0f, 2.0f }
+    { -2.0f, 3.0f },
+    { 1.0f, std::numeric_limits<float>::quiet_NaN() }
 };
-constexpr size_t floatValuesCount = std::size(floatValues);
 
 std::pair<double, double> doubleValues[] = {
     { 4.2, 7.3 },
     { 0.0, -0.0 },
-    { -0.0, -0.0 },
-    { std::numeric_limits<double>::quiet_NaN(), 12.34 },
-    { std::numeric_limits<double>::infinity(), 12.34 },
     { std::numeric_limits<double>::infinity(), 0.0 },
-    { -std::numeric_limits<double>::infinity(), 12.34 },
-    { std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity() },
-    { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN() },
-    { std::numeric_limits<double>::max(), 2.0 },
     { std::numeric_limits<double>::max(), -std::numeric_limits<double>::max() },
-    { 9007199254740992.0, 1.0 },
-    { 9007199254740992.0, 2.0 }
+    { -2.0, 3.0 },
+    { 1.0, std::numeric_limits<double>::quiet_NaN() }
 };
-constexpr size_t doubleValuesCount = std::size(doubleValues);
 
 void testFPOps32(Interpretation::Value::Primitive res, float expVal)
 {
@@ -685,93 +682,190 @@ void testFPOps64(Interpretation::Value::Primitive res, double expVal)
     }
 }
 
-template <typename T> struct FPOpsTestParams {
-    std::string name;
-    size_t valuesCount;
-    std::pair<T, T>* values;
+float unaryFloatValues[] = {
+    0.0f, -0.0f, 0.5f, -2.5f, 1e10f, std::numeric_limits<float>::infinity(),
+    -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()
 };
 
-template <typename T> std::ostream& operator<<(std::ostream& os, const FPOpsTestParams<T>& params)
-{
-    return os << params.name;
-}
+double unaryDoubleValues[] = {
+    0.0, -0.0, 0.5, -2.5, 1e10, std::numeric_limits<double>::infinity(),
+    -std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()
+};
 
-template <typename T> static std::string FPOpsTestParamsName(const ::testing::TestParamInfo<FPOpsTestParams<T>>& info)
-{
-    return info.param.name;
-}
+struct FPowiCase {
+    double base;
+    int64_t exponent;
+};
 
-class CbcSpecializedFloatOps : public ::testing::TestWithParam<FPOpsTestParams<float>> {
+FPowiCase fpowiCases[] = {
+    { 2.0, 10 }, { 3.0, -2 }, { 5.0, 0 }, { 2.0, 63 }, { 0.5, -1 }, { 2.0, -63 }, { -2.0, 3 }, { -2.0, 4 },
+    { 1.5, 100 }, { 0.0, 5 }, { 0.0, 0 }, { 2.0, INT64_MAX }, { 2.0, INT64_MIN }
+};
+
+class CbcFloatUnaryOp32 : public ::testing::TestWithParam<std::tuple<size_t, float>> {
     void SetUp() override { DoSetUp(); }
 };
 
-class CbcSpecializedDoubleOps : public ::testing::TestWithParam<FPOpsTestParams<double>> {
+class CbcFloatUnaryOp64 : public ::testing::TestWithParam<std::tuple<size_t, double>> {
     void SetUp() override { DoSetUp(); }
 };
 
-TEST_P(CbcSpecializedFloatOps, test)
+class CbcFloatBinaryOp32 : public ::testing::TestWithParam<std::tuple<size_t, std::pair<float, float>>> {
+    void SetUp() override { DoSetUp(); }
+};
+
+class CbcFloatBinaryOp64 : public ::testing::TestWithParam<std::tuple<size_t, std::pair<double, double>>> {
+    void SetUp() override { DoSetUp(); }
+};
+
+class CbcFloatPowI32 : public ::testing::TestWithParam<FPowiCase> {
+    void SetUp() override { DoSetUp(); }
+};
+
+class CbcFloatPowI64 : public ::testing::TestWithParam<FPowiCase> {
+    void SetUp() override { DoSetUp(); }
+};
+
+std::string FloatUnaryOpName32(const ::testing::TestParamInfo<std::tuple<size_t, float>>& info)
+{
+    return std::string(unaryFunctionNames[std::get<0>(info.param)]) + "_v" + hex(F32(std::get<1>(info.param)).u32);
+}
+
+std::string DoubleUnaryOpName64(const ::testing::TestParamInfo<std::tuple<size_t, double>>& info)
+{
+    return std::string(unaryFunctionNames[std::get<0>(info.param)]) + "_v" + hex(F64(std::get<1>(info.param)).u64);
+}
+
+std::string FloatBinaryOpName32(const ::testing::TestParamInfo<std::tuple<size_t, std::pair<float, float>>>& info)
+{
+    return std::string(binaryFunctionNames[std::get<0>(info.param)]) + "_v" + hex(F32(std::get<1>(info.param).first).u32)
+        + "_v" + hex(F32(std::get<1>(info.param).second).u32);
+}
+
+std::string DoubleBinaryOpName64(const ::testing::TestParamInfo<std::tuple<size_t, std::pair<double, double>>>& info)
+{
+    return std::string(binaryFunctionNames[std::get<0>(info.param)]) + "_v" + hex(F64(std::get<1>(info.param).first).u64)
+        + "_v" + hex(F64(std::get<1>(info.param).second).u64);
+}
+
+std::string FPowiCaseName(const ::testing::TestParamInfo<FPowiCase>& info)
+{
+    int64_t exponent   = info.param.exponent;
+    uint64_t magnitude = exponent < 0 ? 0ull - static_cast<uint64_t>(exponent) : static_cast<uint64_t>(exponent);
+    std::string suffix = exponent < 0 ? "neg" + std::to_string(magnitude) : std::to_string(magnitude);
+    return "v" + hex(F64(info.param.base).u64) + "_e" + suffix;
+}
+
+TEST_P(CbcFloatUnaryOp32, test)
 {
     if (!CheckForAssembler()) {
         GTEST_SKIP() << "Assembler is not present";
     }
-    FPOpsTestParams<float> params = GetParam();
-    for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
-        UnaryFunction<float> unaryFunc = floatUnaryOps[j];
-        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + unaryFunctionNames[j] + ".asm";
-        auto code = OpenAndRewrite(std::string("test_") + unaryFunctionNames[j], path)->code;
-        for (size_t i { 0 }; i < params.valuesCount; ++i) {
-            auto [l, r] = params.values[i];
-            auto res    = InterpretFPRes(code, F32(l), F32(1.f));
-            auto expVal = unaryFunc(l);
-            testFPOps32(res, expVal);
-        }
-    }
-    for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
-        BinaryFunction<float> binaryFunc = floatBinaryOps[j];
-        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + binaryFunctionNames[j] + ".asm";
-        auto code = OpenAndRewrite(std::string("test_") + binaryFunctionNames[j], path)->code;
-        for (size_t i { 0 }; i < params.valuesCount; ++i) {
-            auto [l, r] = params.values[i];
-            auto res    = InterpretFPRes(code, F32(l), F32(r));
-            auto expVal = binaryFunc(l, r);
-            testFPOps32(res, expVal);
-        }
-    }
+    auto [opIdx, value] = GetParam();
+    auto path           = std::string("./generated-asm/float-arith/32/") + unaryFunctionNames[opIdx] + ".asm";
+    auto code           = OpenAndRewrite(std::string("test_") + unaryFunctionNames[opIdx], path)->code;
+    auto res            = InterpretFPRes(code, F32(value), F32(1.f));
+    auto expVal         = floatUnaryOps[opIdx](value);
+    testFPOps32(res, expVal);
 }
 
-TEST_P(CbcSpecializedDoubleOps, test)
+TEST_P(CbcFloatUnaryOp64, test)
 {
     if (!CheckForAssembler()) {
         GTEST_SKIP() << "Assembler is not present";
     }
-    FPOpsTestParams<double> params = GetParam();
-    for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
-        UnaryFunction<double> unaryFunc = doubleUnaryOps[j];
-        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + unaryFunctionNames[j] + ".asm";
-        auto code = OpenAndRewrite(std::string("test_") + unaryFunctionNames[j], path)->code;
-        for (size_t i { 0 }; i < params.valuesCount; ++i) {
-            auto [l, r] = params.values[i];
-            auto res    = InterpretFPRes(code, F64(l), F64(1.f));
-            auto expVal = unaryFunc(l);
-            testFPOps64(res, expVal);
-        }
-    }
-    for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
-        BinaryFunction<double> binaryFunc = doubleBinaryOps[j];
-        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + binaryFunctionNames[j] + ".asm";
-        auto code = OpenAndRewrite(std::string("test_") + binaryFunctionNames[j], path)->code;
-        for (size_t i { 0 }; i < params.valuesCount; ++i) {
-            auto [l, r] = params.values[i];
-            auto res    = InterpretFPRes(code, F64(l), F64(r));
-            auto expVal = binaryFunc(l, r);
-            testFPOps64(res, expVal);
-        }
-    }
+    auto [opIdx, value] = GetParam();
+    auto path           = std::string("./generated-asm/float-arith/64/") + unaryFunctionNames[opIdx] + ".asm";
+    auto code           = OpenAndRewrite(std::string("test_") + unaryFunctionNames[opIdx], path)->code;
+    auto res            = InterpretFPRes(code, F64(value), F64(1.f));
+    auto expVal         = doubleUnaryOps[opIdx](value);
+    testFPOps64(res, expVal);
 }
 
-INSTANTIATE_TEST_SUITE_P(CbcTest, CbcSpecializedFloatOps, ::testing::Values(FPOpsTestParams<float> { "32", floatValuesCount, floatValues }), FPOpsTestParamsName<float>);
+TEST_P(CbcFloatBinaryOp32, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
+    auto [opIdx, value] = GetParam();
+    auto [l, r]         = value;
+    auto path           = std::string("./generated-asm/float-arith/32/") + binaryFunctionNames[opIdx] + ".asm";
+    auto code           = OpenAndRewrite(std::string("test_") + binaryFunctionNames[opIdx], path)->code;
+    auto res            = InterpretFPRes(code, F32(l), F32(r));
+    auto expVal         = floatBinaryOps[opIdx](l, r);
+    testFPOps32(res, expVal);
+}
 
-INSTANTIATE_TEST_SUITE_P(CbcTest, CbcSpecializedDoubleOps, ::testing::Values(FPOpsTestParams<double> { "64", doubleValuesCount, doubleValues }), FPOpsTestParamsName<double>);
+TEST_P(CbcFloatBinaryOp64, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
+    auto [opIdx, value] = GetParam();
+    auto [l, r]         = value;
+    auto path           = std::string("./generated-asm/float-arith/64/") + binaryFunctionNames[opIdx] + ".asm";
+    auto code           = OpenAndRewrite(std::string("test_") + binaryFunctionNames[opIdx], path)->code;
+    auto res            = InterpretFPRes(code, F64(l), F64(r));
+    auto expVal         = doubleBinaryOps[opIdx](l, r);
+    testFPOps64(res, expVal);
+}
+
+TEST_P(CbcFloatPowI32, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
+    FPowiCase c = GetParam();
+    auto code   = OpenAndRewrite("test_FPOWI", "./generated-asm/float-arith/32/FPOWI.asm")->code;
+    auto base   = static_cast<float>(c.base);
+    auto res    = InterpretFPRes(code, U64(c.exponent), U64(0), F32(0), F32(base));
+    auto expVal = static_cast<float>(std::pow(static_cast<double>(base), static_cast<double>(c.exponent)));
+    testFPOps32(res, expVal);
+}
+
+TEST_P(CbcFloatPowI64, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
+    FPowiCase c = GetParam();
+    auto code   = OpenAndRewrite("test_FPOWI", "./generated-asm/float-arith/64/FPOWI.asm")->code;
+    auto res    = InterpretFPRes(code, U64(c.exponent), U64(0), F64(0), F64(c.base));
+    auto expVal = std::pow(c.base, static_cast<double>(c.exponent));
+    testFPOps64(res, expVal);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    CbcFloatUnaryOp32,
+    ::testing::Combine(::testing::Range<size_t>(0, floatUnaryOpsCount), ::testing::ValuesIn(unaryFloatValues)),
+    FloatUnaryOpName32
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    CbcFloatUnaryOp64,
+    ::testing::Combine(::testing::Range<size_t>(0, doubleUnaryOpsCount), ::testing::ValuesIn(unaryDoubleValues)),
+    DoubleUnaryOpName64
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    CbcFloatBinaryOp32,
+    ::testing::Combine(::testing::Range<size_t>(0, floatBinaryOpsCount), ::testing::ValuesIn(floatValues)),
+    FloatBinaryOpName32
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    CbcFloatBinaryOp64,
+    ::testing::Combine(::testing::Range<size_t>(0, doubleBinaryOpsCount), ::testing::ValuesIn(doubleValues)),
+    DoubleBinaryOpName64
+);
+
+INSTANTIATE_TEST_SUITE_P(CbcTest, CbcFloatPowI32, ::testing::ValuesIn(fpowiCases), FPowiCaseName);
+
+INSTANTIATE_TEST_SUITE_P(CbcTest, CbcFloatPowI64, ::testing::ValuesIn(fpowiCases), FPowiCaseName);
 
 TEST_ASM(CbcTest, SimpleArithFloatMov32)
 {
