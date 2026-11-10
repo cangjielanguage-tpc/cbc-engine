@@ -16,7 +16,8 @@ namespace {
 TEST(BStringTest, HasPointerLayoutButIsNotAGcReference)
 {
     Engine::Loader loader;
-    Engine::Session session(loader.Build());
+    auto engine = loader.Build();
+    Engine::Session session(*engine);
     auto layouts = Engine::FieldLayoutManager::New(session);
     auto bstring = Engine::Term::Predefined(Engine::TermKind::BSTRING);
 
@@ -54,7 +55,8 @@ TEST(BStringTest, CStringBuiltinBoxUsesWideEncoding)
 TEST(BStringTest, UsesScalarIntegerRegisterClass)
 {
     Engine::Loader loader;
-    Engine::Session session(loader.Build());
+    auto engine = loader.Build();
+    Engine::Session session(*engine);
     auto method =
         Engine::Identifier<Image::MethodDefinition>(Image::Offset<Image::MethodDefinition>(0), Image::FileId(0));
     Resolution::Resolver resolver(session, method);

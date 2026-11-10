@@ -508,6 +508,13 @@ bool GlobalTerm::operator==(const GlobalTerm& another) const { return data == an
 
 bool GlobalTerm::operator!=(const GlobalTerm& another) const { return data != another.data; }
 
+TermManager::~TermManager()
+{
+    for (auto* data : cache) {
+        free(data);
+    }
+}
+
 GlobalTerm TermManager::Globalize(Term& term)
 {
     if (!term.IsLocal()) {

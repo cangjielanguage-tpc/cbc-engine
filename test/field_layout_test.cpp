@@ -51,7 +51,8 @@ Engine::Term MakeTuple(Engine::Session& session)
 TEST(FieldLayoutTest, TupleUsesTypeInfoAlignment)
 {
     Engine::Loader loader;
-    Engine::Session session(loader.Build());
+    auto engine = loader.Build();
+    Engine::Session session(*engine);
     TestTypeInfo tupleTypeInfo(16, 8, { 8 });
     FixedTypeInfoManager typeInfoManager { RTSupport::TypeInfo(&tupleTypeInfo) };
     auto layouts = Engine::FieldLayoutManager::New(session, typeInfoManager);
@@ -74,7 +75,8 @@ TEST(FieldLayoutTest, TupleUsesTypeInfoAlignment)
 TEST(FieldLayoutTest, TupleReferenceOffsetsIncludeContainingDisplacement)
 {
     Engine::Loader loader;
-    Engine::Session session(loader.Build());
+    auto engine = loader.Build();
+    Engine::Session session(*engine);
     TestTypeInfo tupleTypeInfo(16, 8, { 8 });
     FixedTypeInfoManager typeInfoManager { RTSupport::TypeInfo(&tupleTypeInfo) };
     auto layouts = Engine::FieldLayoutManager::New(session, typeInfoManager);

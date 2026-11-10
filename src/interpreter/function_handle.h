@@ -57,6 +57,8 @@ struct DynamicFunctionHandle {
           lock()
     {}
 
+    ~DynamicFunctionHandle();
+
     // Can not use inheritance because of standard layout rules.
     FunctionHandle base;
 

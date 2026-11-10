@@ -2,6 +2,7 @@
 
 #include <dlfcn.h>
 
+#include <memory>
 #include <mutex>
 #include <string_view>
 #include <type_traits>
@@ -105,7 +106,7 @@ static void EnsureEngineInitialized()
         }
     }
 
-    loader.Build();
+    [[maybe_unused]] static std::unique_ptr<Engine::Engine> engine = loader.Build();
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end engine init" << Stream::endl; });
 

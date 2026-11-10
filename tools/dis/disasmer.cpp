@@ -23,7 +23,8 @@ Session Disasmer::SessionFor(Utils::Vector<std::string_view> views)
             loader.Load(std::move(raf.value()), view);
         }
     }
-    return Session(loader.Build());
+    engine = loader.Build();
+    return Session(*engine);
 }
 
 void Disasmer::Region(String name, Utils::Function<void()> fn)

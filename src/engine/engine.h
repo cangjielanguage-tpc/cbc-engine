@@ -71,7 +71,7 @@ public:
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);
-    Engine(Engine&& other);
+    Engine(Engine&& other) = delete;
 
     std::unique_ptr<Impl> impl;
 };
@@ -109,7 +109,7 @@ public:
     ~Loader();
 
     bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName);
-    Engine& Build();
+    std::unique_ptr<Engine> Build();
 
     class Impl;
 

@@ -32,10 +32,10 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     bool successful = loader.Load(std::move(file), fileName);
     ASSERT_TRUE(successful);
 
-    auto& engine = loader.Build();
-    Engine::Session session(engine);
+    auto engine = loader.Build();
+    Engine::Session session(*engine);
 
-    auto mainId = engine.FindMain(session, fileName);
+    auto mainId = engine->FindMain(session, fileName);
     ASSERT_TRUE(mainId.has_value());
 
     auto def  = Decode::Read(session, mainId.value());

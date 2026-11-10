@@ -11,6 +11,7 @@
 #include "interpreter/function_handle.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -21,7 +22,12 @@ namespace Engine {
 
 using namespace Image;
 
-static Engine* g_engineInstance;
+// Set by Loader::Build, cleared by ~Engine. Atomic, because runtime threads
+// (GC, lazy preparation, exception handling) read it via GetEngineInstance.
+// Atomicity only makes the pointer access itself well-defined: destroying an
+// engine while other threads still use it remains a use-after-free, which only
+// a shutdown protocol can prevent.
+static std::atomic<Engine*> g_engineInstance;
 
 /////////////////////////////////////////////////////////////////
 // Impl definitions
@@ -276,7 +282,7 @@ static Utils::Vector<Dependencies> ReadDependencies(
     return allDeps;
 }
 
-Engine& Loader::Build()
+std::unique_ptr<Engine> Loader::Build()
 {
     Utils::Vector<std::shared_ptr<Utils::SharedObject>> aotBase;
     Utils::Vector<std::shared_ptr<Utils::SharedObject>> foreignBase;
@@ -293,11 +299,14 @@ Engine& Loader::Build()
     auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
     auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);
 
-    auto engineInstance = new Engine(std::make_unique<Engine::Impl>(
+    auto engine = std::unique_ptr<Engine>(new Engine(std::make_unique<Engine::Impl>(
         std::move(loader->files), std::move(loader->rafs), std::move(deps), std::move(foreignLibs)
-    ));
-    g_engineInstance    = engineInstance;
-    return *engineInstance;
+    )));
+    Engine* expected = nullptr;
+    if (!g_engineInstance.compare_exchange_strong(expected, engine.get(), std::memory_order_release, std::memory_order_relaxed)) {
+        FATAL("Global engine instance is already set");
+    }
+    return engine;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -305,14 +314,20 @@ Engine& Loader::Build()
 
 Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
 
-Engine::Engine(Engine&& other) = default;
-Engine::~Engine()              = default;
+Engine::~Engine()
+{
+    auto* current = g_engineInstance.load();
+    if (current != this) {
+        FATAL("Destroying an engine that is not the current global instance");
+    }
+    g_engineInstance.store(nullptr);
+}
 
 Engine& GetEngineInstance()
 {
-    ASSERTION(g_engineInstance != nullptr, "engine is not initialized");
-    // FIXME: load acquire
-    return *g_engineInstance;
+    auto* engine = g_engineInstance.load(std::memory_order_acquire);
+    ASSERTION(engine != nullptr, "engine is not initialized");
+    return *engine;
 }
 
 std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)

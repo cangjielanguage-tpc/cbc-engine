@@ -27,6 +27,7 @@ class Disasmer {
     void SetFile(Image::CbcFile const& file) { currentFile = &file; }
 
     Image::CbcFile const* currentFile = nullptr;
+    std::unique_ptr<Engine::Engine> engine;
     Engine::Session session;
     Utils::Span<Image::CbcFile const> files;
     Stream::Indented idio;

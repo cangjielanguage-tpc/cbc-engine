@@ -1,5 +1,6 @@
 #include <array>
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <new>
 #include <string>
@@ -18,8 +19,11 @@
 #include "resolution/resolution.h"
 #include "runtimesupport/adapters.h"
 #include "utils/assertion.h"
+#include "utils/heap.h"
 #include "utils/misc.h"
 #include "utils/ostream.h"
+
+#include <cstdlib>
 
 extern "C" {
 bool engine_store_debug_names;
@@ -33,17 +37,44 @@ static_assert(offsetof(DynamicFunctionHandle, bytecode) == FUNCTION_HANDLE_BYTEC
 using namespace Engine;
 using namespace Image;
 
+using OwningTaggedFunctionHandle = std::variant<std::unique_ptr<DynamicFunctionHandle>, std::unique_ptr<StaticFunctionHandle>>;
+
+static TaggedFunctionHandle Borrow(OwningTaggedFunctionHandle const& owning)
+{
+    if (auto* dynFuh = std::get_if<std::unique_ptr<DynamicFunctionHandle>>(&owning)) {
+        return TaggedFunctionHandle(dynFuh->get());
+    }
+    return TaggedFunctionHandle(std::get<std::unique_ptr<StaticFunctionHandle>>(owning).get());
+}
+
 class FunctionHandleManager::Impl {
 public:
     using Ident = Image::Identifier<MethodDefinition>;
     std::mutex lock;
-    std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
+    std::unordered_map<Ident::Packed, OwningTaggedFunctionHandle> fuhMap;
     std::array<DynamicFunctionHandle*, static_cast<size_t>(Helper::Count)> helpers;
 };
 
+static void FreeExecBytecodeInfo(ExecBytecodeInfo* info)
+{
+    if (info == nullptr) {
+        return;
+    }
+    auto& heap = Memory::Heap::SharedHeap();
+    heap.Free(info->code.literals, sizeof(Interpretation::LiteralTable) + info->code.literals->_byteSize);
+    heap.Free(info->code.bytecode, info->code.bytecodeSize);
+    delete info;
+}
+
+DynamicFunctionHandle::~DynamicFunctionHandle()
+{
+    FreeExecBytecodeInfo(bytecode.load());
+    free(debugName);
+}
+
 FunctionHandleManager::FunctionHandleManager() : impl(std::make_unique<FunctionHandleManager::Impl>()) {}
 
-FunctionHandleManager::~FunctionHandleManager()                               = default;
+FunctionHandleManager::~FunctionHandleManager() = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
 [[noreturn]] static void UnresolvedAotMethodCalled() { FATAL("Called unresolved AOT method"); }
@@ -125,7 +156,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     std::lock_guard guard(impl->lock);
     auto res = impl->fuhMap.find(methodDef.Pack());
     if (res != impl->fuhMap.end()) {
-        return res->second;
+        return Borrow(res->second);
     }
 
     auto method = Decode::Read(session, methodDef);
@@ -135,7 +166,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto flags = method.GetFlags();
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
-    auto newStaticFuh = [&]() -> StaticFunctionHandle* {
+    auto newStaticFuh = [&]() -> std::unique_ptr<StaticFunctionHandle> {
         auto& deps       = session.GetEngine().Dependencies().At(methodDef.GetFileId());
         auto& fLibs      = session.GetEngine().ForeignLibs().At(methodDef.GetFileId());
         auto linkageName = Decode::Read(session, method.LinkageName().value());
@@ -158,10 +189,10 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         }
         // public content of `mem`.
         std::atomic_thread_fence(std::memory_order_seq_cst);
-        return mem;
+        return std::unique_ptr<StaticFunctionHandle>(mem);
     };
 
-    auto newDynFuh = [&]() -> DynamicFunctionHandle* {
+    auto newDynFuh = [&]() -> std::unique_ptr<DynamicFunctionHandle> {
         auto c2Call = PrepareC2Call(session, methodDef);
 
         char* name = nullptr;
@@ -175,12 +206,13 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         }
         // public content of `mem`.
         std::atomic_thread_fence(std::memory_order_seq_cst);
-        return mem;
+        return std::unique_ptr<DynamicFunctionHandle>(mem);
     };
 
-    auto fuh = flags.Is(MethodFlag::AOT) ? TaggedFunctionHandle(newStaticFuh()) : TaggedFunctionHandle(newDynFuh());
-
-    impl->fuhMap.insert({ methodDef.Pack(), fuh });
+    auto owning = flags.Is(MethodFlag::AOT) ? OwningTaggedFunctionHandle(newStaticFuh())
+                                            : OwningTaggedFunctionHandle(newDynFuh());
+    auto fuh    = Borrow(owning);
+    impl->fuhMap.insert({ methodDef.Pack(), std::move(owning) });
     return fuh;
 }
 

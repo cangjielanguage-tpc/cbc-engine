@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <tuple>
 #include <utility>
@@ -71,24 +72,22 @@ TEST_F(CbcTest, Empty)
     bool successful = loader.Load(std::move(file), "hello.cbc");
     ASSERT_TRUE(successful);
 
-    auto& engine = loader.Build();
-    Engine::Session session(engine);
+    auto engine = loader.Build();
+    Engine::Session session(*engine);
     auto strOffs = Image::Offset<Image::String>(offs);
     auto str     = Decode::Read(session, Image::FileId(0), strOffs);
 
     ASSERT_EQ(str, "abc");
 }
 
-// Deliberately never destroyed: engines are process-wide, and the registry must outlive
-// static destructors so that LeakSanitizer still sees every engine as reachable at exit.
-// TODO: FIXME #182
-static std::vector<Engine::Engine*>& BuiltEngines()
-{
-    static auto* engines = new std::vector<Engine::Engine*>;
-    return *engines;
-}
+struct Prepared {
+    std::unique_ptr<Engine::Engine> engine;
+    Interpretation::ExecBytecodeInfo* info = nullptr;
 
-static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::string_view fileName)
+    Interpretation::ExecBytecodeInfo* operator->() const { return info; }
+};
+
+static Prepared OpenAndRewrite(std::string name, std::string_view fileName)
 {
     Engine::Loader loader;
 
@@ -96,14 +95,16 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::s
     bool successful = loader.Load(std::move(file), fileName);
     ASSERT(successful);
 
-    auto& engine = loader.Build();
-    BuiltEngines().push_back(&engine);
+    Prepared prepared;
+    prepared.engine = loader.Build();
+    auto& engine = *prepared.engine;
     Engine::Session session(engine);
     auto methodId    = engine.FindMethod(session, fileName, "default", name);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
-    return fuhManager.Prepare(session, fuh).info;
+    prepared.info = fuhManager.Prepare(session, fuh).info;
+    return prepared;
 }
 
 TEST_ASM(CbcTest, Simple)
@@ -159,13 +160,13 @@ TEST_ASM(CbcTest, TypedSlotRoundTrip)
 {
     TestFrame f;
     {
-        auto code = OpenAndRewrite("test_typed_i64", "./generated-asm/frame-slots/typed_i64.asm")->code;
-        auto res  = Interpret(code, f.frame, U64(0x2a), U64(0));
+        auto method = OpenAndRewrite("test_typed_i64", "./generated-asm/frame-slots/typed_i64.asm");
+        auto res    = Interpret(method->code, f.frame, U64(0x2a), U64(0));
         ASSERT_EQ(res.u64, 0x2a);
     }
     {
-        auto code = OpenAndRewrite("test_typed_f64", "./generated-asm/frame-slots/typed_f64.asm")->code;
-        auto res  = InterpretFPRes(code, f.frame, F64(2.5), F64(0));
+        auto method = OpenAndRewrite("test_typed_f64", "./generated-asm/frame-slots/typed_f64.asm");
+        auto res    = InterpretFPRes(method->code, f.frame, F64(2.5), F64(0));
         ASSERT_EQ(res.u64, F64(2.5).u64);
     }
 }
@@ -173,22 +174,23 @@ TEST_ASM(CbcTest, TypedSlotRoundTrip)
 TEST_ASM(CbcTest, TypedSlotTwoSlots)
 {
     TestFrame f;
-    auto code = OpenAndRewrite("test_typed_two", "./generated-asm/frame-slots/typed_two.asm")->code;
-    auto res  = Interpret(code, f.frame, U64(3), U64(4));
+    auto method = OpenAndRewrite("test_typed_two", "./generated-asm/frame-slots/typed_two.asm");
+    auto res    = Interpret(method->code, f.frame, U64(3), U64(4));
     ASSERT_EQ(res.u64, 7);
 }
 
 TEST_ASM(CbcTest, TypedSlotStackRec)
 {
     TestFrame f;
-    auto code = OpenAndRewrite("test_stack_rec", "./generated-asm/frame-slots/stack_rec.asm")->code;
-    auto res  = Interpret(code, f.frame, U64(0x2a), U64(0));
+    auto method = OpenAndRewrite("test_stack_rec", "./generated-asm/frame-slots/stack_rec.asm");
+    auto res    = Interpret(method->code, f.frame, U64(0x2a), U64(0));
     ASSERT_EQ(res.u64, 0x2a);
 }
 
 TEST_ASM(CbcTest, DirectCall)
 {
-    auto res = Interpret(OpenAndRewrite("main", "direct-call.asm")->code, U32(0), U32(10));
+    auto method = OpenAndRewrite("main", "direct-call.asm");
+    auto res    = Interpret(method->code, U32(0), U32(10));
     ASSERT_EQ(res.u32, 28);
 }
 
@@ -290,10 +292,10 @@ TEST_P(CbcSpecializedArith, test)
     ArithTestParams params = GetParam();
 
     for (auto rhs : rhsValues) {
-        auto path = "./generated-asm/arith/" + params.name + "/" + hex(rhs) + ".asm";
-        auto code = OpenAndRewrite("test_" + hex(rhs), path)->code;
+        auto path   = "./generated-asm/arith/" + params.name + "/" + hex(rhs) + ".asm";
+        auto method = OpenAndRewrite("test_" + hex(rhs), path);
         for (auto lhs : lhsValues) {
-            auto res = Interpret(code, U64(lhs), U64(0));
+            auto res = Interpret(method->code, U64(lhs), U64(0));
             EXPECT_EQ(res.u64, params.arith(lhs, rhs));
         }
     }
@@ -555,13 +557,14 @@ TEST_P(CbcSpecializedCast, test)
     }
     CastTestParams params = GetParam();
 
-    std::string                       path;
-    Interpretation::ExecBytecodeInfo* info = nullptr;
+    std::string path;
+    Prepared info;
     for (int n { 0 }; n < params.casesCount; ++n) {
         CastCase castCase = params.castCases[n];
         SCOPED_TRACE(castCase.name);
         auto casePath = "./generated-asm/cast/" + params.name + "/" + castCase.name + ".asm";
         if (casePath != path) {
+            info = {};
             info = OpenAndRewrite("test_" + castCase.name, casePath);
             path = casePath;
         }
@@ -741,8 +744,8 @@ TEST_P(CbcFloatUnaryOp32, test)
     }
     auto [opIdx, value] = GetParam();
     auto path           = std::string("./generated-asm/float-arith/32/") + unaryFunctionNames[opIdx] + ".asm";
-    auto code           = OpenAndRewrite(std::string("test_") + unaryFunctionNames[opIdx], path)->code;
-    auto res            = InterpretFPRes(code, F32(value), F32(1.f));
+    auto method         = OpenAndRewrite(std::string("test_") + unaryFunctionNames[opIdx], path);
+    auto res            = InterpretFPRes(method->code, F32(value), F32(1.f));
     auto expVal         = floatUnaryOps[opIdx](value);
     testFPOps32(res, expVal);
 }
@@ -754,8 +757,8 @@ TEST_P(CbcFloatUnaryOp64, test)
     }
     auto [opIdx, value] = GetParam();
     auto path           = std::string("./generated-asm/float-arith/64/") + unaryFunctionNames[opIdx] + ".asm";
-    auto code           = OpenAndRewrite(std::string("test_") + unaryFunctionNames[opIdx], path)->code;
-    auto res            = InterpretFPRes(code, F64(value), F64(1.f));
+    auto method         = OpenAndRewrite(std::string("test_") + unaryFunctionNames[opIdx], path);
+    auto res            = InterpretFPRes(method->code, F64(value), F64(1.f));
     auto expVal         = doubleUnaryOps[opIdx](value);
     testFPOps64(res, expVal);
 }
@@ -768,8 +771,8 @@ TEST_P(CbcFloatBinaryOp32, test)
     auto [opIdx, value] = GetParam();
     auto [l, r]         = value;
     auto path           = std::string("./generated-asm/float-arith/32/") + binaryFunctionNames[opIdx] + ".asm";
-    auto code           = OpenAndRewrite(std::string("test_") + binaryFunctionNames[opIdx], path)->code;
-    auto res            = InterpretFPRes(code, F32(l), F32(r));
+    auto method         = OpenAndRewrite(std::string("test_") + binaryFunctionNames[opIdx], path);
+    auto res            = InterpretFPRes(method->code, F32(l), F32(r));
     auto expVal         = floatBinaryOps[opIdx](l, r);
     testFPOps32(res, expVal);
 }
@@ -782,8 +785,8 @@ TEST_P(CbcFloatBinaryOp64, test)
     auto [opIdx, value] = GetParam();
     auto [l, r]         = value;
     auto path           = std::string("./generated-asm/float-arith/64/") + binaryFunctionNames[opIdx] + ".asm";
-    auto code           = OpenAndRewrite(std::string("test_") + binaryFunctionNames[opIdx], path)->code;
-    auto res            = InterpretFPRes(code, F64(l), F64(r));
+    auto method         = OpenAndRewrite(std::string("test_") + binaryFunctionNames[opIdx], path);
+    auto res            = InterpretFPRes(method->code, F64(l), F64(r));
     auto expVal         = doubleBinaryOps[opIdx](l, r);
     testFPOps64(res, expVal);
 }
@@ -794,9 +797,9 @@ TEST_P(CbcFloatPowI32, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     FPowiCase c = GetParam();
-    auto code   = OpenAndRewrite("test_FPOWI", "./generated-asm/float-arith/32/FPOWI.asm")->code;
+    auto method = OpenAndRewrite("test_FPOWI", "./generated-asm/float-arith/32/FPOWI.asm");
     auto base   = static_cast<float>(c.base);
-    auto res    = InterpretFPRes(code, U64(c.exponent), U64(0), F32(0), F32(base));
+    auto res    = InterpretFPRes(method->code, U64(c.exponent), U64(0), F32(0), F32(base));
     auto expVal = static_cast<float>(std::pow(static_cast<double>(base), static_cast<double>(c.exponent)));
     testFPOps32(res, expVal);
 }
@@ -807,8 +810,8 @@ TEST_P(CbcFloatPowI64, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     FPowiCase c = GetParam();
-    auto code   = OpenAndRewrite("test_FPOWI", "./generated-asm/float-arith/64/FPOWI.asm")->code;
-    auto res    = InterpretFPRes(code, U64(c.exponent), U64(0), F64(0), F64(c.base));
+    auto method = OpenAndRewrite("test_FPOWI", "./generated-asm/float-arith/64/FPOWI.asm");
+    auto res    = InterpretFPRes(method->code, U64(c.exponent), U64(0), F64(0), F64(c.base));
     auto expVal = std::pow(c.base, static_cast<double>(c.exponent));
     testFPOps64(res, expVal);
 }
@@ -848,18 +851,18 @@ INSTANTIATE_TEST_SUITE_P(CbcTest, CbcFloatPowI64, ::testing::ValuesIn(fpowiCases
 TEST_ASM(CbcTest, SimpleArithFloatMov32)
 {
     {
-        auto code = OpenAndRewrite("test_MOV", "./generated-asm/float-arith/32/MOV.asm")->code;
-        auto res  = InterpretFPRes(code, F32(0), F32(2.0f));
+        auto method = OpenAndRewrite("test_MOV", "./generated-asm/float-arith/32/MOV.asm");
+        auto res    = InterpretFPRes(method->code, F32(0), F32(2.0f));
         ASSERT_EQ(res.f32, 2.0f);
     }
     {
-        auto code = OpenAndRewrite("test_F2I", "./generated-asm/float-arith/32/F2I.asm")->code;
-        auto res  = Interpret(code, U32(0), U32(0), F32(2.5f), F32(0));
+        auto method = OpenAndRewrite("test_F2I", "./generated-asm/float-arith/32/F2I.asm");
+        auto res    = Interpret(method->code, U32(0), U32(0), F32(2.5f), F32(0));
         ASSERT_EQ(res.u32, 0x40200000);
     }
     {
-        auto code = OpenAndRewrite("test_I2F", "./generated-asm/float-arith/32/I2F.asm")->code;
-        auto res  = InterpretFPRes(code, U32(0x40200000), U32(0), F32(0), F32(0));
+        auto method = OpenAndRewrite("test_I2F", "./generated-asm/float-arith/32/I2F.asm");
+        auto res    = InterpretFPRes(method->code, U32(0x40200000), U32(0), F32(0), F32(0));
         ASSERT_EQ(res.f32, 2.5f);
     }
 }
@@ -867,18 +870,18 @@ TEST_ASM(CbcTest, SimpleArithFloatMov32)
 TEST_ASM(CbcTest, SimpleArithFloatMov64)
 {
     {
-        auto code = OpenAndRewrite("test_MOV", "./generated-asm/float-arith/64/MOV.asm")->code;
-        auto res  = InterpretFPRes(code, F64(0), F64(2.0));
+        auto method = OpenAndRewrite("test_MOV", "./generated-asm/float-arith/64/MOV.asm");
+        auto res    = InterpretFPRes(method->code, F64(0), F64(2.0));
         ASSERT_EQ(res.f64, 2.0);
     }
     {
-        auto code = OpenAndRewrite("test_F2I", "./generated-asm/float-arith/64/F2I.asm")->code;
-        auto res  = Interpret(code, U64(0), U64(0), F64(2.5), F64(0));
+        auto method = OpenAndRewrite("test_F2I", "./generated-asm/float-arith/64/F2I.asm");
+        auto res    = Interpret(method->code, U64(0), U64(0), F64(2.5), F64(0));
         ASSERT_EQ(res.u64, 0x4004000000000000);
     }
     {
-        auto code = OpenAndRewrite("test_I2F", "./generated-asm/float-arith/64/I2F.asm")->code;
-        auto res  = InterpretFPRes(code, U64(0x4004000000000000), U64(0), F64(0), F64(0));
+        auto method = OpenAndRewrite("test_I2F", "./generated-asm/float-arith/64/I2F.asm");
+        auto res    = InterpretFPRes(method->code, U64(0x4004000000000000), U64(0), F64(0), F64(0));
         ASSERT_EQ(res.f64, 2.5);
     }
 }
@@ -929,8 +932,8 @@ TEST_P(BFX, test)
         std::string sign = (bfxCase.signExtend ? "signed" : "zeroed");
         auto stem        = sign + "_" + std::to_string(bfxCase.dstBits) + "_" + std::to_string(bfxCase.srcBits);
         auto path        = "./generated-asm/bfx/" + stem + ".asm";
-        auto code = OpenAndRewrite("test_" + stem, path)->code;
-        auto res  = Interpret(code, bfxCase.val, U64(0), F64(0), F64(0));
+        auto method      = OpenAndRewrite("test_" + stem, path);
+        auto res         = Interpret(method->code, bfxCase.val, U64(0), F64(0), F64(0));
         if (bfxCase.dstBits == 32)
             EXPECT_EQ(res.u32, bfxCase.expected.u32);
         if (bfxCase.dstBits == 64)
@@ -980,10 +983,10 @@ TEST_ASM(CbcTest, SatSlslNegativeBase)
             if (shift > width) {
                 continue;
             }
-            auto stem = "slsl_" + std::to_string(width) + "_" + std::to_string(shift);
-            auto code = OpenAndRewrite("test_" + stem, "./generated-asm/sat-arith/" + stem + ".asm")->code;
+            auto stem   = "slsl_" + std::to_string(width) + "_" + std::to_string(shift);
+            auto method = OpenAndRewrite("test_" + stem, "./generated-asm/sat-arith/" + stem + ".asm");
             for (auto base : bases) {
-                auto res = Interpret(code, U64(base), U64(0));
+                auto res = Interpret(method->code, U64(base), U64(0));
                 if (width == 64) {
                     ASSERT_EQ(res.u64, static_cast<uint64_t>(SatSlsl(base, shift, width)));
                 } else {
@@ -1009,16 +1012,16 @@ TEST_ASM(CbcTest, ArrIndexCheck)
     uint64_t fakeArray[2 + 4] = { reinterpret_cast<uintptr_t>(&ti), 3 };
     auto arr                  = U64(reinterpret_cast<uintptr_t>(fakeArray));
 
-    auto code = OpenAndRewrite("test_arr_ic", "./generated-asm/arr-ic/arr_ic.asm")->code;
+    auto method = OpenAndRewrite("test_arr_ic", "./generated-asm/arr-ic/arr_ic.asm");
 
     // In-bounds indices pass the check and flow into the rest of the method.
-    ASSERT_EQ(Interpret(code, arr, U64(0)).u64, 0);
-    ASSERT_EQ(Interpret(code, arr, U64(2)).u64, 2);
+    ASSERT_EQ(Interpret(method->code, arr, U64(0)).u64, 0);
+    ASSERT_EQ(Interpret(method->code, arr, U64(2)).u64, 2);
     // The first out-of-bounds index throws the implicit exception...
-    ASSERT_EQ(InterpretThrows(code, arr, U64(3)), Interpretation::Type::IndexOutOfBoundsException);
+    ASSERT_EQ(InterpretThrows(method->code, arr, U64(3)), Interpretation::Type::IndexOutOfBoundsException);
     // ...and so does a negative index, which wraps to a huge unsigned value.
     ASSERT_EQ(
-        InterpretThrows(code, arr, U64(static_cast<uint64_t>(-1))),
+        InterpretThrows(method->code, arr, U64(static_cast<uint64_t>(-1))),
         Interpretation::Type::IndexOutOfBoundsException
     );
 }

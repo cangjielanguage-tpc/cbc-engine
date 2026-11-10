@@ -313,6 +313,8 @@ public:
     static TermManager& Of(Engine& engine);
     static TermManager& Of(Session& session);
 
+    ~TermManager();
+
     /// Perform term resolution.
     /// In case of resolution errors, UNDEFINED term will be returned.
     // TODO: pass abstract cache inside.
