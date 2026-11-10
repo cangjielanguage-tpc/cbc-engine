@@ -308,7 +308,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cbcengine")
 endif()
 
-if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_SYSROOT MATCHES "iphone"))
+string(TOLOWER "${CMAKE_OSX_SYSROOT}" CBC_OSX_SYSROOT_LOWER)
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CBC_OSX_SYSROOT_LOWER MATCHES "iphone"))
   add_subdirectory(tools/dis)
 endif()
 
