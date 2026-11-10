@@ -288,6 +288,7 @@ Engine& Loader::Build()
 
     auto libc = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenLibc());
     foreignBase.EmplaceBack(libc);
+    foreignBase.EmplaceBack(executable);
 
     auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
     auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);
