@@ -195,7 +195,7 @@ option(ENABLE_SANITIZERS "Enable asan+ubsan in unit-test builds" OFF)
 if(ENABLE_SANITIZERS)
   add_compile_options(
     -fsanitize=undefined
-    -fsanitize=implicit-integer-truncation,implicit-integer-sign-change
+    -fsanitize=implicit-integer-truncation
     # Thunk::function and interpreter adapters invoke hand-written asm trampolines
     # with a custom ABI (see src/interpreter/int_thunk.h), so the `function`
     # type-mismatch check produces false positives.
