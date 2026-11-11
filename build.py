@@ -222,7 +222,7 @@ def build(args, project_dir: Path, build_dir: Path, generate_coverage_report=Tru
 
     cmake_cmd = (
         f"cmake {project_dir} "
-        f"{cmake_options}"
+        f"{cmake_options} "
     )
 
     local_googletests_path = os.environ.get("LOCAL_GOOGLETESTS_PATH")
