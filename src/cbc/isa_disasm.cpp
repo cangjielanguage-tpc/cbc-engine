@@ -572,6 +572,16 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("{}.64 {}, {}", op, dst, src);
     }
 
+    virtual void FPowi32(FReg dst, FReg base, IReg exp) override
+    {
+        stream.PrintLn("fpowi.32 {}, {}, {}", dst, base, exp);
+    }
+
+    virtual void FPowi64(FReg dst, FReg base, IReg exp) override
+    {
+        stream.PrintLn("fpowi.64 {}, {}, {}", dst, base, exp);
+    }
+
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
 
     void Box(AnyReg src, IReg dst, uint32_t tk) override { stream.PrintLn("box R{}, {}, @{}", dst, src, tk); }

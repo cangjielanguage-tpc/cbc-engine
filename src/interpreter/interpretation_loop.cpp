@@ -719,6 +719,18 @@ LABEL(FMATHUN64) {
         interpreter.template FMathUnary<Width::W64>(args.xr.imm.FloatMathOp(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
+LABEL(FPOWI32) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template FPowi<Width::W32>(args.xr.r.FR(), args.rr.x.FR(), args.rr.y.IR());
+    NEXT_COND(successful);
+}
+LABEL(FPOWI64) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template FPowi<Width::W64>(args.xr.r.FR(), args.rr.x.FR(), args.rr.y.IR());
+    NEXT_COND(successful);
+}
 LABEL(NEWOBJ_ACC_G) {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;

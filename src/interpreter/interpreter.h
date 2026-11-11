@@ -116,6 +116,16 @@ public:
         return false;
     }
 
+    template <Width::Value width> inline bool FPowi(FReg d, FReg b, IReg e)
+    {
+        auto res = ArithFPowI<width>(ectype->GetPrimitive(b), ectype->GetPrimitive(e));
+        if (res.successful) {
+            ectype->Put(d, res.result);
+            return true;
+        }
+        return false;
+    }
+
     inline bool LoadAddr(Format::LoadAccessKind ldk, Format::Reg dst, uint64_t location)
     {
         if (ldk == LoadAccessKind::LD_REF) {
