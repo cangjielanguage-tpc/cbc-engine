@@ -54,6 +54,11 @@ target_compile_definitions(launcher PRIVATE "INTERPRETER_LIB=\"${CMAKE_SHARED_LI
 
 get_filename_component(CBCENGINE_LIB_DIR "${CBCENGINE_LIB}" DIRECTORY)
 set_target_properties(launcher PROPERTIES BUILD_RPATH "${CBCENGINE_LIB_DIR}")
+if(APPLE)
+  # Packed SDK layout is tools/bin/launcher with libs in tools/lib; the
+  # build-time rpath points at a temp build dir and is stale after packing.
+  set_target_properties(launcher PROPERTIES INSTALL_RPATH "@loader_path/../lib")
+endif()
 
 if(NOT APPLE)
   target_link_options(launcher PRIVATE

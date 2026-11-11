@@ -296,6 +296,13 @@ if(NOT APPLE)
     "-Wl,-z,relro"
     "-Wl,-z,now"
   )
+else()
+  # rt_syms.cpp dlopens "@rpath/libcbcengine-helper.dylib"; libcbcengine.dylib
+  # needs its own LC_RPATH or dyld fails with "no LC_RPATH's found"
+  # (DYLD_FALLBACK_LIBRARY_PATH is not consulted for @rpath dlopens, and the
+  # hardened runtime strips DYLD_* env vars). iOS builds use STATIC_HELPER and
+  # never dlopen the helper; the extra rpath is harmless there.
+  target_link_options(cbcengine PRIVATE "-Wl,-rpath,@loader_path")
 endif()
 
 if(INT_SYMS)
