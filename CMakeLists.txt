@@ -12,6 +12,10 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 
 set(CMAKE_CXX_STANDARD 17)
 
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|x64)$")
+  string(APPEND CMAKE_CXX_FLAGS " -mf16c")
+endif()
+
 include(CheckCXXSourceCompiles)
 include(CMakePushCheckState)
 cmake_push_check_state()
