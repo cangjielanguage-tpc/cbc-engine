@@ -42,14 +42,14 @@ struct TestTypeInfo {
     {}
 };
 
-static Interpretation::Value::Primitive U32(uint32_t v) { return Interpretation::Value::Primitive { .u32 = v }; }
+inline Interpretation::Value::Primitive U32(uint32_t v) { return Interpretation::Value::Primitive { .u32 = v }; }
 
 template <typename T>
-static Interpretation::Value::Primitive U64(T v) { return Interpretation::Value::Primitive { .u64 = static_cast<uint64_t>(v) }; }
+inline Interpretation::Value::Primitive U64(T v) { return Interpretation::Value::Primitive { .u64 = static_cast<uint64_t>(v) }; }
 
-static Interpretation::Value::Primitive F32(float v) { return Interpretation::Value::Primitive { .f32 = v }; }
+inline Interpretation::Value::Primitive F32(float v) { return Interpretation::Value::Primitive { .f32 = v }; }
 
-static Interpretation::Value::Primitive F64(double v) { return Interpretation::Value::Primitive { .f64 = v }; }
+inline Interpretation::Value::Primitive F64(double v) { return Interpretation::Value::Primitive { .f64 = v }; }
 
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
