@@ -69,6 +69,90 @@ TEST_F(Float16EmitTest, Float16ImmediateAndRounding)
     EXPECT_NE(Cbc::Emitter::LogCode(code).find("fmovi.16 FR0 bits=0x6800"), std::string::npos);
 }
 
+TEST_F(Float16EmitTest, UnaryMath)
+{
+    const struct {
+        FloatMathOp op;
+        uint16_t input;
+        uint16_t expected;
+    } cases[] {
+        { FloatMathOp::SIN, 0x0000, 0x0000 },   // sin(+0) = +0
+        { FloatMathOp::SIN, 0x8000, 0x8000 },   // sin(-0) = -0
+        { FloatMathOp::SIN, 0x3c00, 0x3abb },   // sin(1) rounds to binary16
+        { FloatMathOp::SIN, 0xbc00, 0xbabb },   // sin(-1) rounds to binary16
+        { FloatMathOp::SIN, 0x0001, 0x0001 },   // sin(2^-24) rounds to the same subnormal
+        { FloatMathOp::SIN, 0x7c00, 0x7e00 },   // sin(+inf) is NaN
+        { FloatMathOp::SIN, 0xfc00, 0x7e00 },   // sin(-inf) is NaN
+        { FloatMathOp::COS, 0x0000, 0x3c00 },   // cos(0) = 1
+        { FloatMathOp::COS, 0x3c00, 0x3853 },   // cos(1) rounds to binary16
+        { FloatMathOp::COS, 0xbc00, 0x3853 },   // cos(-1) = cos(1)
+        { FloatMathOp::COS, 0x7c00, 0x7e00 },   // cos(+inf) is NaN
+        { FloatMathOp::COS, 0xfc00, 0x7e00 },   // cos(-inf) is NaN
+        { FloatMathOp::FLOOR, 0x3f00, 0x3c00 }, // floor(1.75) = 1
+        { FloatMathOp::FLOOR, 0xbf00, 0xc000 }, // floor(-1.75) = -2
+        { FloatMathOp::FLOOR, 0x0001, 0x0000 }, // floor(2^-24) = +0
+        { FloatMathOp::FLOOR, 0x8000, 0x8000 }, // floor(-0) = -0
+        { FloatMathOp::FLOOR, 0x7c00, 0x7c00 }, // floor(+inf) = +inf
+        { FloatMathOp::FLOOR, 0xfc00, 0xfc00 }, // floor(-inf) = -inf
+        { FloatMathOp::CEIL, 0x3f00, 0x4000 },  // ceil(1.75) = 2
+        { FloatMathOp::CEIL, 0xbf00, 0xbc00 },  // ceil(-1.75) = -1
+        { FloatMathOp::CEIL, 0xba00, 0x8000 },  // ceil(-0.75) = -0
+        { FloatMathOp::CEIL, 0x8000, 0x8000 },  // ceil(-0) = -0
+        { FloatMathOp::CEIL, 0x7c00, 0x7c00 },  // ceil(+inf) = +inf
+        { FloatMathOp::CEIL, 0xfc00, 0xfc00 },  // ceil(-inf) = -inf
+        { FloatMathOp::LOG, 0x3c00, 0x0000 },   // log(1) = +0
+        { FloatMathOp::LOG, 0x4000, 0x398c },   // log(2) rounds to binary16
+        { FloatMathOp::LOG, 0x0001, 0xcc29 },   // log(2^-24) rounds to binary16
+        { FloatMathOp::LOG, 0x0000, 0xfc00 },   // log(+0) = -inf
+        { FloatMathOp::LOG, 0x8000, 0xfc00 },   // log(-0) = -inf
+        { FloatMathOp::LOG, 0xbc00, 0x7e00 },   // log(-1) is NaN
+        { FloatMathOp::LOG, 0x7c00, 0x7c00 },   // log(+inf) = +inf
+        { FloatMathOp::LOG10, 0x5640, 0x4000 }, // log10(100) = 2
+        { FloatMathOp::LOG10, 0x4000, 0x34d1 }, // log10(2) rounds to binary16
+        { FloatMathOp::LOG10, 0x0000, 0xfc00 }, // log10(+0) = -inf
+        { FloatMathOp::LOG10, 0xbc00, 0x7e00 }, // log10(-1) is NaN
+        { FloatMathOp::LOG2, 0x4800, 0x4200 },  // log2(8) = 3
+        { FloatMathOp::LOG2, 0x4200, 0x3e57 },  // log2(3) rounds to binary16
+        { FloatMathOp::LOG2, 0x0001, 0xce00 },  // log2(2^-24) = -24
+        { FloatMathOp::LOG2, 0x0000, 0xfc00 },  // log2(+0) = -inf
+        { FloatMathOp::LOG2, 0xbc00, 0x7e00 },  // log2(-1) is NaN
+        { FloatMathOp::EXP, 0x3c00, 0x4170 },   // exp(1) rounds to binary16
+        { FloatMathOp::EXP, 0xc900, 0x02fa },   // exp(-10) is subnormal
+        { FloatMathOp::EXP, 0x0000, 0x3c00 },   // exp(0) = 1
+        { FloatMathOp::EXP, 0x4a00, 0x7c00 },   // exp(12) overflows binary16
+        { FloatMathOp::EXP, 0xcd00, 0x0000 },   // exp(-20) underflows binary16
+        { FloatMathOp::EXP, 0x7c00, 0x7c00 },   // exp(+inf) = +inf
+        { FloatMathOp::EXP, 0xfc00, 0x0000 },   // exp(-inf) = +0
+        { FloatMathOp::EXP2, 0x4200, 0x4800 },  // exp2(3) = 8
+        { FloatMathOp::EXP2, 0xce00, 0x0001 },  // exp2(-24) = 2^-24
+        { FloatMathOp::EXP2, 0xce40, 0x0000 },  // exp2(-25) rounds to even zero
+        { FloatMathOp::EXP2, 0x4c00, 0x7c00 },  // exp2(16) overflows binary16
+        { FloatMathOp::EXP2, 0x7c00, 0x7c00 },  // exp2(+inf) = +inf
+        { FloatMathOp::EXP2, 0xfc00, 0x0000 },  // exp2(-inf) = +0
+        { FloatMathOp::TRUNC, 0x3f00, 0x3c00 }, // trunc(1.75) = 1
+        { FloatMathOp::TRUNC, 0xbf00, 0xbc00 }, // trunc(-1.75) = -1
+        { FloatMathOp::TRUNC, 0xba00, 0x8000 }, // trunc(-0.75) = -0
+        { FloatMathOp::TRUNC, 0x8000, 0x8000 }, // trunc(-0) = -0
+        { FloatMathOp::TRUNC, 0x7c00, 0x7c00 }, // trunc(+inf) = +inf
+        { FloatMathOp::TRUNC, 0xfc00, 0xfc00 }, // trunc(-inf) = -inf
+    };
+
+    for (const auto& c : cases) {
+        SCOPED_TRACE(::testing::Message() << c.op.ToStr() << " input bits=" << c.input);
+        heap.Reset();
+        Cbc::Emitter::Emitter e;
+        e.FMovI16(FReg::FR1, Utils::Float16FromBits(c.input));
+        e.FMathUnary(c.op, Width::W16, FReg::FR0, FReg::FR1);
+        e.Ret();
+        auto result = InterpretFPRes(e.Build(heap), U64(0), U64(0));
+        if ((c.expected & 0x7fff) > 0x7c00) { // signless encodings above infinity are NaNs with unspecified payloads
+            EXPECT_TRUE(std::isnan(static_cast<double>(result.f16)));
+        } else {
+            EXPECT_EQ(Value::F16Bits(result), c.expected);
+        }
+    }
+}
+
 TEST(Float16, NumericRoundTrips)
 {
     for (uint32_t bits = 0; bits <= 0xffff; ++bits) {
