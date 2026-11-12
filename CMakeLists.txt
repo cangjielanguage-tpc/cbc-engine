@@ -216,7 +216,12 @@ endif()
 
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME -DINT_SYMS")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
+if(APPLE)
+  # -gz (compressed debug sections) is ELF-only and breaks Mach-O linking.
+  set(CMAKE_CXX_FLAGS_DEBUG "-g ${DEBUG_OPTIONS}")
+else()
+  set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
+endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 include(CheckIPOSupported)
@@ -291,6 +296,13 @@ if(NOT APPLE)
     "-Wl,-z,relro"
     "-Wl,-z,now"
   )
+else()
+  # rt_syms.cpp dlopens "@rpath/libcbcengine-helper.dylib"; libcbcengine.dylib
+  # needs its own LC_RPATH or dyld fails with "no LC_RPATH's found"
+  # (DYLD_FALLBACK_LIBRARY_PATH is not consulted for @rpath dlopens, and the
+  # hardened runtime strips DYLD_* env vars). iOS builds use STATIC_HELPER and
+  # never dlopen the helper; the extra rpath is harmless there.
+  target_link_options(cbcengine PRIVATE "-Wl,-rpath,@loader_path")
 endif()
 
 if(INT_SYMS)
@@ -299,11 +311,12 @@ endif()
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cbcengine")
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+string(TOLOWER "${CMAKE_OSX_SYSROOT}" CBC_OSX_SYSROOT_LOWER)
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CBC_OSX_SYSROOT_LOWER MATCHES "iphone"))
   add_subdirectory(tools/dis)
 endif()
 
