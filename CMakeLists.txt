@@ -298,11 +298,26 @@ if(NOT APPLE)
   )
 else()
   # rt_syms.cpp dlopens "@rpath/libcbcengine-helper.dylib"; libcbcengine.dylib
-  # needs its own LC_RPATH or dyld fails with "no LC_RPATH's found"
+  # needs its own rpath or dyld fails with "no LC_RPATH's found"
   # (DYLD_FALLBACK_LIBRARY_PATH is not consulted for @rpath dlopens, and the
-  # hardened runtime strips DYLD_* env vars). iOS builds use STATIC_HELPER and
-  # never dlopen the helper; the extra rpath is harmless there.
-  target_link_options(cbcengine PRIVATE "-Wl,-rpath,@loader_path")
+  # hardened runtime strips DYLD_* env vars). The stdx extension dylibs are
+  # dlopened by bare name at interpreter init; on Linux a dlopen only consults
+  # the calling object's DT_RUNPATH, so libcbcengine carries the stdx path
+  # itself. The stdx path resolves in the packed toolchain
+  # (runtime/lib/<arch>_cjnative is four levels below the toolchain root) and
+  # is simply dead in the build tree. iOS builds use STATIC_HELPER and never
+  # dlopen the helper; the extra rpaths are harmless there.
+  if(APPLE)
+    target_link_options(cbcengine PRIVATE
+      "-Wl,-rpath,@loader_path"
+      "-Wl,-rpath,@loader_path/../../../../stdx/dynamic/stdx"
+    )
+  else()
+    target_link_options(cbcengine PRIVATE
+      "-Wl,-rpath,$ORIGIN"
+      "-Wl,-rpath,$ORIGIN/../../../../stdx/dynamic/stdx"
+    )
+  endif()
 endif()
 
 if(INT_SYMS)
