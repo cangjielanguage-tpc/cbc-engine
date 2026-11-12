@@ -668,6 +668,16 @@ template <> inline ArithmeticResult ArithFPMath<Width::W16>(FloatMathOp::Value o
             return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::ceil(value)) }, true };
         case FloatMathOp::FLOOR:
             return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::floor(value)) }, true };
+        case FloatMathOp::LOG10:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::log10(value)) }, true };
+        case FloatMathOp::LOG2:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::log2(value)) }, true };
+        case FloatMathOp::EXP:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::exp(value)) }, true };
+        case FloatMathOp::EXP2:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::exp2(value)) }, true };
+        case FloatMathOp::TRUNC:
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::trunc(value)) }, true };
         default: FATAL("Unexpected FP math op: %d", op);
     }
 }
