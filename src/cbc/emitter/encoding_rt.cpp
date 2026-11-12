@@ -72,6 +72,14 @@ void Encode(ByteBuffer& buf, RT::B3rrrr command)
     Encode(buf, command.rr2);
 }
 
+void Encode(ByteBuffer& buf, RT::B4rrrrr command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr1);
+    Encode(buf, command.rr2);
+    Encode(buf, Format::RR { .x = command.r, .y = Format::Reg(0) });
+}
+
 void Encode(ByteBuffer& buf, RT::InitOption command)
 {
     Encode(buf, command.opc);

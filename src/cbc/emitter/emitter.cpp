@@ -1000,6 +1000,37 @@ void Emitter::StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx)
     });
 }
 
+void Emitter::Vcmp32(IReg dst, IReg arr1, IReg off1, IReg arr2, IReg off2)
+{
+    Encode(segment, RT::B4rrrrr {
+        .opc = RT::Opcode::VCMP32,
+        .rr1 = {
+            .x = dst,
+            .y = arr1,
+        },
+        .rr2 = {
+            .x = off1,
+            .y = arr2,
+        },
+        .r = off2,
+    });
+}
+
+void Emitter::Vidx32(IReg dst, IReg arr, IReg off, IReg target)
+{
+    Encode(segment, RT::B3rrrr {
+        .opc = RT::Opcode::VIDX32,
+        .rr1 = {
+            .x = dst,
+            .y = arr,
+        },
+        .rr2 = {
+            .x = off,
+            .y = target,
+        }
+    });
+}
+
 void Emitter::TypeArg(IReg dst, IReg typeInfo, int idx)
 {
     RT::B4xi12rr command = {

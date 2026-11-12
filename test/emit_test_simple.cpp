@@ -6,10 +6,17 @@
 
 #include "emit_test_common.h"
 
+#include <cstring>
+
 namespace Cbc {
 namespace Emitter {
 
 struct Test;
+
+static Interpretation::Value::Primitive Ptr(void* p)
+{
+    return Interpretation::Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(p) };
+}
 
 using namespace Cbc::Format;
 
@@ -1088,6 +1095,77 @@ TEST(EmitTest, GenericAddressing)
         "0x003: st.g0 IR1 IR2 IR3 IR4",
         "0x006: lea.g IR1 IR4 [IR3 ord=0x5]"
     );
+}
+
+// ---------------------------------------------------------------------------
+// 32-byte block string helpers (scalar interpreter implementation)
+// ---------------------------------------------------------------------------
+TEST(EmitTest, Vidx32)
+{
+    Emitter e;
+    e.Vidx32(IReg::IR1, IReg::IR1, IReg::IR2, IReg::IR3);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: vidx.32 IR1 IR1 IR2 IR3",
+        "0x003: ret"
+    );
+
+    // Fake array object: data starts at reference + ArrayBodyOffset().
+    auto mem  = static_cast<uint8_t*>(heap.Allocate(64, 16));
+    auto data = mem + RTSupport::MetaInfo::ArrayBodyOffset();
+    memset(data, 'a', 64 - RTSupport::MetaInfo::ArrayBodyOffset());
+    data[17] = 'b';
+
+    // Search for 'b' starting at offset 10: found at data index 17, i.e. at 7
+    // relative to the offset.
+    auto res = Interpret(code, Ptr(mem), U64(10), U64('b'));
+    EXPECT_EQ(res.u64, 7);
+
+    // Missing byte: the whole 32-byte window is scanned, result is 32.
+    res = Interpret(code, Ptr(mem), U64(0), U64('z'));
+    EXPECT_EQ(res.u64, 32);
+
+    // First byte matches.
+    res = Interpret(code, Ptr(mem), U64(0), U64('a'));
+    EXPECT_EQ(res.u64, 0);
+}
+
+TEST(EmitTest, VCmp32)
+{
+    Emitter e;
+    e.MovImm(Width::W64, IReg::IR4, 0); // off2 = 0
+    e.Vcmp32(IReg::IR1, IReg::IR1, IReg::IR2, IReg::IR3, IReg::IR4);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: movi IR4 0",
+        "0x002: vcmp.32 IR1 IR1 IR2 IR3 IR4",
+        "0x006: ret"
+    );
+
+    auto* mem1  = static_cast<uint8_t*>(heap.Allocate(64, 16));
+    auto* mem2  = static_cast<uint8_t*>(heap.Allocate(64, 16));
+    auto* data1 = mem1 + RTSupport::MetaInfo::ArrayBodyOffset();
+    auto* data2 = mem2 + RTSupport::MetaInfo::ArrayBodyOffset();
+    for (int i = 0; i < 32; i++) {
+        data1[i] = static_cast<uint8_t>(i);
+        data2[i] = static_cast<uint8_t>(i + 4); // data2[j] == data1[j + 4]
+    }
+    data2[10] = 0xFF;
+
+    // Compare arr1 at offset 4 with arr2 at offset 0: equal until the poisoned
+    // byte, so the first difference is at relative index 10.
+    auto res = Interpret(code, Ptr(mem1), U64(4), Ptr(mem2));
+    EXPECT_EQ(res.u64, 10);
+
+    // Identical 32-byte windows compare equal: result is 32.
+    res = Interpret(code, Ptr(mem1), U64(0), Ptr(mem1));
+    EXPECT_EQ(res.u64, 32);
 }
 
 TEST(EmitTest, StoreGeneric_OffsetWidths)

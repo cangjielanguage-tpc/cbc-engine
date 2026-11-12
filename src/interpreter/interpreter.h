@@ -784,6 +784,58 @@ public:
         MemoryLocation(obj.value, offset).Lea(dst, ectype);
     }
 
+    // Scalar implementation of the 32-byte block string helpers.
+    // Offsets are Int64 byte offsets relative to the array data start
+    // (Reference + ArrayBodyOffset()). Plain byte reads, no GC interaction.
+
+    /// Compares 32 bytes at (arr1, off1) with 32 bytes at (arr2, off2);
+    /// the result is the index of the first differing byte (0..31), or 32
+    /// when all compared bytes are equal.
+    inline bool Vcmp32(IReg dst, IReg arr1, IReg off1, IReg arr2, IReg off2)
+    {
+        auto ref1 = ectype->GetReference(arr1);
+        auto ref2 = ectype->GetReference(arr2);
+        if (!NullCheck(ref1) || !NullCheck(ref2)) {
+            return false;
+        }
+        auto p1      = ref1.value + RTSupport::MetaInfo::ArrayBodyOffset() + ectype->GetPrimitive(off1).u64;
+        auto p2      = ref2.value + RTSupport::MetaInfo::ArrayBodyOffset() + ectype->GetPrimitive(off2).u64;
+        auto* b1     = reinterpret_cast<const uint8_t*>(p1);
+        auto* b2     = reinterpret_cast<const uint8_t*>(p2);
+        uint64_t res = 32;
+        for (uint64_t i = 0; i < 32; i++) {
+            if (b1[i] != b2[i]) {
+                res = i;
+                break;
+            }
+        }
+        ectype->Put(dst, Value::Primitive { .u64 = res });
+        return true;
+    }
+
+    /// Scans 32 bytes at (arr, off) for the byte value `target`;
+    /// the result is the index of the first equal byte (0..31), or 32 when
+    /// none of the scanned bytes matches.
+    inline bool Vidx32(IReg dst, IReg arr, IReg off, IReg target)
+    {
+        auto ref = ectype->GetReference(arr);
+        if (!NullCheck(ref)) {
+            return false;
+        }
+        auto p       = ref.value + RTSupport::MetaInfo::ArrayBodyOffset() + ectype->GetPrimitive(off).u64;
+        auto* b      = reinterpret_cast<const uint8_t*>(p);
+        auto value   = static_cast<uint8_t>(ectype->GetPrimitive(target).u64);
+        uint64_t res = 32;
+        for (uint64_t i = 0; i < 32; i++) {
+            if (b[i] == value) {
+                res = i;
+                break;
+            }
+        }
+        ectype->Put(dst, Value::Primitive { .u64 = res });
+        return true;
+    }
+
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 

@@ -1170,6 +1170,13 @@ struct IsaRewriter : public IsaParser {
         emit.StoreRec(stk, src, base, offset);
     }
 
+    void Vcmp32(IReg dst, IReg arr1, IReg off1, IReg arr2, IReg off2) override
+    {
+        emit.Vcmp32(dst, arr1, off1, arr2, off2);
+    }
+
+    void Vidx32(IReg dst, IReg arr, IReg off, IReg target) override { emit.Vidx32(dst, arr, off, target); }
+
     void LoadStatic(AnyReg r, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));

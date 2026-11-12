@@ -186,6 +186,16 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("st.raw.mem.{} {}, [{} + {}]", stk, Fmt(src, stk.IsFloat()), base, offset);
     }
 
+    void Vcmp32(IReg dst, IReg arr1, IReg off1, IReg arr2, IReg off2) override
+    {
+        stream.PrintLn("vcmp.32 {}, {}, {}, {}, {}", dst, arr1, off1, arr2, off2);
+    }
+
+    void Vidx32(IReg dst, IReg arr, IReg off, IReg target) override
+    {
+        stream.PrintLn("vidx.32 {}, {}, {}, {}", dst, arr, off, target);
+    }
+
     void LoadStatic(AnyReg r, uint32_t field) override { stream.PrintLn("ld.static R{} {}", r, field); }
 
     void StoreStatic(AnyReg r, uint32_t field) override { stream.PrintLn("st.static R{} {}", r, field); }

@@ -222,7 +222,9 @@
     X(STORE_FRAME_IMM_1, StoreFrameImm, "st.frame.imm.1 $0stk $1U8 $2U32")                                             \
     X(STORE_FRAME_IMM_2, StoreFrameImm, "st.frame.imm.2 $0stk $1U16 $2U32")                                            \
     X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                            \
-    X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")
+    X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")                                            \
+    X(VCMP32, B4rrrrr, "vcmp.32 $0ir $1ir $2ir $3ir $4ir")                                                             \
+    X(VIDX32, B3rrrr, "vidx.32 $0ir $1ir $2ir $3ir")
 
 namespace Cbc {
 namespace RT {
@@ -403,6 +405,22 @@ struct B3rrrr {
         auto rr1 = Format::RR::Decode(reader);
         auto rr2 = Format::RR::Decode(reader);
         return B3rrrr { opc, rr1, rr2 };
+    }
+};
+
+struct B4rrrrr {
+    Opcode opc;
+    Format::RR rr1;
+    Format::RR rr2;
+    Format::Reg r;
+
+    static B4rrrrr Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto rr1 = Format::RR::Decode(reader);
+        auto rr2 = Format::RR::Decode(reader);
+        auto r   = Format::Reg(static_cast<uint8_t>(reader.Read8() & 0xf));
+        return B4rrrrr { opc, rr1, rr2, r };
     }
 };
 

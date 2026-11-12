@@ -703,6 +703,19 @@ struct IsaParserImpl {
         parser.StoreRawMemory(src, base, MergeLowHi(low4, hibits), stk);
     }
 
+    static void Vcmp32(IsaParser& parser)
+    {
+        auto [dst, arr1, off1, arr2, off2] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.Vcmp32(dst, arr1, off1, arr2, off2);
+    }
+
+    static void Vidx32(IsaParser& parser)
+    {
+        auto [dst, arr, off, target] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.Vidx32(dst, arr, off, target);
+    }
+
     static void LoadStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadULEB().Get();

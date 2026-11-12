@@ -96,6 +96,8 @@ public:
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
     void LoadArray(LoadAccessKind ldk, Reg dst, IReg base, IReg idx);
     void StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx);
+    void Vcmp32(IReg dst, IReg arr1, IReg off1, IReg arr2, IReg off2);
+    void Vidx32(IReg dst, IReg arr, IReg off, IReg target);
     void LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym);
     void StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym);
     void LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);

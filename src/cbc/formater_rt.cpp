@@ -358,6 +358,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3rrrr arg
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4rrrrr args)
+{
+    Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y, args.r };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InitOption args)
 {
     Operand operands[] = { args.src, args.underlyingTi };

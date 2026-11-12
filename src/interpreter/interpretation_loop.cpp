@@ -928,6 +928,19 @@ LABEL(STORE_ARR) {
     bool successful = interpreter.StoreArray(args.xr.imm.STK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
 }
+LABEL(VCMP32) {
+    auto args = B4rrrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful =
+        interpreter.Vcmp32(args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.rr2.y.IR(), args.r.IR());
+    NEXT_COND(successful);
+}
+LABEL(VIDX32) {
+    auto args = B3rrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.Vidx32(args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.rr2.y.IR());
+    NEXT_COND(successful);
+}
 LABEL(LOAD_REC_F)
 LABEL(LOAD_REC) {
     auto args = B4xi12rr::Decode(reader);

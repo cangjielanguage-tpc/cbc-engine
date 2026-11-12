@@ -173,6 +173,8 @@
     X(CopyFromTypeSlotGeneric, CopyFromTypeSlotGeneric)                                                                \
     X(FPowi32, FPowi32)                                                                                                \
     X(FPowi64, FPowi64)                                                                                                \
+    X(Vcmp32, Vcmp32)                                                                                                  \
+    X(Vidx32, Vidx32)                                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
