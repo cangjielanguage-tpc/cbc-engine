@@ -106,11 +106,6 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::s
     return fuhManager.Prepare(session, fuh).info;
 }
 
-static Interpretation::Value::Primitive Test(std::string name, std::string fileName)
-{
-    return Interpret(OpenAndRewrite(name, fileName)->code, U32(0), U32(10));
-}
-
 TEST_ASM(CbcTest, Simple)
 {
     auto res = Interpret(OpenAndRewrite("main", "simple.asm")->code, U32(0), U32(10));
@@ -522,12 +517,6 @@ CastCase castToFloat32Cases[] = { { "F32_F64", true, F32(1.0f), F64(1.0) },
                                         { "F32_U32", false, F32(1.0f), U64(1) },
                                         { "F32_U64", false, F32(1.0f), U64(1) } };
 
-CastCase castToFloat64Cases[] = { { "F64_F32", true, F64(1.0), F32(1.0f) },
-                                        { "F64_I32", false, F64(1.0), U64(1) },
-                                        { "F64_I64", false, F64(1.0), U64(1) },
-                                        { "F64_U32", false, F64(1.0), U64(1) },
-                                        { "F64_U64", false, F64(1.0), U64(1) } };
-
 static void castToInteger(Interpretation::Code code, CastCase castCase)
 {
     auto ir1 = castCase.fromFP ? U64(0) : castCase.val;
@@ -542,14 +531,6 @@ static void castToFloat32(Interpretation::Code code, CastCase castCase)
     auto fr0 = castCase.fromFP ? castCase.val : F64(0);
     auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
     EXPECT_EQ(res.u32, castCase.expected.u32);
-}
-
-static void castToFloat64(Interpretation::Code code, CastCase castCase)
-{
-    auto ir1 = castCase.fromFP ? U64(0) : castCase.val;
-    auto fr0 = castCase.fromFP ? castCase.val : F64(0);
-    auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
-    EXPECT_EQ(res.u64, castCase.expected.u64);
 }
 
 using CastTestFunction = void (*)(Interpretation::Code, CastCase);
@@ -598,9 +579,6 @@ INSTANTIATE_TEST_SUITE_P(
                             &castToInteger },
         CastTestParams {
             "to_float", static_cast<int>(std::size(castToFloat32Cases)), castToFloat32Cases, &castToFloat32 }
-        // CastTestParams {
-        //     "to_float", static_cast<int>(std::size(castToFloat64Cases)), castToFloat64Cases, &castToFloat64
-        //     }
     )
 );
 

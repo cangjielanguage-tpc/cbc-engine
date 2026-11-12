@@ -27,6 +27,10 @@ target_compile_definitions(
   cbc_test PRIVATE TEST_RESOURCE_DIR="${TEST_RESOURCE_DIR}" TEST_AUTOGEN_DIR="${TEST_AUTOGEN_DIR}"
 )
 
+if(COMPILER_WARNINGS)
+  target_compile_options(cbc_test PRIVATE ${ADDITIONAL_COMPILER_WARNINGS})
+endif()
+
 # gtest_discover_tests generates add_test() calls that ignore the target
 # ENVIRONMENT property, so pass via PROPERTIES argument
 set(CBC_TEST_ENV_PROPERTIES "")
