@@ -18,6 +18,11 @@ python3 build.py clean
 python3 build.py build --target-os=linux --target-arch=<x86_64 or aarch64>
 ```
 
+On Linux, source `<CANGJIE_SDK>/envsetup.sh` to use the SDK's
+`libclang_rt-builtins.a` for Float16 conversions. When available, this archive
+is linked into the Float16 capability check and engine targets. Without it,
+the compiler's default runtime must provide the conversion helpers.
+
 For Android builds, set `ANDROID_NDK_HOME` first:
 
 ```bash
