@@ -196,6 +196,16 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("vidx.32 {}, {}, {}, {}", dst, arr, off, target);
     }
 
+    void TypeSize(IReg dst, IReg ti) override
+    {
+        stream.PrintLn("ti.size {} {}", dst, ti);
+    }
+
+    void TypeAlign(IReg dst, IReg ti) override
+    {
+        stream.PrintLn("ti.align {} {}", dst, ti);
+    }
+
     void LoadStatic(AnyReg r, uint32_t field) override { stream.PrintLn("ld.static R{} {}", r, field); }
 
     void StoreStatic(AnyReg r, uint32_t field) override { stream.PrintLn("st.static R{} {}", r, field); }

@@ -716,6 +716,18 @@ struct IsaParserImpl {
         parser.Vidx32(dst, arr, off, target);
     }
 
+    static void TypeSize(IsaParser& parser)
+    {
+        auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.TypeSize(dst, ti);
+    }
+
+    static void TypeAlign(IsaParser& parser)
+    {
+        auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.TypeAlign(dst, ti);
+    }
+
     static void LoadStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadULEB().Get();

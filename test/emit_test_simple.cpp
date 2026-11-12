@@ -1168,6 +1168,51 @@ TEST(EmitTest, VCmp32)
     EXPECT_EQ(res.u64, 32);
 }
 
+// ---------------------------------------------------------------------------
+// TypeInfo queries: raw DYN_TypeInfo pointer operand, zero-extended results
+// ---------------------------------------------------------------------------
+TEST(EmitTest, TypeSize)
+{
+    auto ti = RTSupport::TypeInfo(heap.New<TestTypeInfo>(24, 8));
+    Emitter e;
+    e.TypeSize(IReg::IR1, IReg::IR2);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: ti.size IR1 IR2",
+        "0x002: ret"
+    );
+
+    // Behavior-pinning: the result must equal MetaInfo::GetTypeSize for the
+    // TypeInfo used, zero-extended to u64.
+    auto res = Interpret(code, U64(0), Ptr(ti.Raw()));
+    EXPECT_EQ(res.u64, RTSupport::MetaInfo::GetTypeSize(ti));
+    EXPECT_EQ(res.u64, 24);
+}
+
+TEST(EmitTest, TypeAlign)
+{
+    auto ti = RTSupport::TypeInfo(heap.New<TestTypeInfo>(24, 8));
+    Emitter e;
+    e.TypeAlign(IReg::IR1, IReg::IR2);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: ti.align IR1 IR2",
+        "0x002: ret"
+    );
+
+    // Behavior-pinning: the result must equal MetaInfo::GetAlign for the
+    // TypeInfo used, zero-extended to u64.
+    auto res = Interpret(code, U64(0), Ptr(ti.Raw()));
+    EXPECT_EQ(res.u64, RTSupport::MetaInfo::GetAlign(ti));
+    EXPECT_EQ(res.u64, 8);
+}
+
 TEST(EmitTest, StoreGeneric_OffsetWidths)
 {
     {

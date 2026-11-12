@@ -70,6 +70,10 @@ protected:
     virtual void Vcmp32(IReg dst, IReg arr1, IReg off1, IReg arr2, IReg off2) = 0;
     virtual void Vidx32(IReg dst, IReg arr, IReg off, IReg target)            = 0;
 
+    // `ti` is a raw TypeInfo pointer (not a GC reference).
+    virtual void TypeSize(IReg dst, IReg ti)  = 0;
+    virtual void TypeAlign(IReg dst, IReg ti) = 0;
+
     virtual void LoadStackRec(IReg r, uint16_t ts)              = 0;
     virtual void LoadStatic(AnyReg r, uint32_t field)           = 0;
     virtual void StoreStatic(AnyReg r, uint32_t field)          = 0;

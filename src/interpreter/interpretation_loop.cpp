@@ -941,6 +941,18 @@ LABEL(VIDX32) {
     bool successful = interpreter.Vidx32(args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.rr2.y.IR());
     NEXT_COND(successful);
 }
+LABEL(TYPESIZE) {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.TypeSize(args.rr.x.IR(), args.rr.y.IR());
+    NEXT;
+}
+LABEL(TYPEALIGN) {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.TypeAlign(args.rr.x.IR(), args.rr.y.IR());
+    NEXT;
+}
 LABEL(LOAD_REC_F)
 LABEL(LOAD_REC) {
     auto args = B4xi12rr::Decode(reader);

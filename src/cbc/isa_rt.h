@@ -224,7 +224,9 @@
     X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                            \
     X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")                                            \
     X(VCMP32, B4rrrrr, "vcmp.32 $0ir $1ir $2ir $3ir $4ir")                                                             \
-    X(VIDX32, B3rrrr, "vidx.32 $0ir $1ir $2ir $3ir")
+    X(VIDX32, B3rrrr, "vidx.32 $0ir $1ir $2ir $3ir")                                                                   \
+    X(TYPESIZE, B2rr, "ti.size $0ir $1ir")                                                                             \
+    X(TYPEALIGN, B2rr, "ti.align $0ir $1ir")
 
 namespace Cbc {
 namespace RT {

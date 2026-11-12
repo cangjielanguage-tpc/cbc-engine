@@ -1177,6 +1177,10 @@ struct IsaRewriter : public IsaParser {
 
     void Vidx32(IReg dst, IReg arr, IReg off, IReg target) override { emit.Vidx32(dst, arr, off, target); }
 
+    void TypeSize(IReg dst, IReg ti) override { emit.TypeSize(dst, ti); }
+
+    void TypeAlign(IReg dst, IReg ti) override { emit.TypeAlign(dst, ti); }
+
     void LoadStatic(AnyReg r, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));

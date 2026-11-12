@@ -1031,6 +1031,28 @@ void Emitter::Vidx32(IReg dst, IReg arr, IReg off, IReg target)
     });
 }
 
+void Emitter::TypeSize(IReg dst, IReg ti)
+{
+    Encode(segment, RT::B2rr {
+        .opc = RT::Opcode::TYPESIZE,
+        .rr = {
+            .x = dst,
+            .y = ti,
+        }
+    });
+}
+
+void Emitter::TypeAlign(IReg dst, IReg ti)
+{
+    Encode(segment, RT::B2rr {
+        .opc = RT::Opcode::TYPEALIGN,
+        .rr = {
+            .x = dst,
+            .y = ti,
+        }
+    });
+}
+
 void Emitter::TypeArg(IReg dst, IReg typeInfo, int idx)
 {
     RT::B4xi12rr command = {
