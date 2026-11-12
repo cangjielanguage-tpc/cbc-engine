@@ -13,6 +13,9 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 set(CMAKE_CXX_STANDARD 17)
 
 include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
+cmake_push_check_state()
+string(APPEND CMAKE_REQUIRED_FLAGS " -v")
 check_cxx_source_compiles("
     static_assert(sizeof(_Float16) == 2);
     int main(int argc, char**) {
@@ -24,8 +27,11 @@ check_cxx_source_compiles("
         return static_cast<int>(single + wide);
     }
 " CPP_COMPILER_HAS_FLOAT16)
+cmake_pop_check_state()
 if(NOT CPP_COMPILER_HAS_FLOAT16)
-  message(FATAL_ERROR "C++ compiler does not have support for _Float16 or it`s conversions")
+  message(STATUS "Float16 probe compiler: ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION})")
+  message(STATUS "Float16 probe target: ${CMAKE_CXX_COMPILER_TARGET}; sysroot: ${CMAKE_SYSROOT}")
+  message(FATAL_ERROR "C++ toolchain failed to compile and link _Float16 arithmetic and conversions. Run build.py to print the CMake configuration diagnostics.")
 endif()
 
 include(CTest)

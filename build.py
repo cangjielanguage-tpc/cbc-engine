@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from buildscripts.coverage import COVERAGE_TEST_BINARY, build_coverage_report, coverage, reset_coverage_profiles
+from buildscripts.diagnostics import print_cmake_diagnostics
 from buildscripts.util import fail, run_command
 
 
@@ -234,9 +235,15 @@ def build(args, project_dir: Path, build_dir: Path, generate_coverage_report=Tru
 
     print(
         "--- Configuring "
-        f"({args.build_type}) for {target_name(args.target_os, args.target_arch)} ---"
+        f"({args.build_type}) for {target_name(args.target_os, args.target_arch)} ---",
+        flush=True,
     )
-    run_command(cmake_cmd, cwd=build_dir)
+    print(f"Configuration command: {cmake_cmd}", flush=True)
+    try:
+        run_command(cmake_cmd, cwd=build_dir)
+    except SystemExit:
+        print_cmake_diagnostics(build_dir)
+        raise
 
     print(f"--- Building with {args.jobs} jobs ---")
     run_command(make_cmd, cwd=build_dir)
