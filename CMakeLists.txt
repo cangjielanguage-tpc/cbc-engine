@@ -12,14 +12,25 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 
 set(CMAKE_CXX_STANDARD 17)
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|x64)$")
-  string(APPEND CMAKE_CXX_FLAGS " -mf16c")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND DEFINED ENV{CANGJIE_HOME})
+  find_library(CBC_CLANG_RT_BUILTINS
+    NAMES clang_rt-builtins
+    PATHS "$ENV{CANGJIE_HOME}/lib/linux_${CMAKE_SYSTEM_PROCESSOR}_cjnative"
+    NO_DEFAULT_PATH
+  )
+endif()
+
+if(CBC_CLANG_RT_BUILTINS)
+  message(STATUS "Using Cangjie compiler builtins: ${CBC_CLANG_RT_BUILTINS}")
 endif()
 
 include(CheckCXXSourceCompiles)
 include(CMakePushCheckState)
 cmake_push_check_state()
 string(APPEND CMAKE_REQUIRED_FLAGS " -v")
+if(CBC_CLANG_RT_BUILTINS)
+  list(APPEND CMAKE_REQUIRED_LIBRARIES "${CBC_CLANG_RT_BUILTINS}")
+endif()
 check_cxx_source_compiles("
     static_assert(sizeof(_Float16) == 2);
     int main(int argc, char**) {
@@ -263,6 +274,10 @@ add_subdirectory(src/arch_os/)
 set(LIB_SOURCES ${COMMON_LIB_SOURCES})
 
 add_library(cbc_lib OBJECT ${LIB_SOURCES})
+
+if(CBC_CLANG_RT_BUILTINS)
+  target_link_libraries(cbc_lib PUBLIC "${CBC_CLANG_RT_BUILTINS}")
+endif()
 
 set_target_properties(cbc_lib PROPERTIES
   CXX_VISIBILITY_PRESET hidden
