@@ -4,7 +4,17 @@
 #include "engine/image/io/random_access_file.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
+#include <cstdint>
 #include <memory>
+#include <sstream>
+#include <string>
+
+inline std::string hex(uint64_t num)
+{
+    std::ostringstream message;
+    message << "0x" << std::hex << num;
+    return message.str();
+}
 
 template <size_t limit> class LimitedHeap : public Memory::Heap {
 public:

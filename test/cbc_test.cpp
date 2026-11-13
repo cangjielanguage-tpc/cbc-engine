@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
-#include <sstream>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -22,27 +21,7 @@
 #include "interpreter/loggers.h"
 #include "mock/interpreter.h"
 #include "testutils.h"
-
-static LimitedHeap<16384> heap;
-
-static void DoSetUp()
-{
-    Cbc::EnableRawDisasm();
-    InitializeMockInterpreter();
-    heap.Reset();
-}
-
-class CbcTest : public testing::Test {
-    void SetUp() override
-    {
-        Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE);
-        Cbc::EnableRawDisasm();
-        InitializeMockInterpreter();
-        heap.Reset();
-    }
-
-    void TearDown() override {}
-};
+#include "cbc_test_harness.h"
 
 static std::unique_ptr<IO::ByteArrayRandomAccessFile> FromString(std::string_view view)
 {
@@ -77,33 +56,6 @@ TEST_F(CbcTest, Empty)
     auto str     = Decode::Read(session, Image::FileId(0), strOffs);
 
     ASSERT_EQ(str, "abc");
-}
-
-// Deliberately never destroyed: engines are process-wide, and the registry must outlive
-// static destructors so that LeakSanitizer still sees every engine as reachable at exit.
-// TODO: FIXME #182
-static std::vector<Engine::Engine*>& BuiltEngines()
-{
-    static auto* engines = new std::vector<Engine::Engine*>;
-    return *engines;
-}
-
-static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::string_view fileName)
-{
-    Engine::Loader loader;
-
-    auto file       = OpenAsm(std::string(fileName));
-    bool successful = loader.Load(std::move(file), fileName);
-    ASSERT(successful);
-
-    auto& engine = loader.Build();
-    BuiltEngines().push_back(&engine);
-    Engine::Session session(engine);
-    auto methodId    = engine.FindMethod(session, fileName, "default", name);
-    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
-
-    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
-    return fuhManager.Prepare(session, fuh).info;
 }
 
 TEST_ASM(CbcTest, Simple)
@@ -245,13 +197,6 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
 }
 
 using ArithFunction = uint64_t (*)(uint64_t, uint64_t);
-
-std::string hex(uint64_t num)
-{
-    std::ostringstream message;
-    message << "0x" << std::hex << num;
-    return message.str();
-}
 
 struct ArithTestParams {
     std::string name;
@@ -639,26 +584,6 @@ std::pair<double, double> doubleValues[] = {
     { -2.0, 3.0 },
     { 1.0, std::numeric_limits<double>::quiet_NaN() }
 };
-
-void testFPOps32(Interpretation::Value::Primitive res, float expVal)
-{
-    auto resVal = res.u32;
-    if (std::isnan(resVal) && std::isnan(expVal)) {
-        SUCCEED();
-    } else {
-        ASSERT_EQ(res.u32, F32(expVal).u32);
-    }
-}
-
-void testFPOps64(Interpretation::Value::Primitive res, double expVal)
-{
-    auto resVal = res.u64;
-    if (std::isnan(resVal) && std::isnan(expVal)) {
-        SUCCEED();
-    } else {
-        ASSERT_EQ(res.u64, F64(expVal).u64);
-    }
-}
 
 float unaryFloatValues[] = {
     0.0f, -0.0f, 0.5f, -2.5f, 1e10f, std::numeric_limits<float>::infinity(),
