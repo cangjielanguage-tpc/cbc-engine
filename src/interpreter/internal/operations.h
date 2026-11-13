@@ -625,11 +625,12 @@ template <> inline ArithmeticResult ArithFP<Width::W16>(FloatOperations::Value o
         case FloatOperations::FSQRT:
             return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::sqrt(static_cast<double>(s.f16))) },
                      true };
+        // when Clang widens half expressions to float, conversions can quiet signaling NaNs even with x86 F16C
+        // abs(0xfd55) can yield 0x7f55 instead of 0x7d55; neg(0x7d55) can yield 0xff55 instead of 0xfd55
+        // changing only the sign bit avoids setting the quiet-NaN bit (0x0200) on any target
         case FloatOperations::FABS: return { Value::MakeF16Bits(Value::F16Bits(s) & 0x7fff), true };
-        case FloatOperations::FNEG: 
-            // use bit operations instead of -s.f16 to avoid Clang's half-to-float widening on x86_64, which can quiet signaling NaNs
-            return { Value::MakeF16Bits(Value::F16Bits(s) ^ 0x8000), true };
-        default: FATAL("Unexpected FP op: %d", op);
+        case FloatOperations::FNEG: return { Value::MakeF16Bits(Value::F16Bits(s) ^ 0x8000), true };
+        default:                    FATAL("Unexpected FP op: %d", op);
     }
 }
 
