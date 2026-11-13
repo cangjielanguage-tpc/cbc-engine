@@ -1,6 +1,6 @@
 # asm-generator
 
-Generates the `.asm` images run by `../cbc_test.cpp`. 
+Generates the `.asm` images run by the engine tests.
 The output is committed under `../resources/generated-asm/`,
 so the script is a maintenance tool: run it by hand and review the diff.
 

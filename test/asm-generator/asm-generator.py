@@ -8,6 +8,7 @@ Each named generator overwrites resource files in test/resources/generated-asm/<
 """
 
 import argparse
+import shutil
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
@@ -64,6 +65,7 @@ F32, F64, I8, I16, I32, I64, U8, U16, U32, U64 = AsmType
 
 # The registers used by the generated tests.
 IR1 = "IR1"
+IR2 = "IR2"
 FR0 = "FR0"
 FR1 = "FR1"
 
@@ -649,6 +651,90 @@ def generate_arr_ic() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# checked-arith: pipeline-smoke images for CbcCheckedArithAsm.
+# Operand cartesian lives in the Emitter suite (checked_arith_emit_test.cpp);
+# these files only prove assembler -> rewriter -> interpreter still works.
+#
+# Layout:
+#   checked-arith/rr/<op>.asm         - test_<w> methods, register form
+#   checked-arith/imm-short/<op>i.asm - test_<w> methods, short imm 0x1
+#   checked-arith/imm-wide/<op>i.asm  - test_<w> methods, wide imm 0x1000
+#                                      (no W8: compiler never emits it)
+# ---------------------------------------------------------------------------
+
+CHECKED_WIDTHS = [8, 16, 32, 64]
+
+
+@dataclass(frozen=True)
+class CheckedOpInfo:
+    """One checked op: `base` is the rr mnemonic, the imm mnemonic is `base + "i"`."""
+
+    base: str
+    rr: bool
+    imm: bool
+
+
+CHECKED_OPS = [
+    CheckedOpInfo(base="cadd", rr=True, imm=True),
+    CheckedOpInfo(base="csub", rr=True, imm=True),
+    CheckedOpInfo(base="cmul", rr=True, imm=True),
+    CheckedOpInfo(base="cdiv", rr=True, imm=True),
+    CheckedOpInfo(base="clsl", rr=True, imm=True),
+    CheckedOpInfo(base="clsr", rr=True, imm=True),
+    CheckedOpInfo(base="casr", rr=True, imm=True),
+    CheckedOpInfo(base="cpow", rr=True, imm=True),
+    CheckedOpInfo(base="cuadd", rr=True, imm=True),
+    CheckedOpInfo(base="cusub", rr=True, imm=True),
+    CheckedOpInfo(base="cumul", rr=True, imm=True),
+    CheckedOpInfo(base="sdiv", rr=True, imm=True),
+    CheckedOpInfo(base="smod", rr=True, imm=True),
+    CheckedOpInfo(base="spow", rr=True, imm=True),
+    CheckedOpInfo(base="sulsr", rr=True, imm=True),
+]
+
+
+def checked_imm_method(op: str, w: int, rhs: int) -> Method:
+    return (
+        method(f"test_{w}", I64, params=(I64,), default_w=w)
+        .live(IR1)
+        .instr(op, IR1, IR1, imm(rhs))
+        .ret()
+    )
+
+
+def checked_rr_method(op: str, w: int) -> Method:
+    return (
+        method(f"test_{w}", I64, params=(I64, I64), default_w=w)
+        .live(IR1, IR2)
+        .instr(op, IR1, IR1, IR2)
+        .ret()
+    )
+
+
+def generate_checked_arith() -> list[Path]:
+    directory = GENERATED_ASM / "checked-arith"
+    if directory.exists():
+        shutil.rmtree(directory)
+    rr_files = {}
+    short_files = {}
+    wide_files = {}
+    for op in CHECKED_OPS:
+        if op.rr:
+            rr_files[f"{op.base}.asm"] = asm_file([checked_rr_method(op.base, w) for w in CHECKED_WIDTHS])
+        if op.imm:
+            short_files[f"{op.base}i.asm"] = asm_file(
+                [checked_imm_method(op.base + "i", w, 0x1) for w in CHECKED_WIDTHS]
+            )
+            wide_files[f"{op.base}i.asm"] = asm_file(
+                [checked_imm_method(op.base + "i", w, 0x1000) for w in CHECKED_WIDTHS if w != 8]
+            )
+    written = write_suite("checked-arith/rr", rr_files)
+    written += write_suite("checked-arith/imm-short", short_files)
+    written += write_suite("checked-arith/imm-wide", wide_files)
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -659,6 +745,7 @@ GENERATORS = {
     "frame-slots"      : generate_frame_slots,
     "sat-arith"        : generate_sat_arith,
     "arr-ic"           : generate_arr_ic,
+    "checked-arith"    : generate_checked_arith,
 }
 
 
