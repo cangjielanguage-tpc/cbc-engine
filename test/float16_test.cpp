@@ -5,10 +5,17 @@
 #include "interpreter/casts.h"
 #include <array>
 #include <cmath>
+#include <limits>
 
 using namespace Cbc;
 using namespace Cbc::Format;
 using namespace Interpretation;
+
+namespace {
+
+uint16_t bits(Utils::Float16 value) { return Utils::Float16Bits(value); }
+
+} // namespace
 
 class Float16EmitTest : public EmitTest {};
 
@@ -33,17 +40,19 @@ TEST_F(Float16EmitTest, Float16RegisterAndMemoryTransport)
     e.Ret();
     auto code = e.Build(heap);
     const uint16_t samples[] {
-        0x0000, // +0.0
-        0x8000, // -0.0
-        0x0001, // 2^-24
-        0xbe00, // -1.5
-        0x7bff, // 65504.0
-        0x7c00, // +inf
-        0xfc00, // -inf
+        bits(0.0),
+        bits(-0.0),
+        bits(0x1p-24),
+        bits(-1.5),
+        bits(65504.0),
+        bits(std::numeric_limits<float>::infinity()),
+        bits(-std::numeric_limits<float>::infinity()),
         0x7e55, // quiet NaN
         0xfd55, // negative signaling NaN
     };
     for (uint16_t bits : samples) {
+        // the half at offset 1 overwrites bytes 1-2; 0x55/0xaa detect a missing store
+        // outer bytes 0xa5/0x5a are checked below to catch writes beyond the two-byte value
         std::array<uint8_t, 4> memory { 0xa5, 0x55, 0xaa, 0x5a };
         auto result =
             Interpret(code, U64(reinterpret_cast<uintptr_t>(memory.data())), U64(0xdeadbeef00000000ULL | bits));
