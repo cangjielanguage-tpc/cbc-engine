@@ -657,39 +657,30 @@ def generate_arr_ic() -> list[Path]:
 #
 # Layout:
 #   checked-arith/rr/<op>.asm         - test_<w> methods, register form
-#   checked-arith/imm-short/<op>i.asm - test_<w> methods, short imm 0x1
-#   checked-arith/imm-wide/<op>i.asm  - test_<w> methods, wide imm 0x1000
+#   checked-arith/imm_short/<op>i.asm - test_<w> methods, short imm 0x1
+#   checked-arith/imm_wide/<op>i.asm  - test_<w> methods, wide imm 0x1000
 #                                      (no W8: compiler never emits it)
 # ---------------------------------------------------------------------------
 
 CHECKED_WIDTHS = [8, 16, 32, 64]
 
 
-@dataclass(frozen=True)
-class CheckedOpInfo:
-    """One checked op: `base` is the rr mnemonic, the imm mnemonic is `base + "i"`."""
-
-    base: str
-    rr: bool
-    imm: bool
-
-
 CHECKED_OPS = [
-    CheckedOpInfo(base="cadd", rr=True, imm=True),
-    CheckedOpInfo(base="csub", rr=True, imm=True),
-    CheckedOpInfo(base="cmul", rr=True, imm=True),
-    CheckedOpInfo(base="cdiv", rr=True, imm=True),
-    CheckedOpInfo(base="clsl", rr=True, imm=True),
-    CheckedOpInfo(base="clsr", rr=True, imm=True),
-    CheckedOpInfo(base="casr", rr=True, imm=True),
-    CheckedOpInfo(base="cpow", rr=True, imm=True),
-    CheckedOpInfo(base="cuadd", rr=True, imm=True),
-    CheckedOpInfo(base="cusub", rr=True, imm=True),
-    CheckedOpInfo(base="cumul", rr=True, imm=True),
-    CheckedOpInfo(base="sdiv", rr=True, imm=True),
-    CheckedOpInfo(base="smod", rr=True, imm=True),
-    CheckedOpInfo(base="spow", rr=True, imm=True),
-    CheckedOpInfo(base="sulsr", rr=True, imm=True),
+    "cadd",
+    "csub",
+    "cmul",
+    "cdiv",
+    "clsl",
+    "clsr",
+    "casr",
+    "cpow",
+    "cuadd",
+    "cusub",
+    "cumul",
+    "sdiv",
+    "smod",
+    "spow",
+    "sulsr",
 ]
 
 
@@ -719,18 +710,14 @@ def generate_checked_arith() -> list[Path]:
     short_files = {}
     wide_files = {}
     for op in CHECKED_OPS:
-        if op.rr:
-            rr_files[f"{op.base}.asm"] = asm_file([checked_rr_method(op.base, w) for w in CHECKED_WIDTHS])
-        if op.imm:
-            short_files[f"{op.base}i.asm"] = asm_file(
-                [checked_imm_method(op.base + "i", w, 0x1) for w in CHECKED_WIDTHS]
-            )
-            wide_files[f"{op.base}i.asm"] = asm_file(
-                [checked_imm_method(op.base + "i", w, 0x1000) for w in CHECKED_WIDTHS if w != 8]
-            )
+        rr_files[f"{op}.asm"] = asm_file([checked_rr_method(op, w) for w in CHECKED_WIDTHS])
+        short_files[f"{op}i.asm"] = asm_file([checked_imm_method(op + "i", w, 0x1) for w in CHECKED_WIDTHS])
+        wide_files[f"{op}i.asm"] = asm_file(
+            [checked_imm_method(op + "i", w, 0x1000) for w in CHECKED_WIDTHS if w != 8]
+        )
     written = write_suite("checked-arith/rr", rr_files)
-    written += write_suite("checked-arith/imm-short", short_files)
-    written += write_suite("checked-arith/imm-wide", wide_files)
+    written += write_suite("checked-arith/imm_short", short_files)
+    written += write_suite("checked-arith/imm_wide", wide_files)
     return written
 
 

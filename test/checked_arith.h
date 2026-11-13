@@ -263,8 +263,6 @@ struct CheckedOpInfo {
     CheckedKind kind;
     uint32_t opcode;
     const char* base;
-    bool rr;
-    bool imm;
     bool noZeroRhs;
 
     constexpr Cbc::Format::Checked checked() const { return Cbc::Format::Checked::Value(opcode); }
@@ -277,106 +275,76 @@ inline constexpr CheckedOpInfo kCheckedOps[] = {
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CADD,
       .base      = "cadd",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::Sub,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CSUB,
       .base      = "csub",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::Mul,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CMUL,
       .base      = "cmul",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::Div,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CDIV,
       .base      = "cdiv",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::UAdd,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CUADD,
       .base      = "cuadd",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::USub,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CUSUB,
       .base      = "cusub",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::UMul,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CUMUL,
       .base      = "cumul",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::Pow,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CPOW,
       .base      = "cpow",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::Lsl,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CLSL,
       .base      = "clsl",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::Lsr,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CLSR,
       .base      = "clsr",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::Asr,
       .kind      = CheckedKind::Checked,
       .opcode    = Cbc::Format::Checked::CASR,
       .base      = "casr",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::SatDiv,
       .kind      = CheckedKind::Saturating,
       .opcode    = Cbc::Format::Saturating::SDIV,
       .base      = "sdiv",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = true },
     { .op        = CheckedOp::SatMod,
       .kind      = CheckedKind::Saturating,
       .opcode    = Cbc::Format::Saturating::SMOD,
       .base      = "smod",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = true },
     { .op        = CheckedOp::SatPow,
       .kind      = CheckedKind::Saturating,
       .opcode    = Cbc::Format::Saturating::SPOW,
       .base      = "spow",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
     { .op        = CheckedOp::SatULsr,
       .kind      = CheckedKind::Saturating,
       .opcode    = Cbc::Format::Saturating::SULSR,
       .base      = "sulsr",
-      .rr        = true,
-      .imm       = true,
       .noZeroRhs = false },
 };
 
@@ -407,42 +375,36 @@ inline void ExpectCheckedMatch(
     }
 }
 
-inline void ExpectCheckedRr(CheckedOp op, int width, uint64_t lhs, uint64_t rhs, Interpretation::Code code)
+inline void ExpectChecked(
+    CheckedOp op, int width, uint64_t lhs, uint64_t rhs, Interpretation::Code code,
+    Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive ir3 = U64(0)
+)
 {
-    Interpretation::Type type = InterpretThrows(code, U64(0), U64(lhs), U64(rhs));
+    Interpretation::Type type = InterpretThrows(code, ir1, ir2, ir3);
     Interpretation::Value::Primitive res {};
     if (type == Interpretation::Type::Successful) {
-        res = Interpret(code, U64(0), U64(lhs), U64(rhs));
+        res = Interpret(code, ir1, ir2, ir3);
     }
     ExpectCheckedMatch(op, width, lhs, rhs, type, res);
+}
+
+inline void ExpectCheckedRr(CheckedOp op, int width, uint64_t lhs, uint64_t rhs, Interpretation::Code code)
+{
+    ExpectChecked(op, width, lhs, rhs, code, U64(0), U64(lhs), U64(rhs));
 }
 
 inline void ExpectCheckedImm(CheckedOp op, int width, uint64_t lhs, uint64_t rhs, Interpretation::Code code)
 {
-    Interpretation::Type type = InterpretThrows(code, U64(0), U64(lhs));
-    Interpretation::Value::Primitive res {};
-    if (type == Interpretation::Type::Successful) {
-        res = Interpret(code, U64(0), U64(lhs));
-    }
-    ExpectCheckedMatch(op, width, lhs, rhs, type, res);
+    ExpectChecked(op, width, lhs, rhs, code, U64(0), U64(lhs));
 }
 
 inline void ExpectCheckedAsmRr(CheckedOp op, int width, uint64_t lhs, uint64_t rhs, Interpretation::Code code)
 {
-    Interpretation::Type type = InterpretThrows(code, U64(lhs), U64(rhs));
-    Interpretation::Value::Primitive res {};
-    if (type == Interpretation::Type::Successful) {
-        res = Interpret(code, U64(lhs), U64(rhs));
-    }
-    ExpectCheckedMatch(op, width, lhs, rhs, type, res);
+    ExpectChecked(op, width, lhs, rhs, code, U64(lhs), U64(rhs));
 }
 
 inline void ExpectCheckedAsmImm(CheckedOp op, int width, uint64_t lhs, uint64_t rhs, Interpretation::Code code)
 {
-    Interpretation::Type type = InterpretThrows(code, U64(lhs), U64(0));
-    Interpretation::Value::Primitive res {};
-    if (type == Interpretation::Type::Successful) {
-        res = Interpret(code, U64(lhs), U64(0));
-    }
-    ExpectCheckedMatch(op, width, lhs, rhs, type, res);
+    ExpectChecked(op, width, lhs, rhs, code, U64(lhs), U64(0));
 }

@@ -18,26 +18,26 @@ struct CheckedAsmParam {
     CheckedAsmForm form;
 };
 
-static const char* CheckedAsmFormName(CheckedAsmForm form, bool gtestName)
+static const char* CheckedAsmFormName(CheckedAsmForm form)
 {
     switch (form) {
         case CheckedAsmForm::Rr:       return "rr";
-        case CheckedAsmForm::ImmShort: return gtestName ? "imm_short" : "imm-short";
-        case CheckedAsmForm::ImmWide:  return gtestName ? "imm_wide" : "imm-wide";
+        case CheckedAsmForm::ImmShort: return "imm_short";
+        case CheckedAsmForm::ImmWide:  return "imm_wide";
     }
     return "";
 }
 
 static std::ostream& operator<<(std::ostream& os, const CheckedAsmParam& p)
 {
-    return os << CheckedAsmFormName(p.form, false) << "/" << kCheckedOps[p.opIndex].base << "."
+    return os << CheckedAsmFormName(p.form) << "/" << kCheckedOps[p.opIndex].base << "."
               << CheckedWidthBits(p.width);
 }
 
 static std::string CheckedAsmParamName(const testing::TestParamInfo<CheckedAsmParam>& info)
 {
     const CheckedAsmParam& p = info.param;
-    return std::string(CheckedAsmFormName(p.form, true)) + "_" + kCheckedOps[p.opIndex].base + "_" +
+    return std::string(CheckedAsmFormName(p.form)) + "_" + kCheckedOps[p.opIndex].base + "_" +
            std::to_string(CheckedWidthBits(p.width));
 }
 
@@ -46,14 +46,10 @@ static std::vector<CheckedAsmParam> CheckedAsmParams()
     std::vector<CheckedAsmParam> params;
     for (size_t i = 0; i < std::size(kCheckedOps); ++i) {
         for (Cbc::Format::Width width : kCheckedWidths) {
-            if (kCheckedOps[i].rr) {
-                params.push_back({ i, width, CheckedAsmForm::Rr });
-            }
-            if (kCheckedOps[i].imm) {
-                params.push_back({ i, width, CheckedAsmForm::ImmShort });
-                if (width != Cbc::Format::Width::W8) {
-                    params.push_back({ i, width, CheckedAsmForm::ImmWide });
-                }
+            params.push_back({ i, width, CheckedAsmForm::Rr });
+            params.push_back({ i, width, CheckedAsmForm::ImmShort });
+            if (width != Cbc::Format::Width::W8) {
+                params.push_back({ i, width, CheckedAsmForm::ImmWide });
             }
         }
     }
@@ -74,15 +70,13 @@ TEST_P(CbcCheckedArithAsm, pipeline)
     const int bits               = CheckedWidthBits(param.width);
     const std::string method     = "test_" + std::to_string(bits);
 
-    std::string path;
-    uint64_t bakedRhs = 0;
-    if (param.form == CheckedAsmForm::Rr) {
-        path = "./generated-asm/checked-arith/rr/" + std::string(info.base) + ".asm";
-    } else if (param.form == CheckedAsmForm::ImmShort) {
-        path     = "./generated-asm/checked-arith/imm-short/" + std::string(info.base) + "i.asm";
+    const char* form     = CheckedAsmFormName(param.form);
+    const char* suffix   = param.form == CheckedAsmForm::Rr ? "" : "i";
+    std::string path     = "./generated-asm/checked-arith/" + std::string(form) + "/" + info.base + suffix + ".asm";
+    uint64_t bakedRhs    = 0;
+    if (param.form == CheckedAsmForm::ImmShort) {
         bakedRhs = 0x1;
-    } else {
-        path     = "./generated-asm/checked-arith/imm-wide/" + std::string(info.base) + "i.asm";
+    } else if (param.form == CheckedAsmForm::ImmWide) {
         bakedRhs = 0x1000;
     }
 

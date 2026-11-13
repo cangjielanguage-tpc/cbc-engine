@@ -26,27 +26,10 @@ static std::string CheckedEmitParamName(const testing::TestParamInfo<CheckedEmit
     return std::string(kCheckedOps[info.param.opIndex].base) + "_" + std::to_string(CheckedWidthBits(info.param.width));
 }
 
-static std::vector<CheckedEmitParam> CheckedEmitRrParams()
+static std::vector<CheckedEmitParam> CheckedEmitParams()
 {
     std::vector<CheckedEmitParam> params;
     for (size_t i = 0; i < std::size(kCheckedOps); ++i) {
-        if (!kCheckedOps[i].rr) {
-            continue;
-        }
-        for (Width width : kCheckedWidths) {
-            params.push_back({ i, width });
-        }
-    }
-    return params;
-}
-
-static std::vector<CheckedEmitParam> CheckedEmitImmParams()
-{
-    std::vector<CheckedEmitParam> params;
-    for (size_t i = 0; i < std::size(kCheckedOps); ++i) {
-        if (!kCheckedOps[i].imm) {
-            continue;
-        }
         for (Width width : kCheckedWidths) {
             params.push_back({ i, width });
         }
@@ -110,15 +93,12 @@ TEST_P(CbcCheckedArithEmitImm, differential)
     }
 }
 
-static const auto kCheckedEmitRrParams  = CheckedEmitRrParams();
-static const auto kCheckedEmitImmParams = CheckedEmitImmParams();
+static const auto kCheckedEmitParams = CheckedEmitParams();
+
+INSTANTIATE_TEST_SUITE_P(CbcTest, CbcCheckedArithEmitRr, ::testing::ValuesIn(kCheckedEmitParams), CheckedEmitParamName);
 
 INSTANTIATE_TEST_SUITE_P(
-    CbcTest, CbcCheckedArithEmitRr, ::testing::ValuesIn(kCheckedEmitRrParams), CheckedEmitParamName
-);
-
-INSTANTIATE_TEST_SUITE_P(
-    CbcTest, CbcCheckedArithEmitImm, ::testing::ValuesIn(kCheckedEmitImmParams), CheckedEmitParamName
+    CbcTest, CbcCheckedArithEmitImm, ::testing::ValuesIn(kCheckedEmitParams), CheckedEmitParamName
 );
 
 } // namespace Emitter
