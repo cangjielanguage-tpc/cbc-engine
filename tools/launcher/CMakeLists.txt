@@ -52,13 +52,11 @@ target_link_libraries(launcher PRIVATE
 
 target_compile_definitions(launcher PRIVATE "INTERPRETER_LIB=\"${CMAKE_SHARED_LIBRARY_PREFIX}cbcengine${CMAKE_SHARED_LIBRARY_SUFFIX}\"")
 
-get_filename_component(CBCENGINE_LIB_DIR "${CBCENGINE_LIB}" DIRECTORY)
-set_target_properties(launcher PROPERTIES BUILD_RPATH "${CBCENGINE_LIB_DIR}")
-if(APPLE)
-  # Packed SDK layout is tools/bin/launcher with libs in tools/lib; the
-  # build-time rpath points at a temp build dir and is stale after packing.
-  set_target_properties(launcher PROPERTIES INSTALL_RPATH "@loader_path/../lib")
-endif()
+# Final-layout rpaths baked at link time (BUILD_WITH_INSTALL_RPATH). The
+# packed toolchain places the launcher in runtime/lib/<arch>/bin with the
+# engine and cangjie runtime libs one level up, and the stdx extension dylibs
+# four levels up (<toolchain-root>/stdx/dynamic/stdx). The same relative
+# layout holds in the build tree for the engine lib (output/<arch>/launcher).
 
 if(NOT APPLE)
   target_link_options(launcher PRIVATE
@@ -66,6 +64,20 @@ if(NOT APPLE)
     "-rdynamic"
   )
 endif()
+
+set(LAUNCHER_RPATH
+  "@loader_path/.."
+  "@loader_path/../../../../stdx/dynamic/stdx"
+)
+if(NOT APPLE)
+  string(REPLACE "@loader_path" "$ORIGIN" LAUNCHER_RPATH "${LAUNCHER_RPATH}")
+  # $ORIGIN in an executable's own DT_RUNPATH requires the DF_1_ORIGIN flag.
+  target_link_options(launcher PRIVATE "-Wl,-z,origin")
+endif()
+set_target_properties(launcher PROPERTIES
+  BUILD_WITH_INSTALL_RPATH ON
+  INSTALL_RPATH "${LAUNCHER_RPATH}"
+)
 
 add_library(cbc-preload SHARED
   preload.c
@@ -87,8 +99,10 @@ else()
   # The __DATA,__interpose replacement calls the real CJ_MRT_CjRuntimeInit,
   # resolved through normal linkage against the cangjie runtime.
   target_link_libraries(cbc-preload PRIVATE "${CJ_RUNTIME_LIB}")
+  # Packed next to libcbcengine and the cangjie runtime; its own @rpath deps
+  # also resolve through the launcher's rpaths.
   set_target_properties(cbc-preload PROPERTIES
-    BUILD_RPATH "${CANGJIE_HOME}/runtime/lib/${CJ_ARCH_DIR}"
-    INSTALL_RPATH "${CANGJIE_HOME}/runtime/lib/${CJ_ARCH_DIR}"
+    BUILD_WITH_INSTALL_RPATH ON
+    INSTALL_RPATH "@loader_path"
   )
 endif()
