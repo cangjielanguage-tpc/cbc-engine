@@ -1,5 +1,147 @@
 package cangjie.runtime.cbcengine.helper
 
+public interface Arith<T> {
+    operator func +(other: T): T
+    operator func -(other: T): T
+    operator func *(other: T): T
+    operator func /(other: T): T
+    operator func %(other: T): T
+    operator func -(): T
+    static func of(v: Int64): T
+}
+
+extend Int8 <: Arith<Int8> {
+    public static func of(v: Int64): Int8 {
+        Int8(v)
+    }
+}
+
+extend Int16 <: Arith<Int16> {
+    public static func of(v: Int64): Int16 {
+        Int16(v)
+    }
+}
+
+extend Int32 <: Arith<Int32> {
+    public static func of(v: Int64): Int32 {
+        Int32(v)
+    }
+}
+
+extend Int64 <: Arith<Int64> {
+    public static func of(v: Int64): Int64 {
+        v
+    }
+}
+
+extend IntNative <: Arith<IntNative> {
+    public static func of(v: Int64): IntNative {
+        IntNative(v)
+    }
+}
+
+extend UInt8 <: Arith<UInt8> {
+    public static func of(v: Int64): UInt8 {
+        UInt8(v)
+    }
+}
+
+extend UInt16 <: Arith<UInt16> {
+    public static func of(v: Int64): UInt16 {
+        UInt16(v)
+    }
+}
+
+extend UInt32 <: Arith<UInt32> {
+    public static func of(v: Int64): UInt32 {
+        UInt32(v)
+    }
+}
+
+extend UInt64 <: Arith<UInt64> {
+    public static func of(v: Int64): UInt64 {
+        UInt64(v)
+    }
+}
+
+extend UIntNative <: Arith<UIntNative> {
+    public static func of(v: Int64): UIntNative {
+        UIntNative(v)
+    }
+}
+
+public func checkedAdd<T>(x: T, y: T): ?T where T <: Arith<T> {
+    try {
+        Some(x + y)
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedSub<T>(x: T, y: T): ?T where T <: Arith<T> {
+    try {
+        Some(x - y)
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedMul<T>(x: T, y: T): ?T where T <: Arith<T> {
+    try {
+        Some(x * y)
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedDiv<T>(x: T, y: T): ?T where T <: Arith<T> {
+    try {
+        Some(x / y)
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedMod<T>(x: T, y: T): ?T where T <: Arith<T> {
+    try {
+        Some(x % y)
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedInc<T>(x: T): ?T where T <: Arith<T> {
+    try {
+        Some(x + T.of(1))
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedDec<T>(x: T): ?T where T <: Arith<T> {
+    try {
+        Some(x - T.of(1))
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedNeg<T>(x: T): ?T where T <: Arith<T> {
+    try {
+        Some(-x)
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
+public func checkedPow(base: Int64, exp: UInt64): ?Int64 {
+    try {
+        Some(base ** exp)
+    } catch (e: OverflowException) {
+        None
+    }
+}
+
 public func throwImplicitException(tpe: Int64): Int64 {
     match (tpe) {
         case 1 => throw NoneValueException()
