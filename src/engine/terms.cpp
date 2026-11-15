@@ -245,10 +245,6 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
 template <auto PreCheck, typename... Args>
 static bool CompareTermData(TermData* left, TermData* right, Args&&... args)
 {
-    if (right == left) {
-        return true;
-    }
-
     int res = PreCheck(left, right, std::forward<Args>(args)...);
 
     if (res < 0) {
@@ -480,8 +476,11 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
     }
 }
 
-static int CmpHashes(TermData* left, TermData* right)
+static int CheckForEquality(TermData* left, TermData* right)
 {
+    if (left == right) {
+        return 1; // compare returns true
+    }
     if (left->hash == right->hash) {
         return 0; // compare continues
     }
@@ -490,7 +489,7 @@ static int CmpHashes(TermData* left, TermData* right)
 
 bool Term::operator!=(const Term& another) const { return !(*this == another); }
 
-bool Term::operator==(const Term& another) const { return CompareTermData<CmpHashes>(this->data, another.data); }
+bool Term::operator==(const Term& another) const { return CompareTermData<CheckForEquality>(this->data, another.data); }
 
 bool Term::IsLocal() const { return data->flags.isLocal; }
 
