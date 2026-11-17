@@ -93,7 +93,7 @@ public:
     }
 
     // Control flow. Methods that name a label record a fixup: the word is
-    // emitted with an empty offset, and Resolve() fills in the distance once
+    // emitted with an empty offset, and Finalize() fills in the distance once
     // every label has a position.
     void B(Label target) { EmitFixup(Encode::B(), FixupKind::Branch26, target); }
 
@@ -131,6 +131,39 @@ public:
 
     void Ret(XReg target = X30) { Emit(Encode::Ret(target)); }
 
+    // Issues a label through the owned manager.
+    Label NewLabel() { return labels_->NewLabel(); }
+
+    // Binds a label to the position the storage will be written at next.
+    void Bind(Label label) { labels_->Bind(label, storage_.Position()); }
+
+    // Bytes emitted so far.
+    uint32_t Position() const { return storage_.Position(); }
+
+    // The written words, for inspection; the view does not survive finalization.
+    Utils::Span<const uint32_t> Words() const { return storage_.Words(); }
+
+    // Resolves the branches recorded against labels, then publishes the words as
+    // an executable segment and spends the storage: the segment owns the code,
+    // and the assembler may not take more words afterwards. A branch to an
+    // unbound label is a fatal error.
+    auto Finalize()
+    {
+        Resolve();
+        return storage_.Finalize();
+    }
+
+private:
+    // Writes one encoded word. Encoders are the usual source of words.
+    void Emit(Insn insn) { storage_.Write(insn); }
+
+    // Records the site a branch word is about to be written at, then writes it.
+    void EmitFixup(Insn word, FixupKind kind, Label target)
+    {
+        labels_->AddFixup(kind, storage_.Position(), word, target);
+        Emit(word);
+    }
+
     // Patches every recorded branch word with the distance to its label.
     void Resolve()
     {
@@ -142,37 +175,6 @@ public:
             const int64_t delta = static_cast<int64_t>(position) - static_cast<int64_t>(fixup.site);
             storage_.Patch(fixup.site, Encode::ApplyFixup(fixup.word, fixup.kind, delta));
         }
-    }
-
-    // Issues a label through the owned manager.
-    Label NewLabel() { return labels_->NewLabel(); }
-
-    // Binds a label to the position the storage will be written at next.
-    void Bind(Label label) { labels_->Bind(label, storage_.Position()); }
-
-    // Word count emitted so far.
-    uint32_t Position() const { return storage_.Position(); }
-
-    // The written words, for inspection.
-    Utils::Span<const uint32_t> Words() const { return storage_.Words(); }
-
-    // The entry point of the emitted code, to be called as a function.
-    void* Code() { return storage_.Code(); }
-
-    // Publishes the emitted words to the instruction cache: on hosts whose
-    // instruction and data caches are not coherent, code may only be called
-    // after this.
-    void Flush() { storage_.Flush(); }
-
-private:
-    // Writes one encoded word. Encoders are the usual source of words.
-    void Emit(Insn insn) { storage_.Write(insn); }
-
-    // Records the site a branch word is about to be written at, then writes it.
-    void EmitFixup(Insn word, FixupKind kind, Label target)
-    {
-        labels_->AddFixup(kind, storage_.Position(), word, target);
-        Emit(word);
     }
 
     Storage storage_;

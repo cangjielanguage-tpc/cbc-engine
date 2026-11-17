@@ -1,34 +1,35 @@
-// Storage tests. The execution tests publish words into an executable mapping
-// and call them, so they run on an aarch64 host only.
+// Storage tests: accumulating words, patching them, and publishing them as an
+// executable segment. The tests that call published code run on an aarch64 host
+// only.
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <utility>
 
+#include "asm/code_segment.h"
+#include "asm/code_storage.h"
 #include "asm/encoding.h"
 #include "asm/operands.h"
-#include "asm/storage.h"
 
 namespace {
 
-using Asm::ExecStorage;
+using Asm::CodeSegment;
+using Asm::CodeStorage;
 using Asm::X0;
 using Asm::X1;
+using Asm::X2;
 using Asm::X30;
 
-// Whether a storage reports no position and no written words: the state a
-// storage is left in after being moved from.
-bool IsEmpty(const ExecStorage& storage) { return storage.Position() == 0 && storage.Words().Size() == 0; }
-
 #if defined(__aarch64__)
-// The address of written code, called as a function of two integers.
+// The address of published code, called as a function of two integers.
 using BinaryFunction = int64_t (*)(int64_t, int64_t);
 #endif
 
 } // namespace
 
-TEST(ExecStorage, HoldsOneWordPerInstruction)
+TEST(CodeStorage, HoldsOneWordPerInstruction)
 {
-    ExecStorage storage { 64 };
+    CodeStorage storage;
     ASSERT_EQ(storage.Position(), 0u);
 
     storage.Write(Asm::Encode::Add(X0, X1, X1));
@@ -38,9 +39,9 @@ TEST(ExecStorage, HoldsOneWordPerInstruction)
     ASSERT_EQ(storage.Words().Size(), 2u);
 }
 
-TEST(ExecStorage, PatchReplacesOneWordAndKeepsTheRest)
+TEST(CodeStorage, PatchReplacesOneWordAndKeepsTheRest)
 {
-    ExecStorage storage { 64 };
+    CodeStorage storage;
     storage.Write(Asm::Encode::Add(X0, X1, X1));
     storage.Write(Asm::Encode::Sub(X0, X0, X1));
     storage.Write(Asm::Encode::Ret(X30));
@@ -57,57 +58,148 @@ TEST(ExecStorage, PatchReplacesOneWordAndKeepsTheRest)
     ASSERT_EQ(storage.Position(), 12u);
 }
 
-TEST(ExecStorage, MoveTransfersTheMapping)
+TEST(CodeStorage, GrowthKeepsEarlierWordsPatchable)
 {
-    ExecStorage source { 64 };
-    source.Write(Asm::Encode::Add(X0, X1, X1));
+    CodeStorage storage;
+    storage.Write(Asm::Encode::Add(X0, X0, X1)); // the word patched below
+    for (uint32_t i = 0; i < 1000; ++i) {
+        storage.Write(Asm::Encode::Add(X2, X2, 1));
+    }
 
-    ExecStorage moved { std::move(source) };
+    storage.Patch(0, Asm::Encode::Sub(X0, X0, X1));
 
-    // The mapping follows the move; the moved-from storage is left empty.
-    ASSERT_TRUE(IsEmpty(source));
-    ASSERT_EQ(moved.Position(), 4u);
-    ASSERT_EQ(moved.Words().Size(), 1u);
-
-    ExecStorage assigned { 64 };
-    assigned.Write(Asm::Encode::Ret(X30));
-    assigned = std::move(moved);
-
-    ASSERT_TRUE(IsEmpty(moved));
-    ASSERT_EQ(assigned.Position(), 4u);
-    ASSERT_EQ(assigned.Words()[0], Asm::Encode::Add(X0, X1, X1).Bits());
+    ASSERT_EQ(storage.Position(), 1001u * 4u);
+    ASSERT_EQ(storage.Words()[0], Asm::Encode::Sub(X0, X0, X1).Bits());
+    ASSERT_EQ(storage.Words()[1000], Asm::Encode::Add(X2, X2, 1).Bits());
 }
 
-TEST(ExecStorage, ExecutesWrittenWords)
+TEST(CodeStorage, MoveTransfersTheWords)
+{
+    CodeStorage source;
+    source.Write(Asm::Encode::Add(X0, X1, X1));
+
+    CodeStorage moved { std::move(source) };
+
+    // The words follow the move; the moved-from storage is left empty.
+    ASSERT_EQ(source.Position(), 0u);
+    ASSERT_EQ(source.Words().Size(), 0u);
+    ASSERT_EQ(moved.Position(), 4u);
+    ASSERT_EQ(moved.Words()[0], Asm::Encode::Add(X0, X1, X1).Bits());
+}
+
+TEST(CodeStorage, FinalizePublishesTheWrittenWords)
+{
+    CodeStorage storage;
+    storage.Write(Asm::Encode::Add(X0, X0, X1));
+    storage.Write(Asm::Encode::Ret(X30));
+
+    const CodeSegment segment = storage.Finalize();
+
+    ASSERT_TRUE(segment.Ok());
+    ASSERT_NE(segment.Code(), nullptr);
+    ASSERT_EQ(segment.Size(), 8u);
+    ASSERT_EQ(segment.Words().Size(), 2u);
+    ASSERT_EQ(segment.Words()[0], Asm::Encode::Add(X0, X0, X1).Bits());
+    ASSERT_EQ(segment.Words()[1], Asm::Encode::Ret(X30).Bits());
+
+    // The storage has published all it had: it holds no words anymore.
+    ASSERT_EQ(storage.Position(), 0u);
+    ASSERT_EQ(storage.Words().Size(), 0u);
+}
+
+TEST(CodeStorage, EmptyFinalizePublishesNothing)
+{
+    CodeStorage storage;
+
+    const CodeSegment segment = storage.Finalize();
+
+    ASSERT_FALSE(segment.Ok());
+    ASSERT_EQ(segment.Size(), 0u);
+}
+
+TEST(CodeSegment, MoveTransfersTheMapping)
+{
+    CodeStorage storage;
+    storage.Write(Asm::Encode::Add(X0, X0, X1));
+    storage.Write(Asm::Encode::Ret(X30));
+    CodeSegment source = storage.Finalize();
+    ASSERT_TRUE(source.Ok());
+
+    CodeSegment moved { std::move(source) };
+
+    ASSERT_FALSE(source.Ok());
+    ASSERT_EQ(source.Size(), 0u);
+    ASSERT_EQ(moved.Size(), 8u);
+    ASSERT_EQ(moved.Words()[0], Asm::Encode::Add(X0, X0, X1).Bits());
+
+    CodeSegment assigned;
+    assigned = std::move(moved);
+
+    ASSERT_FALSE(moved.Ok());
+    ASSERT_EQ(assigned.Words().Size(), 2u);
+}
+
+TEST(CodeSegment, ExecutesPublishedWords)
 {
 #if !defined(__aarch64__)
     GTEST_SKIP() << "Running emitted code requires an aarch64 host";
 #else
-    ExecStorage storage { 64 };
+    CodeStorage storage;
     storage.Write(Asm::Encode::Add(X0, X0, X1));
     storage.Write(Asm::Encode::Ret(X30));
-    storage.Flush();
 
-    auto add = reinterpret_cast<BinaryFunction>(storage.Code());
+    const CodeSegment segment = storage.Finalize();
+    auto add = reinterpret_cast<BinaryFunction>(segment.Code());
     ASSERT_EQ(add(40, 2), 42);
 #endif
 }
 
-TEST(ExecStorage, PatchRewritesExecutedCode)
+TEST(CodeSegment, ExecutesWordsPatchedBeforePublication)
 {
 #if !defined(__aarch64__)
     GTEST_SKIP() << "Running emitted code requires an aarch64 host";
 #else
-    ExecStorage storage { 64 };
+    CodeStorage storage;
     storage.Write(Asm::Encode::Add(X0, X0, X1));
     storage.Write(Asm::Encode::Ret(X30));
-    storage.Flush();
-
-    auto apply = reinterpret_cast<BinaryFunction>(storage.Code());
-    ASSERT_EQ(apply(40, 2), 42);
-
     storage.Patch(0, Asm::Encode::Sub(X0, X0, X1));
-    storage.Flush();
-    ASSERT_EQ(apply(40, 2), 38);
+
+    const CodeSegment segment = storage.Finalize();
+    auto sub = reinterpret_cast<BinaryFunction>(segment.Code());
+    ASSERT_EQ(sub(40, 2), 38);
+#endif
+}
+
+TEST(CodeSegment, OutlivesTheSegmentItWasMovedFrom)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    CodeStorage storage;
+    storage.Write(Asm::Encode::Add(X0, X0, X1));
+    storage.Write(Asm::Encode::Ret(X30));
+
+    CodeSegment published = storage.Finalize();
+    CodeSegment moved;
+    {
+        CodeSegment source = std::move(published);
+        moved = std::move(source);
+    } // the intermediate owner releases nothing: the mapping followed the moves
+
+    auto add = reinterpret_cast<BinaryFunction>(moved.Code());
+    ASSERT_EQ(add(40, 2), 42);
+#endif
+}
+
+TEST(CodeSegment, PublishedCodeIsNotWritable)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    CodeStorage storage;
+    storage.Write(Asm::Encode::Ret(X30));
+
+    const CodeSegment segment = storage.Finalize();
+    ASSERT_DEATH(*static_cast<volatile uint32_t*>(segment.Code()) = 0, ".*");
 #endif
 }
