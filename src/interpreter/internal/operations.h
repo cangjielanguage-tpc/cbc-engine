@@ -585,7 +585,7 @@ inline ArithmeticResult ArithFP<Width::W16>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FDIV: return { Value::Primitive { .f16 = l.f16 / r.f16 }, true };
         case FloatOperations::FPOW:
             return { Value::Primitive { .f16 = static_cast<Utils::Float16>(
-                                            std::pow(static_cast<double>(l.f16), static_cast<double>(r.f16))
+                                            std::pow(static_cast<float>(l.f16), static_cast<float>(r.f16))
                                         ) },
                      true };
         default: FATAL("Unexpected FP op: %d", op);
@@ -623,7 +623,7 @@ template <> inline ArithmeticResult ArithFP<Width::W16>(FloatOperations::Value o
 {
     switch (op) {
         case FloatOperations::FSQRT:
-            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::sqrt(static_cast<double>(s.f16))) },
+            return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::sqrt(static_cast<float>(s.f16))) },
                      true };
         // when Clang widens half expressions to float, conversions can quiet signaling NaNs even with x86 F16C
         // abs(0xfd55) can yield 0x7f55 instead of 0x7d55; neg(0x7d55) can yield 0xff55 instead of 0xfd55
@@ -657,7 +657,7 @@ template <> inline ArithmeticResult ArithFPMath<Width::W64>(FloatMathOp::Value o
 
 template <> inline ArithmeticResult ArithFPMath<Width::W16>(FloatMathOp::Value op, Value::Primitive s)
 {
-    const double value = static_cast<double>(s.f16);
+    const float value = static_cast<float>(s.f16);
     switch (op) {
         case FloatMathOp::SIN:
             return { Value::Primitive { .f16 = static_cast<Utils::Float16>(std::sin(value)) }, true };

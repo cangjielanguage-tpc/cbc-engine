@@ -140,7 +140,7 @@ inline Value::Primitive CastFromF32(ConvertType toType, float value)
 inline Value::Primitive CastFromF64(ConvertType toType, double value)
 {
     switch (toType) {
-        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
+        case ConvertType::F16: return MakeFpPrim(Utils::F64toF16(value));
         case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
         default:               return CastFloatingToIntegral(toType, value);
     }

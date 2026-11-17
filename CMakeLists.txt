@@ -12,29 +12,20 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 
 set(CMAKE_CXX_STANDARD 17)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND DEFINED ENV{CANGJIE_HOME})
-  find_library(CBC_CLANG_RT_BUILTINS
-    NAMES clang_rt-builtins
-    PATHS "$ENV{CANGJIE_HOME}/lib/linux_${CMAKE_SYSTEM_PROCESSOR}_cjnative"
-    NO_DEFAULT_PATH
-  )
-endif()
-
-if(CBC_CLANG_RT_BUILTINS)
-  message(STATUS "Using Cangjie compiler builtins: ${CBC_CLANG_RT_BUILTINS}")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|x64)$")
+  string(APPEND CMAKE_CXX_FLAGS " -mf16c")
 endif()
 
 include(CheckCXXSourceCompiles)
 include(CMakePushCheckState)
 cmake_push_check_state()
-if(CBC_CLANG_RT_BUILTINS)
-  list(APPEND CMAKE_REQUIRED_LIBRARIES "${CBC_CLANG_RT_BUILTINS}")
-endif()
+list(APPEND CMAKE_REQUIRED_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src")
 check_cxx_source_compiles("
+    #include \"utils/float16.h\"
     static_assert(sizeof(_Float16) == 2);
     int main(int argc, char**) {
         volatile double source = argc;
-        volatile _Float16 half = static_cast<_Float16>(source);
+        volatile _Float16 half = Utils::F64toF16(source);
         volatile _Float16 sum = static_cast<_Float16>(half + half);
         volatile float single = static_cast<float>(sum);
         volatile double wide = static_cast<double>(sum);
@@ -271,10 +262,6 @@ add_subdirectory(src/arch_os/)
 set(LIB_SOURCES ${COMMON_LIB_SOURCES})
 
 add_library(cbc_lib OBJECT ${LIB_SOURCES})
-
-if(CBC_CLANG_RT_BUILTINS)
-  target_link_libraries(cbc_lib PUBLIC "${CBC_CLANG_RT_BUILTINS}")
-endif()
 
 set_target_properties(cbc_lib PROPERTIES
   CXX_VISIBILITY_PRESET hidden
