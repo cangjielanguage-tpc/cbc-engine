@@ -784,6 +784,21 @@ public:
         MemoryLocation(obj.value, offset).Lea(dst, ectype);
     }
 
+    // TypeInfo queries: the operand holds a raw DYN_TypeInfo pointer (not a
+    // GC reference), read as a primitive. Results are zero-extended to u64.
+
+    inline void TypeSize(IReg dst, IReg ti)
+    {
+        auto type = RTSupport::TypeInfo(ectype->GetPrimitive(ti).u64);
+        ectype->Put(dst, Value::Primitive { .u64 = RTSupport::MetaInfo::GetTypeSize(type) });
+    }
+
+    inline void TypeAlign(IReg dst, IReg ti)
+    {
+        auto type = RTSupport::TypeInfo(ectype->GetPrimitive(ti).u64);
+        ectype->Put(dst, Value::Primitive { .u64 = RTSupport::MetaInfo::GetAlign(type) });
+    }
+
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 
