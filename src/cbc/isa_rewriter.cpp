@@ -219,11 +219,29 @@ struct RewriterMoveEmitter : public MoveEmitter {
     static constexpr IReg SCRATCH_FOR_PBV = IReg::IR_ACC;
 };
 
+/// Substitutes class and function type variables with a predefined stub term,
+/// turning a generic term into a concrete one. Used to query layout of terms
+/// whose size/align does not depend on the actual type arguments.
+struct TypeVarStubSubstitution : public Engine::Substitution {
+    TypeVarStubSubstitution(Engine::Session& session)
+        : Substitution(session),
+          stub(Engine::Term::Predefined(Engine::TermKind::I64))
+    {}
+
+    Engine::Term SubstituteClassTv(uint8_t /*typeVar*/) override { return stub; }
+
+    Engine::Term SubstituteFuncTv(uint8_t /*typeVar*/) override { return stub; }
+
+private:
+    Engine::Term stub;
+};
+
 struct IsaRewriter : public IsaParser {
     IsaRewriter(
         Resolver& resolver,
         Engine::Session& session,
         Image::Identifier<Image::MethodDefinition> method,
+        Image::MethodDefinition methodDef,
         MethodCode& code,
         FrameLayout& frameLayout,
         Emitter::Emitter& emit
@@ -236,6 +254,7 @@ struct IsaRewriter : public IsaParser {
           code(code),
           emit(emit),
           frameLayout(frameLayout),
+          methodDef(std::move(methodDef)),
           bytecodeSize(reader.End() - reader.Start()),
           startPosition(0)
     {}
@@ -247,6 +266,7 @@ struct IsaRewriter : public IsaParser {
     MethodCode& code;
     Emitter::Emitter& emit;
     FrameLayout& frameLayout;
+    Image::MethodDefinition methodDef;
     size_t bytecodeSize;
     uint32_t maxParamPassingSize = 0;
     Utils::Vector<uint32_t> pendingParamRefSlots;
@@ -1170,6 +1190,10 @@ struct IsaRewriter : public IsaParser {
         emit.StoreRec(stk, src, base, offset);
     }
 
+    void TypeSize(IReg dst, uint32_t idx) override { FoldGenericParamSizeOrAlign(dst, idx, false); }
+
+    void TypeAlign(IReg dst, uint32_t idx) override { FoldGenericParamSizeOrAlign(dst, idx, true); }
+
     void LoadStatic(AnyReg r, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
@@ -1265,6 +1289,154 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         emit.MovImm(Format::Width::W64, dst, ti->UInt());
+    }
+
+    void Size(IReg dst, uint32_t typeId) override { FoldSizeOrAlign(dst, typeId, false); }
+
+    void Align(IReg dst, uint32_t typeId) override { FoldSizeOrAlign(dst, typeId, true); }
+
+    void FoldSizeOrAlign(IReg dst, uint32_t typeId, bool align)
+    {
+        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), [&]() {
+            errStream << "Failed to resolve type " << typeId << Stream::endl;
+            Fail();
+        });
+        if (!type.term.IsGeneric() || IsSizeAlignFixed(type.term)) {
+            auto queryTerm = type.term;
+            if (queryTerm.IsGeneric()) {
+                queryTerm = TypeVarStubSubstitution(session).Substitute(queryTerm);
+            }
+            UNWRAP_OPT(typeInfo, resolver.Wrap(queryTerm).GetTypeInfo(), [&]() {
+                errStream << "Failed to get type info of " << type << Stream::endl;
+                Fail();
+            });
+            auto value = align ? static_cast<uint64_t>(RTSupport::MetaInfo::GetAlign(typeInfo))
+                               : static_cast<uint64_t>(RTSupport::MetaInfo::GetTypeSize(typeInfo));
+            emit.MovImm(Format::Width::W64, dst, value);
+            return;
+        }
+        // Bind the holes at runtime the same way `load.type.info.g` does
+        // (hole i is read from IR1+i), then query the layout via the RT op.
+        auto globalTerm  = resolver.termManager.Globalize(type.term);
+        const char* op   = align ? "align" : "size";
+        if (globalTerm.GetLength() > MAX_LOAD_GENERIC_SUBTERMS) {
+            Stream::StringBuffer buf;
+            Stream::ResolvingOutput out(session, buf);
+            out << "Failed to rewrite " << op << " of " << globalTerm << ": runtime hole binding supports at most "
+                << MAX_LOAD_GENERIC_SUBTERMS << " subterms, but the term has " << globalTerm.GetLength();
+            Fail(buf.ToString());
+            return;
+        }
+        if (HasFuncTypeVar(globalTerm)) {
+            Stream::StringBuffer buf;
+            Stream::ResolvingOutput out(session, buf);
+            out << "Failed to rewrite " << op << " of " << globalTerm
+                << ": function type variables cannot be substituted at runtime";
+            Fail(buf.ToString());
+            return;
+        }
+        emit.LoadGenericTypeInfo(Bits::Raw64(globalTerm));
+        if (align) {
+            emit.TypeAlign(dst, IReg::IR1);
+        } else {
+            emit.TypeSize(dst, IReg::IR1);
+        }
+    }
+
+    void FoldGenericParamSizeOrAlign(IReg dst, uint32_t idx, bool align)
+    {
+        UNWRAP_OPT(loc, GenericFuncParamLocation(idx), [&]() {
+            errStream << "Failed to locate generic param " << idx << Stream::endl;
+            Fail();
+        });
+        if (loc.Kind() == Location::IREG) {
+            if (align) {
+                emit.TypeAlign(dst, IReg::From(loc.IRegIdx()));
+            } else {
+                emit.TypeSize(dst, IReg::From(loc.IRegIdx()));
+            }
+            return;
+        }
+        // Spilled incoming argument: it sits in the caller stack area addressed
+        // by the tail register; reload it and query.
+        emit.LoadRec(LDK::LD_64, dst, IReg::TAIL_REG, loc.SlotIdx() * Cbc::STACK_SLOT_SIZE);
+        if (align) {
+            emit.TypeAlign(dst, dst);
+        } else {
+            emit.TypeSize(dst, dst);
+        }
+    }
+
+    /// Location of the method's `idx`-th incoming GenericFuncParams TypeInfo.
+    /// Follows the managed-call ABI: sret, receiver, signature params, then the
+    /// type-info arguments (generic params, outer ti, this ti) in call order.
+    std::optional<Location> GenericFuncParamLocation(uint32_t idx)
+    {
+        if (idx >= methodDef->arity) {
+            return std::nullopt;
+        }
+        auto sigTerm = SignatureTerm();
+        auto flags   = methodDef.GetABIFlags();
+        AbiAssigner abi;
+        if (flags.Is(Image::MethodRefFlag::SRET)) {
+            abi.ConsumeSret();
+        }
+        switch (methodDef->abiKind) {
+            case Image::MethodAbiKind::MUT: {
+                abi.Consume(CbcTypeKind::REC);
+                abi.Consume(CbcTypeKind::REF);
+                break;
+            }
+            case Image::MethodAbiKind::REF_RECEIVER:   abi.Consume(CbcTypeKind::REF); break;
+            case Image::MethodAbiKind::REC_RECEIVER:   abi.Consume(CbcTypeKind::REC); break;
+            case Image::MethodAbiKind::PRIM_RECEIVER:  abi.Consume(CbcTypeKind::I64); break;
+            case Image::MethodAbiKind::FPRIM_RECEIVER: abi.Consume(CbcTypeKind::F64); break;
+            case Image::MethodAbiKind::STATIC:
+            case Image::MethodAbiKind::HAS_THIS_TI:    break;
+        }
+        ArgTypeTraits<Engine::Term> sigParamKind;
+        for (uint32_t i = 0; i < sigTerm.GetLength() - 1; i++) {
+            abi.Consume(sigParamKind.Kind(sigTerm.Subterm(i)));
+        }
+        Location loc;
+        for (uint32_t i = 0; i <= idx; i++) {
+            loc = abi.Consume(CbcTypeKind::I64);
+        }
+        return loc;
+    }
+
+    /// Signature term of the rewritten method, resolved on first use: shared by
+    /// all `size.g`/`align.g` sites and the outgoing AbiInfo in `Rewrite()`.
+    Engine::Term SignatureTerm()
+    {
+        if (!signatureTerm.has_value()) {
+            signatureTerm = Engine::TermManager::Resolve(session, methodDef.Signature());
+        }
+        return *signatureTerm;
+    }
+
+    std::optional<Engine::Term> signatureTerm;
+
+    static bool HasFuncTypeVar(Engine::Term term)
+    {
+        if (term.GetKind() == Engine::TermKind::FUNC_TYPE_VAR) {
+            return true;
+        }
+        for (uint32_t i = 0; i < term.GetLength(); i++) {
+            if (HasFuncTypeVar(term.Subterm(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static bool IsSizeAlignFixed(Engine::Term term)
+    {
+        switch (term.GetKind()) {
+            case Engine::TermKind::C_POINTER:
+            case Engine::TermKind::FUNCTIONAL: return true;
+            default: return false;
+        }
     }
 
     void Offset(IReg dst, IReg ti, uint32_t fieldId, bool accumulate) override
@@ -2487,7 +2659,8 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
         FATAL("Rewriter failed: cannot make frame layout.");
     }
 
-    auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
+    auto def      = Decode::Read(session, method);
+    auto rewriter = IsaRewriter(resolver, session, method, std::move(def), code, *frameLayout, emitter);
     rewriter.ParseAll();
 
     auto fullFrameSize =
@@ -2503,17 +2676,16 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
         return std::nullopt;
     }
 
-    auto def     = Decode::Read(session, method);
-    auto flags   = def.GetABIFlags();
+    auto flags   = rewriter.methodDef.GetABIFlags();
     auto abiInfo = Interpretation::BuildAbiInfo(
         session,
-        Engine::TermManager::Resolve(session, def.Signature()),
+        rewriter.SignatureTerm(),
         {
             .isSRet     = flags.Is(Image::MethodRefFlag::SRET),
-            .isMut      = def->abiKind == Image::MethodAbiKind::MUT,
+            .isMut      = rewriter.methodDef->abiKind == Image::MethodAbiKind::MUT,
             .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
-            .abiKind    = def->abiKind,
-            .funcVars   = def->arity,
+            .abiKind    = rewriter.methodDef->abiKind,
+            .funcVars   = rewriter.methodDef->arity,
         }
     );
 

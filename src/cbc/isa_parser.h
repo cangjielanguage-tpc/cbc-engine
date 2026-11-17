@@ -67,6 +67,13 @@ protected:
     virtual void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk)    = 0;
     virtual void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk)  = 0;
 
+    // `idx` is the index of the method's GenericFuncParams TypeInfo.
+    virtual void TypeSize(IReg dst, uint32_t idx)  = 0;
+    virtual void TypeAlign(IReg dst, uint32_t idx) = 0;
+
+    virtual void Size(IReg dst, uint32_t typeId)  = 0;
+    virtual void Align(IReg dst, uint32_t typeId) = 0;
+
     virtual void LoadStackRec(IReg r, uint16_t ts)              = 0;
     virtual void LoadStatic(AnyReg r, uint32_t field)           = 0;
     virtual void StoreStatic(AnyReg r, uint32_t field)          = 0;

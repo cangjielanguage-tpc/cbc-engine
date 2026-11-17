@@ -173,14 +173,16 @@
     X(CopyFromTypeSlotGeneric, CopyFromTypeSlotGeneric)                                                                \
     X(FPowi32, FPowi32)                                                                                                \
     X(FPowi64, FPowi64)                                                                                                \
+    X(TypeSize, TypeSize)                                                                                              \
+    X(TypeAlign, TypeAlign)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
     X(LoadTypeInfoGeneric)                                                                                             \
     X(NewObj)                                                                                                          \
-    X(Unused0)                                                                                                         \
-    X(Unused1)                                                                                                         \
+    X(Size)                                                                                                            \
+    X(Align)                                                                                                           \
     X(Unused2)                                                                                                         \
     X(Spawn)                                                                                                           \
     X(SpawnFuture)                                                                                                     \

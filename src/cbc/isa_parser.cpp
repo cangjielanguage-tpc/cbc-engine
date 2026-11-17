@@ -703,6 +703,22 @@ struct IsaParserImpl {
         parser.StoreRawMemory(src, base, MergeLowHi(low4, hibits), stk);
     }
 
+    static void TypeSize(IsaParser& parser)
+    {
+        // Payload is `dst:4 | 0:4 | uleb(idx)`; the padding nibble must stay zero.
+        auto [dst, pad, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
+        ASSERT(static_cast<uint32_t>(pad) == 0);
+        parser.TypeSize(dst, idx);
+    }
+
+    static void TypeAlign(IsaParser& parser)
+    {
+        // Payload is `dst:4 | 0:4 | uleb(idx)`; the padding nibble must stay zero.
+        auto [dst, pad, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
+        ASSERT(static_cast<uint32_t>(pad) == 0);
+        parser.TypeAlign(dst, idx);
+    }
+
     static void LoadStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadULEB().Get();
@@ -848,6 +864,9 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::NewClosureGeneric:   parser.NewClosureGeneric(reg, id); break;
             case Cbc::RegSymGroup::NewObjGeneric:       parser.NewObjGeneric(reg, id); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(reg, id); break;
+
+            case Cbc::RegSymGroup::Size:  parser.Size(reg, id); break;
+            case Cbc::RegSymGroup::Align: parser.Align(reg, id); break;
 
             default: {
                 FATAL("Should not reach here");
