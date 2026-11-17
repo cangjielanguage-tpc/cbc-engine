@@ -1,5 +1,6 @@
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "rt_syms.h"
 
 #include <type_traits>
 
@@ -24,7 +25,10 @@ static_assert(alignof(SpawnFutureResult) == alignof(void*));
 
 extern "C" __attribute__((visibility("hidden"))) SpawnFutureResult engine_spawn_future(DYN_ObjRef future)
 {
-    auto handle = g_CJNativeInterfaceInstance.newCJThread(Asm::engine_future_execute_function, future, nullptr);
+    auto futureExecute = RTSupport::ResolveFutureExecute();
+    RTSupport::ResolveThreadHandleSetter();
+
+    auto handle = g_CJNativeInterfaceInstance.newCJThread(futureExecute, future, nullptr);
 
     auto* futureObject = static_cast<FutureObject*>(future);
     auto thread        = g_CJNativeInterfaceInstance.readInstanceField(future, &futureObject->thread);

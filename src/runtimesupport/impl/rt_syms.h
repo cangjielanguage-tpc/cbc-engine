@@ -7,6 +7,9 @@ namespace RTSupport {
 
 bool Initialize(DYN_CJNativeInterface* interf);
 
+void* ResolveFutureExecute();
+void* ResolveThreadHandleSetter();
+
 extern DYN_WriteStructFieldFn WriteStructField;
 extern DYN_ReadStructFieldFn ReadStructField;
 
