@@ -6,6 +6,7 @@
 #include "cbc/isa.h"
 #include "engine/terms.h"
 #include "move_resolver.h"
+#include "utils/float16.h"
 #include "utils/span.h"
 #include "utils/vector.h"
 
@@ -44,6 +45,7 @@ protected:
     virtual void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value)    = 0;
     virtual void SBinary(Format::Saturating op, Format::Width width, IReg d, IReg l, IReg r)            = 0;
     virtual void SBinaryImm(Format::Saturating op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
+    virtual void FMovImm(FReg d, Utils::Float16 value)                                                  = 0;
     virtual void FMovImm(Format::Width width, FReg d, double value)                                     = 0;
     virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)       = 0;
     virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)                = 0;
@@ -189,6 +191,8 @@ protected:
     virtual void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)              = 0;
 
     virtual void ZeroVal(AnyReg dst, IReg ti) = 0;
+
+    virtual void FMathUnary16(Format::FloatMathOp op, FReg dst, FReg src) = 0;
 
     virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) = 0;
     virtual void FMathUnary64(Format::FloatMathOp op, FReg dst, FReg src) = 0;

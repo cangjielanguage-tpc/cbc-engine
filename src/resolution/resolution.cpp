@@ -73,7 +73,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::IADDR:          return CbcTypeKind::I64;
         case TK::UADDR:          return CbcTypeKind::U64;
         case TK::BSTRING:        return CbcTypeKind::U64;
-        case TK::F16:            return CbcTypeKind::U16;
+        case TK::F16:            return CbcTypeKind::F16;
         case TK::F32:            return CbcTypeKind::F32;
         case TK::F64:            return CbcTypeKind::F64;
         case TK::VARARGLABEL:

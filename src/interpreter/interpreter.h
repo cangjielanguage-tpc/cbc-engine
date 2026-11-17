@@ -471,6 +471,8 @@ public:
 
     inline void MovI(IReg d, uint64_t imm) { ectype->Put(d, Value::Primitive { .u64 = imm }); }
 
+    inline void MovI(FReg d, Utils::Float16 imm) { ectype->Put(d, Value::Primitive { .f16 = imm }); }
+
     inline void MovI(FReg d, float imm) { ectype->Put(d, Value::Primitive { .f32 = imm }); }
 
     inline void MovI(FReg d, double imm) { ectype->Put(d, Value::Primitive { .f64 = imm }); }
@@ -527,15 +529,20 @@ public:
     }
 
     template <RT::ImmKind::Value immKind, Width::Value width>
+    inline int64_t Bcc(CC cc, FReg l, FReg r, uint16_t offsetValue)
+    {
+        return Cmp<width>(cc, l, r) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
+    }
+
+    template <RT::ImmKind::Value immKind, Width::Value width>
     inline int64_t Bcc(CC cc, Reg l, Reg r, uint16_t offsetValue)
     {
         if (cc.IsFloatingPoint()) {
-            return Cmp<width>(cc, l.FR(), r.FR()) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
-        } else {
-            return Cmp<width>(cc, l.IR(), r.IR())
-                       ? static_cast<int64_t>(DecodeImmediate<immKind>(literals, offsetValue))
-                       : 0;
+            return Bcc<immKind, width>(cc, l.FR(), r.FR(), offsetValue);
         }
+        return Cmp<width>(cc, l.IR(), r.IR())
+                   ? static_cast<int64_t>(DecodeImmediate<immKind>(literals, offsetValue))
+                   : 0;
     }
 
     template <RT::ImmKind::Value immValueKind, RT::ImmKind::Value immOffsetKind, Width::Value width>
