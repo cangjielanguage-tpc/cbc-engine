@@ -142,6 +142,39 @@ public func checkedPow(base: Int64, exp: UInt64): ?Int64 {
     }
 }
 
+// Scalar implementations of the 32-byte block string helpers used by std.core.
+// The offsets are plain byte indices into the array: std.core calls these on a
+// RawArray<Byte>, which resolves to the same Cangjie array representation, so
+// elem 0 of the helper's Array<UInt8> is byte 0 of the caller's buffer.
+
+/// Compares 32 bytes at (arr1, offset1) with 32 bytes at (arr2, offset2);
+/// the result is the index of the first differing byte (0..31), or 32 when
+/// all compared bytes are equal.
+public func vectorCompare32(arr1: Array<UInt8>, offset1: Int64, arr2: Array<UInt8>, offset2: Int64): Int64 {
+    var i: Int64 = 0
+    while (i < 32) {
+        if (arr1[offset1 + i] != arr2[offset2 + i]) {
+            return i
+        }
+        i += 1
+    }
+    return 32
+}
+
+/// Scans 32 bytes at (arr, offset) for the byte value `target`;
+/// the result is the index of the first equal byte (0..31), or 32 when
+/// none of the scanned bytes matches.
+public func vectorIndexByte32(arr: Array<UInt8>, offset: Int64, target: UInt8): Int64 {
+    var i: Int64 = 0
+    while (i < 32) {
+        if (arr[offset + i] == target) {
+            return i
+        }
+        i += 1
+    }
+    return 32
+}
+
 public func throwImplicitException(tpe: Int64): Int64 {
     match (tpe) {
         case 1 => throw NoneValueException()
