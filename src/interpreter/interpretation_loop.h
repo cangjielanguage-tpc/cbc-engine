@@ -41,8 +41,12 @@ extern RTSupport::TypeInfo builtinTypeInfos[BUILTIN_COUNT];
 void InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype);
 void InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ectype);
 
+// `frameBot` addresses the outgoing stack-argument area of the interpreted
+// method: stack-param stores are relative to it and callees receive it in the
+// tail register.
 Thunk InterpretationLoop(
-    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0,
+    uintptr_t frameBot
 );
 
 } // namespace Interpretation

@@ -31,7 +31,9 @@ using namespace RTSupport;
 static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type);
 static Interpretation::Frame zeroFrame { 0 };
 
-static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFunctionHandle* fuh);
+static void InterpreterI2CallTest(
+    Ectype* ectype, ThreadHandle handle, DynamicFunctionHandle* fuh, uintptr_t callerFrameBot
+);
 
 static TestTypeInfo* Extract(TypeInfo type)
 {
@@ -52,14 +54,20 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
 
 static Type g_lastImplicitThrow = Type::Successful;
 
+// Emulates the outgoing stack-argument area of an interpreted method: sized
+// like the mock frame buffer, since the outgoing arguments of any rewritten
+// method fit into its full frame size.
+constexpr auto STACK_ARG_SLOT_COUNT = 100;
+
 static void DoInterpretationLoop(
-    Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
+    Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader,
+    uintptr_t frameBot
 )
 {
     Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Started interpration of mock method");
     Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
     while (true) {
-        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader);
+        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader, frameBot);
         if (thunk.op == ThunkOp::None) {
             break;
         }
@@ -67,7 +75,7 @@ static void DoInterpretationLoop(
             case ThunkOp::NewObject:
             case ThunkOp::NewObjectAcc: MockNewObj(ectype, th, TypeInfo(thunk.arg)); break;
             case ThunkOp::I2ICall:
-                InterpreterI2CallTest(ectype, th, reinterpret_cast<DynamicFunctionHandle*>(thunk.arg));
+                InterpreterI2CallTest(ectype, th, reinterpret_cast<DynamicFunctionHandle*>(thunk.arg), frameBot);
                 break;
             case ThunkOp::ThrowImplicit:
                 g_lastImplicitThrow = static_cast<Type>(reinterpret_cast<uintptr_t>(thunk.arg));
@@ -77,6 +85,14 @@ static void DoInterpretationLoop(
     }
     Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Stopped interpration of mock method");
     Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
+}
+
+static void DoInterpretationLoop(
+    Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
+)
+{
+    uint64_t stackArgs[STACK_ARG_SLOT_COUNT] = {};
+    DoInterpretationLoop(ectype, frame, th, literals, reader, reinterpret_cast<uintptr_t>(stackArgs));
 }
 
 Type LastImplicitThrow() { return g_lastImplicitThrow; }
@@ -126,7 +142,9 @@ Value::Primitive Interpret(
     return ectype.GetPrimitive(resReg);
 }
 
-static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFunctionHandle* fuh)
+static void InterpreterI2CallTest(
+    Ectype* ectype, ThreadHandle handle, DynamicFunctionHandle* fuh, uintptr_t callerFrameBot
+)
 {
     auto bytecode = fuh->bytecode.load();
     if (!bytecode) {
@@ -154,6 +172,10 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFu
     }
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    // The callee receives the caller's outgoing stack-argument area in its
+    // tail register (see the engine trampolines). The tail register is
+    // volatile, so the caller never relies on its previous value.
+    ectype->Put(IReg::TAIL_REG, Value::Primitive { .u64 = callerFrameBot });
     InterpretationStart(fuh, ectype);
     DoInterpretationLoop(ectype, frame, handle, code.literals, s);
     InterpretationEnd(fuh, ectype);
