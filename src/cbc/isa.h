@@ -6,6 +6,7 @@
 #include "cbc/decoder.h"
 #include "isa_opcodes.h"
 #include "utils/assertion.h"
+#include "utils/float16.h"
 #include "utils/ostream.h"
 
 namespace Cbc {
@@ -26,9 +27,13 @@ enum class CbcTypeKind {
     REC,
     F32,
     F64,
+    F16,
 };
 
-inline bool IsFloat(CbcTypeKind kind) { return kind == CbcTypeKind::F32 || kind == CbcTypeKind::F64; }
+inline bool IsFloat(CbcTypeKind kind)
+{
+    return kind == CbcTypeKind::F16 || kind == CbcTypeKind::F32 || kind == CbcTypeKind::F64;
+}
 
 class Opcode {
 public:
@@ -738,12 +743,13 @@ public:
     X(ST_REF, 0b0100, "ref")                                                                                           \
     X(SPECIAL, 0b0101, "special")                                                                                      \
     X(ST_F32, 0b0110, "f32")                                                                                           \
-    X(ST_F64, 0b0111, "f64")
+    X(ST_F64, 0b0111, "f64")                                                                                           \
+    X(ST_F16, 0b1000, "f16")
 
 #define StoreAccessKindEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        StoreAccessKindValue(StoreAccessKindEnum) LAST = ST_F64
+        StoreAccessKindValue(StoreAccessKindEnum) LAST = ST_F16
     };
 
 #undef StoreAccessKindEnum
@@ -758,7 +764,7 @@ public:
 
     constexpr operator Value() const { return _value; }
 
-    constexpr bool IsFloat() const { return _value == ST_F32 || _value == ST_F64; }
+    constexpr bool IsFloat() const { return _value == ST_F16 || _value == ST_F32 || _value == ST_F64; }
 
     constexpr const char* CStr() const
     {
@@ -788,8 +794,8 @@ public:
     X(LD_S16, 0b0101, "s16")                                                                                           \
     X(LD_F32, 0b0110, "f32")                                                                                           \
     X(LD_F64, 0b0111, "f64")                                                                                           \
-    X(LD_U8TO64, 0b1000, "u8to64")   /* unused in interpreter */                                                       \
-    X(LD_U16TO64, 0b1001, "u16to64") /* unused in interpreter */                                                       \
+    X(LD_U8TO64, 0b1000, "u8to64") /* unused in interpreter */                                                         \
+    X(LD_F16, 0b1001, "f16")                                                                                           \
     X(LD_U32TO64, 0b1010, "u32to64") /* unused in interpreter */                                                       \
     X(LD_64, 0b1011, "64")                                                                                             \
     X(LD_S8TO64, 0b1100, "s8to64")   /* unused in interpreter */                                                       \
@@ -815,7 +821,7 @@ public:
 
     constexpr operator Value() const { return _value; }
 
-    constexpr bool IsFloat() const { return _value == LD_F32 || _value == LD_F64; }
+    constexpr bool IsFloat() const { return _value == LD_F16 || _value == LD_F32 || _value == LD_F64; }
 
     constexpr const char* CStr() const
     {
@@ -976,8 +982,9 @@ struct XX {
 };
 
 /// 16 bit; immediate or literal
-struct Imm16 {
+union Imm16 {
     uint16_t imm;
+    Utils::Float16 fimm;
 
     inline static Imm16 Decode(Decoder::ByteReader& reader) { return Imm16 { reader.Read16() }; }
 

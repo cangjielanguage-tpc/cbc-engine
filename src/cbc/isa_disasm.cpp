@@ -80,6 +80,11 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("mov.{} {}, {}", width, d, value);
     }
 
+    void FMovImm(FReg d, Utils::Float16 value) override
+    {
+        stream.PrintLn("fmovi.16 {} bits={}", d, Utils::Float16Bits(value));
+    }
+
     virtual void FMovImm(Format::Width width, FReg d, double value) override
     {
         stream.PrintLn("fmov.{} {}, {}", width, d, value);
@@ -561,6 +566,11 @@ struct IsaDisasm : public IsaParser {
     }
 
     virtual void ZeroVal(AnyReg dst, IReg ti) override { stream.PrintLn("zeroval R{}, {}", dst, ti); }
+
+    virtual void FMathUnary16(Format::FloatMathOp op, FReg dst, FReg src) override
+    {
+        stream.PrintLn("{}.16 {}, {}", op, dst, src);
+    }
 
     virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) override
     {
