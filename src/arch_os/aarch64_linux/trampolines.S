@@ -540,7 +540,7 @@ CFI_LABEL .Lrestart_interpretation
   // If usual return is needed, interpretation_loop returns op == None (0).
   ubfx  x10, x0, 0, 8
   mov   x0, x1
-.Linterpreter_call:
+CFI_LABEL .Linterpreter_call
   adr   x11, .Lthunk_ops_table
   ldrsw x10, [x11, x10, lsl #2]
   add   x11, x11, x10
@@ -594,7 +594,7 @@ CFI_LABEL engine_after_stack_grow
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-.Lthunk_op_I2ICall:
+CFI_LABEL .Lthunk_op_I2ICall
   // stack parameters are starting right at the top of the interpreted frame
   mov   x1, sp
   str   x1, [ECTYPE_REG, #TAIL_REG_OFFS]
@@ -624,7 +624,7 @@ CFI_LABEL engine_after_stack_grow
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-.Lthunk_op_I2CCall:
+CFI_LABEL .Lthunk_op_I2CCall
   engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 .balign 16
@@ -633,8 +633,8 @@ CFI_LABEL engine_after_stack_grow
 // TLS_REG can be changed after context-switch
 // Calls the runtime I2N stub which wraps the native call into a GC-safe region.
 // Supports at most 6 integer and 8 FP register arguments (checked in the rewriter).
-.Lthunk_op_I2NCall:
-.Lengine_i2n_call:
+CFI_LABEL .Lthunk_op_I2NCall
+CFI_LABEL .Lengine_i2n_call
   lsr   x2, x0, #I2N_STACK_ARGS_SIZE_SHIFT  // stack arguments count
   ubfx  x3, x0, #0, #I2N_VEC_COUNT_SHIFT    // target C function
   mov   x0, ECTYPE_REG                      // ectype
@@ -662,7 +662,7 @@ CFI_LABEL get_tls
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: mask)
 // preserved: ECTYPE_REG, rbp
-.Lthunk_op_LoadGeneric:
+CFI_LABEL .Lthunk_op_LoadGeneric
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -704,7 +704,7 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-.Lthunk_op_NewObject:
+CFI_LABEL .Lthunk_op_NewObject
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -719,7 +719,7 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-.Lthunk_op_NewObjectPinned:
+CFI_LABEL .Lthunk_op_NewObjectPinned
   // jumped from .Linterpreter_call without return address to return
   mov   x1, 0
   adrp  x10, Page(engine_newobject_pinned_function)
@@ -735,7 +735,7 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-.Lthunk_op_NewObjectAcc:
+CFI_LABEL .Lthunk_op_NewObjectAcc
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -750,7 +750,7 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-.Lthunk_op_NewArray:
+CFI_LABEL .Lthunk_op_NewArray
   // jumped from .Linterpreter_call without return address to return
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
   adrp  x10, Page(engine_newarray_function)
@@ -763,7 +763,7 @@ CFI_LABEL get_tls
   b     .Lrestart_interpretation
 
 .balign 16
-.Lthunk_op_GcPoint:
+CFI_LABEL .Lthunk_op_GcPoint
   blr   x0
   restore_tls
   b     .Lrestart_interpretation
@@ -771,7 +771,7 @@ CFI_LABEL get_tls
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
-.Lthunk_op_Spawn:
+CFI_LABEL .Lthunk_op_Spawn
   ldr   x1, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
@@ -784,13 +784,13 @@ CFI_LABEL get_tls
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th)
 // preserved: ECTYPE_REG, x29
-.Lthunk_op_SpawnFuture:
+CFI_LABEL .Lthunk_op_SpawnFuture
   ldr   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   bl    engine_spawn_future
   cbnz  x1, .Lspawn_future_success
   mov   x0, IMPLICIT_EXCEPTION_SPAWN
   b     .Lengine_throw_implicit_exception
-.Lspawn_future_success:
+CFI_LABEL .Lspawn_future_success
   // Thread.setRuntimeCJThreadHandle arguments:
   // x8: sret pointer for Unit; no return storage is needed.
   // x0: this (Thread object already returned by engine_spawn_future in x0).
@@ -806,16 +806,16 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-.Lthunk_op_ThrowImplicit:
-.Lengine_throw_implicit_exception:
+CFI_LABEL .Lthunk_op_ThrowImplicit
+CFI_LABEL .Lengine_throw_implicit_exception
   // jumped from .Linterpreter_call without return address to return
   adrp  x9, Page(engine_implicit_exception_thrower)
   ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
   blr   x9
   brk   #0 // should not return, as exception is thrown inside call
 
-.Lthunk_op_None:
-.Lend_interpretation:
+CFI_LABEL .Lthunk_op_None
+CFI_LABEL .Lend_interpretation
 #ifndef NDEBUG
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   mov   x1, ECTYPE_REG
