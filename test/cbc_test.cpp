@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "cbc/isa_disasm.h"
+#include "cbc/isa_rewriter.h"
 #include "engine/engine.h"
 #include "engine/image/io/byte_array_random_access_file.h"
 #include "engine/image/reader.h"
@@ -190,6 +191,64 @@ TEST_ASM(CbcTest, DirectCall)
 {
     auto res = Interpret(OpenAndRewrite("main", "direct-call.asm")->code, U32(0), U32(10));
     ASSERT_EQ(res.u32, 28);
+}
+
+// The generic callees declare 7 int-classified signature params: the incoming
+// GenericFuncParams TypeInfo lands in a caller stack slot past the IReg head
+// area, so size.g/align.g must reload it through the tail register and query
+// it with the RT op. The TypeInfo pointer is fabricated by the harness (the
+// test environment has no type factory) and passed to main in IR1.
+TEST_ASM(CbcTest, SizeGenericParamSpilled)
+{
+    auto ti  = heap.New<TestTypeInfo>(8, 8);
+    auto res = Interpret(
+        OpenAndRewrite("main", "generic-size-align.asm")->code, U64(reinterpret_cast<uintptr_t>(ti)), U64(0)
+    );
+    ASSERT_EQ(res.u64, 8);
+}
+
+TEST_ASM(CbcTest, AlignGenericParamSpilled)
+{
+    auto ti  = heap.New<TestTypeInfo>(8, 8);
+    auto res = Interpret(
+        OpenAndRewrite("main", "generic-size-align.asm")->code, U64(reinterpret_cast<uintptr_t>(ti)), U64(0)
+    );
+    ASSERT_EQ(res.u64, 8);
+}
+
+// Open type operands the runtime hole binding cannot serve must fail the
+// rewrite (error-tolerant) instead of emitting code that is guaranteed to
+// abort at runtime: function type variables are never substituted by
+// Execution::LoadTypeInfo, and terms with more than 6 subterms exceed the
+// incoming registers the runtime reads.
+static void ExpectRewriteFailure(std::string const& name)
+{
+    Engine::Loader loader;
+    auto fileName  = "generic-size-align-guards.asm";
+    auto file      = OpenAsm(fileName);
+    bool loaded    = loader.Load(std::move(file), fileName);
+    ASSERT(loaded);
+
+    auto& engine = loader.Build();
+    BuiltEngines().push_back(&engine);
+    Engine::Session session(engine);
+    auto methodId = engine.FindMethod(session, fileName, "default", name);
+    ASSERT(methodId.has_value());
+
+    heap.Reset();
+    auto rewritten = Cbc::Rewrite(session, methodId.value(), heap);
+    ASSERT_FALSE(rewritten.has_value());
+}
+
+TEST_ASM(CbcTest, SizeOpenFuncTvFailsRewrite)
+{
+    ExpectRewriteFailure("sizeFuncTv");
+    ExpectRewriteFailure("sizeNestedFuncTv");
+}
+
+TEST_ASM(CbcTest, SizeOpenTooManySubtermsFailsRewrite)
+{
+    ExpectRewriteFailure("sizeTooManySubterms");
 }
 
 TEST_ASM(CbcTest, ArithSpecialized1)
