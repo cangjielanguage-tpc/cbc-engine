@@ -12,6 +12,7 @@ namespace Interpretation {
 
 using CastOp        = Cbc::Format::CastOp;
 using CheckedCastOp = Cbc::Format::CheckedCastOp;
+using CastType      = Cbc::Format::CastType;
 
 template <typename T> inline Value::Primitive MakeIntPrim(T value)
 {
@@ -54,51 +55,54 @@ template <typename To, typename From> inline Value::Primitive CastFpToInt(From v
 inline Value::Primitive CastPrim(CastOp op, Value::Primitive val)
 {
     switch (op) {
-        case CastOp::I32_TO_I8:  return CastInt<int8_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_U8:  return CastInt<uint8_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_I16: return CastInt<int16_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_U16: return CastInt<uint16_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_I64: return CastInt<int64_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_F32: return MakeFpPrim(static_cast<float>(static_cast<int32_t>(val.u32)));
-        case CastOp::I32_TO_F64: return MakeFpPrim(static_cast<double>(static_cast<int32_t>(val.u32)));
+        case CastOp::Make(CastType::I32, CastType::I8).Raw():  return CastInt<int8_t>(static_cast<int32_t>(val.u32));
+        case CastOp::Make(CastType::I32, CastType::U8).Raw():  return CastInt<uint8_t>(static_cast<int32_t>(val.u32));
+        case CastOp::Make(CastType::I32, CastType::I16).Raw(): return CastInt<int16_t>(static_cast<int32_t>(val.u32));
+        case CastOp::Make(CastType::I32, CastType::U16).Raw(): return CastInt<uint16_t>(static_cast<int32_t>(val.u32));
+        case CastOp::Make(CastType::I32, CastType::I64).Raw(): return CastInt<int64_t>(static_cast<int32_t>(val.u32));
+        case CastOp::Make(CastType::I32, CastType::F32).Raw():
+            return MakeFpPrim(static_cast<float>(static_cast<int32_t>(val.u32)));
+        case CastOp::Make(CastType::I32, CastType::F64).Raw():
+            return MakeFpPrim(static_cast<double>(static_cast<int32_t>(val.u32)));
 
-        case CastOp::U32_TO_I8:  return CastInt<int8_t>(val.u32);
-        case CastOp::U32_TO_U8:  return CastInt<uint8_t>(val.u32);
-        case CastOp::U32_TO_I16: return CastInt<int16_t>(val.u32);
-        case CastOp::U32_TO_U16: return CastInt<uint16_t>(val.u32);
-        case CastOp::U32_TO_I64: return CastInt<int64_t>(val.u32);
-        case CastOp::U32_TO_F32: return MakeFpPrim(static_cast<float>(val.u32));
-        case CastOp::U32_TO_F64: return MakeFpPrim(static_cast<double>(val.u32));
+        case CastOp::Make(CastType::U32, CastType::I8).Raw():  return CastInt<int8_t>(val.u32);
+        case CastOp::Make(CastType::U32, CastType::U8).Raw():  return CastInt<uint8_t>(val.u32);
+        case CastOp::Make(CastType::U32, CastType::I16).Raw(): return CastInt<int16_t>(val.u32);
+        case CastOp::Make(CastType::U32, CastType::U16).Raw(): return CastInt<uint16_t>(val.u32);
+        case CastOp::Make(CastType::U32, CastType::I64).Raw(): return CastInt<int64_t>(val.u32);
+        case CastOp::Make(CastType::U32, CastType::F32).Raw(): return MakeFpPrim(static_cast<float>(val.u32));
+        case CastOp::Make(CastType::U32, CastType::F64).Raw(): return MakeFpPrim(static_cast<double>(val.u32));
 
-        case CastOp::I64_TO_I32: return CastInt<int32_t>(static_cast<int64_t>(val.u64));
-        case CastOp::I64_TO_F32: return MakeFpPrim(static_cast<float>(static_cast<int64_t>(val.u64)));
-        case CastOp::I64_TO_F64: return MakeFpPrim(static_cast<double>(static_cast<int64_t>(val.u64)));
+        case CastOp::Make(CastType::I64, CastType::I32).Raw(): return CastInt<int32_t>(static_cast<int64_t>(val.u64));
+        case CastOp::Make(CastType::I64, CastType::F32).Raw():
+            return MakeFpPrim(static_cast<float>(static_cast<int64_t>(val.u64)));
+        case CastOp::Make(CastType::I64, CastType::F64).Raw():
+            return MakeFpPrim(static_cast<double>(static_cast<int64_t>(val.u64)));
 
-        case CastOp::U64_TO_I32: return CastInt<int32_t>(val.u64);
-        case CastOp::U64_TO_U32: return CastInt<uint32_t>(val.u64);
-        case CastOp::U64_TO_F32: return MakeFpPrim(static_cast<float>(val.u64));
-        case CastOp::U64_TO_F64: return MakeFpPrim(static_cast<double>(val.u64));
+        case CastOp::Make(CastType::U64, CastType::I32).Raw(): return CastInt<int32_t>(val.u64);
+        case CastOp::Make(CastType::U64, CastType::U32).Raw(): return CastInt<uint32_t>(val.u64);
+        case CastOp::Make(CastType::U64, CastType::F32).Raw(): return MakeFpPrim(static_cast<float>(val.u64));
+        case CastOp::Make(CastType::U64, CastType::F64).Raw(): return MakeFpPrim(static_cast<double>(val.u64));
 
-        case CastOp::F32_TO_I8:  return CastFpToInt<int8_t>(val.f32);
-        case CastOp::F32_TO_U8:  return CastFpToInt<uint8_t>(val.f32);
-        case CastOp::F32_TO_I16: return CastFpToInt<int16_t>(val.f32);
-        case CastOp::F32_TO_U16: return CastFpToInt<uint16_t>(val.f32);
-        case CastOp::F32_TO_I32: return CastFpToInt<int32_t>(val.f32);
-        case CastOp::F32_TO_U32: return CastFpToInt<uint32_t>(val.f32);
-        case CastOp::F32_TO_I64: return CastFpToInt<int64_t>(val.f32);
-        case CastOp::F32_TO_U64: return CastFpToInt<uint64_t>(val.f32);
-        case CastOp::F32_TO_F64: return MakeFpPrim(static_cast<double>(val.f32));
+        case CastOp::Make(CastType::F32, CastType::I8).Raw():  return CastFpToInt<int8_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::U8).Raw():  return CastFpToInt<uint8_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::I16).Raw(): return CastFpToInt<int16_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::U16).Raw(): return CastFpToInt<uint16_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::I32).Raw(): return CastFpToInt<int32_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::U32).Raw(): return CastFpToInt<uint32_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::I64).Raw(): return CastFpToInt<int64_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::U64).Raw(): return CastFpToInt<uint64_t>(val.f32);
+        case CastOp::Make(CastType::F32, CastType::F64).Raw(): return MakeFpPrim(static_cast<double>(val.f32));
 
-        case CastOp::F64_TO_I8:  return CastFpToInt<int8_t>(val.f64);
-        case CastOp::F64_TO_U8:  return CastFpToInt<uint8_t>(val.f64);
-        case CastOp::F64_TO_I16: return CastFpToInt<int16_t>(val.f64);
-        case CastOp::F64_TO_U16: return CastFpToInt<uint16_t>(val.f64);
-        case CastOp::F64_TO_I32: return CastFpToInt<int32_t>(val.f64);
-        case CastOp::F64_TO_U32: return CastFpToInt<uint32_t>(val.f64);
-        case CastOp::F64_TO_I64: return CastFpToInt<int64_t>(val.f64);
-        case CastOp::F64_TO_U64: return CastFpToInt<uint64_t>(val.f64);
-        case CastOp::F64_TO_F32: return MakeFpPrim(static_cast<float>(val.f64));
-        case CastOp::COUNT:      FATAL("invalid cast op: %u", op.Raw());
+        case CastOp::Make(CastType::F64, CastType::I8).Raw():  return CastFpToInt<int8_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::U8).Raw():  return CastFpToInt<uint8_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::I16).Raw(): return CastFpToInt<int16_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::U16).Raw(): return CastFpToInt<uint16_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::I32).Raw(): return CastFpToInt<int32_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::U32).Raw(): return CastFpToInt<uint32_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::I64).Raw(): return CastFpToInt<int64_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::U64).Raw(): return CastFpToInt<uint64_t>(val.f64);
+        case CastOp::Make(CastType::F64, CastType::F32).Raw(): return MakeFpPrim(static_cast<float>(val.f64));
     }
     FATAL("invalid cast op: %u", op.Raw());
 }
@@ -220,64 +224,83 @@ template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
 inline CheckedCastResult CheckedCastPrim(CheckedCastOp op, Value::Primitive val)
 {
     switch (op) {
-        case CheckedCastOp::I8_TO_U8: return CheckedCastFromSigned<uint8_t>(static_cast<int8_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I8, CastType::U8).Raw():
+            return CheckedCastFromSigned<uint8_t>(static_cast<int8_t>(val.u64));
 
-        case CheckedCastOp::U8_TO_I8: return CheckedCastFromUnsigned<int8_t>(static_cast<uint8_t>(val.u64));
+        case CheckedCastOp::Make(CastType::U8, CastType::I8).Raw():
+            return CheckedCastFromUnsigned<int8_t>(static_cast<uint8_t>(val.u64));
 
-        case CheckedCastOp::I16_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int16_t>(val.u64));
-        case CheckedCastOp::I16_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int16_t>(val.u64));
-        case CheckedCastOp::I16_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int16_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I16, CastType::I8).Raw():
+            return CheckedCastFromSigned<int8_t>(static_cast<int16_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I16, CastType::U8).Raw():
+            return CheckedCastFromSigned<uint8_t>(static_cast<int16_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I16, CastType::U16).Raw():
+            return CheckedCastFromSigned<uint16_t>(static_cast<int16_t>(val.u64));
 
-        case CheckedCastOp::U16_TO_I8:  return CheckedCastFromUnsigned<int8_t>(static_cast<uint16_t>(val.u64));
-        case CheckedCastOp::U16_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(static_cast<uint16_t>(val.u64));
-        case CheckedCastOp::U16_TO_I16: return CheckedCastFromUnsigned<int16_t>(static_cast<uint16_t>(val.u64));
+        case CheckedCastOp::Make(CastType::U16, CastType::I8).Raw():
+            return CheckedCastFromUnsigned<int8_t>(static_cast<uint16_t>(val.u64));
+        case CheckedCastOp::Make(CastType::U16, CastType::U8).Raw():
+            return CheckedCastFromUnsigned<uint8_t>(static_cast<uint16_t>(val.u64));
+        case CheckedCastOp::Make(CastType::U16, CastType::I16).Raw():
+            return CheckedCastFromUnsigned<int16_t>(static_cast<uint16_t>(val.u64));
 
-        case CheckedCastOp::I32_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int32_t>(val.u32));
-        case CheckedCastOp::I32_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int32_t>(val.u32));
-        case CheckedCastOp::I32_TO_I16: return CheckedCastFromSigned<int16_t>(static_cast<int32_t>(val.u32));
-        case CheckedCastOp::I32_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int32_t>(val.u32));
-        case CheckedCastOp::I32_TO_U32: return CheckedCastFromSigned<uint32_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::Make(CastType::I32, CastType::I8).Raw():
+            return CheckedCastFromSigned<int8_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::Make(CastType::I32, CastType::U8).Raw():
+            return CheckedCastFromSigned<uint8_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::Make(CastType::I32, CastType::I16).Raw():
+            return CheckedCastFromSigned<int16_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::Make(CastType::I32, CastType::U16).Raw():
+            return CheckedCastFromSigned<uint16_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::Make(CastType::I32, CastType::U32).Raw():
+            return CheckedCastFromSigned<uint32_t>(static_cast<int32_t>(val.u32));
 
-        case CheckedCastOp::U32_TO_I8:  return CheckedCastFromUnsigned<int8_t>(val.u32);
-        case CheckedCastOp::U32_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(val.u32);
-        case CheckedCastOp::U32_TO_I16: return CheckedCastFromUnsigned<int16_t>(val.u32);
-        case CheckedCastOp::U32_TO_U16: return CheckedCastFromUnsigned<uint16_t>(val.u32);
-        case CheckedCastOp::U32_TO_I32: return CheckedCastFromUnsigned<int32_t>(val.u32);
+        case CheckedCastOp::Make(CastType::U32, CastType::I8).Raw():  return CheckedCastFromUnsigned<int8_t>(val.u32);
+        case CheckedCastOp::Make(CastType::U32, CastType::U8).Raw():  return CheckedCastFromUnsigned<uint8_t>(val.u32);
+        case CheckedCastOp::Make(CastType::U32, CastType::I16).Raw(): return CheckedCastFromUnsigned<int16_t>(val.u32);
+        case CheckedCastOp::Make(CastType::U32, CastType::U16).Raw(): return CheckedCastFromUnsigned<uint16_t>(val.u32);
+        case CheckedCastOp::Make(CastType::U32, CastType::I32).Raw(): return CheckedCastFromUnsigned<int32_t>(val.u32);
 
-        case CheckedCastOp::I64_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int64_t>(val.u64));
-        case CheckedCastOp::I64_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int64_t>(val.u64));
-        case CheckedCastOp::I64_TO_I16: return CheckedCastFromSigned<int16_t>(static_cast<int64_t>(val.u64));
-        case CheckedCastOp::I64_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int64_t>(val.u64));
-        case CheckedCastOp::I64_TO_I32: return CheckedCastFromSigned<int32_t>(static_cast<int64_t>(val.u64));
-        case CheckedCastOp::I64_TO_U32: return CheckedCastFromSigned<uint32_t>(static_cast<int64_t>(val.u64));
-        case CheckedCastOp::I64_TO_U64: return CheckedCastFromSigned<uint64_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I64, CastType::I8).Raw():
+            return CheckedCastFromSigned<int8_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I64, CastType::U8).Raw():
+            return CheckedCastFromSigned<uint8_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I64, CastType::I16).Raw():
+            return CheckedCastFromSigned<int16_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I64, CastType::U16).Raw():
+            return CheckedCastFromSigned<uint16_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I64, CastType::I32).Raw():
+            return CheckedCastFromSigned<int32_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I64, CastType::U32).Raw():
+            return CheckedCastFromSigned<uint32_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::Make(CastType::I64, CastType::U64).Raw():
+            return CheckedCastFromSigned<uint64_t>(static_cast<int64_t>(val.u64));
 
-        case CheckedCastOp::U64_TO_I8:  return CheckedCastFromUnsigned<int8_t>(val.u64);
-        case CheckedCastOp::U64_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(val.u64);
-        case CheckedCastOp::U64_TO_I16: return CheckedCastFromUnsigned<int16_t>(val.u64);
-        case CheckedCastOp::U64_TO_U16: return CheckedCastFromUnsigned<uint16_t>(val.u64);
-        case CheckedCastOp::U64_TO_I32: return CheckedCastFromUnsigned<int32_t>(val.u64);
-        case CheckedCastOp::U64_TO_U32: return CheckedCastFromUnsigned<uint32_t>(val.u64);
-        case CheckedCastOp::U64_TO_I64: return CheckedCastFromUnsigned<int64_t>(val.u64);
+        case CheckedCastOp::Make(CastType::U64, CastType::I8).Raw():  return CheckedCastFromUnsigned<int8_t>(val.u64);
+        case CheckedCastOp::Make(CastType::U64, CastType::U8).Raw():  return CheckedCastFromUnsigned<uint8_t>(val.u64);
+        case CheckedCastOp::Make(CastType::U64, CastType::I16).Raw(): return CheckedCastFromUnsigned<int16_t>(val.u64);
+        case CheckedCastOp::Make(CastType::U64, CastType::U16).Raw(): return CheckedCastFromUnsigned<uint16_t>(val.u64);
+        case CheckedCastOp::Make(CastType::U64, CastType::I32).Raw(): return CheckedCastFromUnsigned<int32_t>(val.u64);
+        case CheckedCastOp::Make(CastType::U64, CastType::U32).Raw(): return CheckedCastFromUnsigned<uint32_t>(val.u64);
+        case CheckedCastOp::Make(CastType::U64, CastType::I64).Raw(): return CheckedCastFromUnsigned<int64_t>(val.u64);
 
-        case CheckedCastOp::F32_TO_I8:  return CheckedCastFromFp<int8_t>(val.f32);
-        case CheckedCastOp::F32_TO_U8:  return CheckedCastFromFp<uint8_t>(val.f32);
-        case CheckedCastOp::F32_TO_I16: return CheckedCastFromFp<int16_t>(val.f32);
-        case CheckedCastOp::F32_TO_U16: return CheckedCastFromFp<uint16_t>(val.f32);
-        case CheckedCastOp::F32_TO_I32: return CheckedCastFromFp<int32_t>(val.f32);
-        case CheckedCastOp::F32_TO_U32: return CheckedCastFromFp<uint32_t>(val.f32);
-        case CheckedCastOp::F32_TO_I64: return CheckedCastFromFp<int64_t>(val.f32);
-        case CheckedCastOp::F32_TO_U64: return CheckedCastFromFp<uint64_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::I8).Raw():  return CheckedCastFromFp<int8_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::U8).Raw():  return CheckedCastFromFp<uint8_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::I16).Raw(): return CheckedCastFromFp<int16_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::U16).Raw(): return CheckedCastFromFp<uint16_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::I32).Raw(): return CheckedCastFromFp<int32_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::U32).Raw(): return CheckedCastFromFp<uint32_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::I64).Raw(): return CheckedCastFromFp<int64_t>(val.f32);
+        case CheckedCastOp::Make(CastType::F32, CastType::U64).Raw(): return CheckedCastFromFp<uint64_t>(val.f32);
 
-        case CheckedCastOp::F64_TO_I8:  return CheckedCastFromFp<int8_t>(val.f64);
-        case CheckedCastOp::F64_TO_U8:  return CheckedCastFromFp<uint8_t>(val.f64);
-        case CheckedCastOp::F64_TO_I16: return CheckedCastFromFp<int16_t>(val.f64);
-        case CheckedCastOp::F64_TO_U16: return CheckedCastFromFp<uint16_t>(val.f64);
-        case CheckedCastOp::F64_TO_I32: return CheckedCastFromFp<int32_t>(val.f64);
-        case CheckedCastOp::F64_TO_U32: return CheckedCastFromFp<uint32_t>(val.f64);
-        case CheckedCastOp::F64_TO_I64: return CheckedCastFromFp<int64_t>(val.f64);
-        case CheckedCastOp::F64_TO_U64: return CheckedCastFromFp<uint64_t>(val.f64);
-        case CheckedCastOp::COUNT:      FATAL("invalid cast op: %u", op.Raw());
+        case CheckedCastOp::Make(CastType::F64, CastType::I8).Raw():  return CheckedCastFromFp<int8_t>(val.f64);
+        case CheckedCastOp::Make(CastType::F64, CastType::U8).Raw():  return CheckedCastFromFp<uint8_t>(val.f64);
+        case CheckedCastOp::Make(CastType::F64, CastType::I16).Raw(): return CheckedCastFromFp<int16_t>(val.f64);
+        case CheckedCastOp::Make(CastType::F64, CastType::U16).Raw(): return CheckedCastFromFp<uint16_t>(val.f64);
+        case CheckedCastOp::Make(CastType::F64, CastType::I32).Raw(): return CheckedCastFromFp<int32_t>(val.f64);
+        case CheckedCastOp::Make(CastType::F64, CastType::U32).Raw(): return CheckedCastFromFp<uint32_t>(val.f64);
+        case CheckedCastOp::Make(CastType::F64, CastType::I64).Raw(): return CheckedCastFromFp<int64_t>(val.f64);
+        case CheckedCastOp::Make(CastType::F64, CastType::U64).Raw(): return CheckedCastFromFp<uint64_t>(val.f64);
     }
     FATAL("invalid cast op: %u", op.Raw());
 }

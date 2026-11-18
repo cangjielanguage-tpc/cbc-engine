@@ -630,7 +630,7 @@ TEST(EmitTest, Simple_Convert)
     // Unchecked: U32 -> U8 wraps.
     {
         Emitter e;
-        e.Convert(CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
+        e.Convert(CastOp::Make(CastType::U32, CastType::U8), IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);
@@ -643,7 +643,7 @@ TEST(EmitTest, Simple_Convert)
     // Checked: separate opcode, in-range value passes through.
     {
         Emitter e;
-        e.CheckedConvert(CheckedCastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
+        e.CheckedConvert(CheckedCastOp::Make(CastType::U32, CastType::U8), IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);
