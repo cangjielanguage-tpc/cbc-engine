@@ -9,6 +9,7 @@ namespace Cbc {
 enum class Platform {
     LINUX_X64,
     LINUX_AARCH64,
+    DARWIN_AARCH64
 };
 
 template <Platform p> struct PlatformTraits {};
@@ -74,7 +75,40 @@ template <> struct PlatformTraits<Platform::LINUX_AARCH64> {
     static constexpr FReg RET_FREGS[] = { FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3 };
 };
 
-#if defined(__x86_64__) || defined(_M_X64)
+template <> struct PlatformTraits<Platform::DARWIN_AARCH64> {
+    static constexpr IReg TR = IReg::IR10;
+
+    static constexpr IReg IR_HEAD_AREA[] = {
+        IReg::IR1, IReg::IR2, IReg::IR3, IReg::IR4, IReg::IR5, IReg::IR6, IReg::IR7, IReg::IR8,
+    };
+
+    static constexpr IReg IR_VOLATILES[] = {
+        IReg::IR1, IReg::IR2, IReg::IR3, IReg::IR4, IReg::IR5, IReg::IR6, IReg::IR7, IReg::IR8, IReg::IR9, IReg::IR10,
+    };
+
+    static constexpr FReg FR_HEAD_AREA[] = { FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3,
+                                             FReg::FR4, FReg::FR5, FReg::FR6, FReg::FR7 };
+
+    static constexpr FReg FR_VOLATILES[] = { FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3, FReg::FR4,
+                                             FReg::FR5, FReg::FR6, FReg::FR7, FReg::FR15 };
+
+    static constexpr int IR_PARAM_COUNT = sizeof(IR_HEAD_AREA) / sizeof(IR_HEAD_AREA[0]);
+    static constexpr int FR_PARAM_COUNT = sizeof(FR_HEAD_AREA) / sizeof(FR_HEAD_AREA[0]);
+
+    static constexpr bool SRET_SHIFTS = false;
+    static constexpr IReg SRET_REG    = IReg::IR9;
+
+    static constexpr CAbi C_ABI = CAbi::DARWIN_AARCH64;
+
+    static constexpr bool ONLY_ONSTACK_VARARGS = true;
+
+    static constexpr IReg RET_IREGS[] = { IReg::IR1, IReg::IR2 };
+    static constexpr FReg RET_FREGS[] = { FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3 };
+};
+
+#if defined(__APPLE__) && (defined(__aarch64__) || defined(_M_ARM64))
+static constexpr Platform HOST_PLATFORM = Platform::DARWIN_AARCH64;
+#elif defined(__x86_64__) || defined(_M_X64)
 static constexpr Platform HOST_PLATFORM = Platform::LINUX_X64;
 #elif defined(__aarch64__) || defined(_M_ARM64)
 static constexpr Platform HOST_PLATFORM = Platform::LINUX_AARCH64;

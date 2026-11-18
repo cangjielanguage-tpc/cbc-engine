@@ -94,15 +94,21 @@ static CAbiStructPlan ClassifyAAPCS64(Utils::Span<const CAbiField> fields, uint3
     return plan;
 }
 
+static CAbiStructPlan ClassifyDarwinAArch64(Utils::Span<const CAbiField> fields, uint32_t size)
+{
+    return ClassifyAAPCS64(fields, size);
+}
+
 CAbiStructPlan ClassifyCAbiStruct(
     Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs, bool ret
 )
 {
     CAbiStructPlan plan;
     switch (HostTraits::C_ABI) {
-        case CAbi::SYSV:    plan = ClassifySysV(fields, size); break;
-        case CAbi::AAPCS64: plan = ClassifyAAPCS64(fields, size); break;
-        default:            FATAL("unknown C ABI"); return plan;
+        case CAbi::SYSV:           plan = ClassifySysV(fields, size); break;
+        case CAbi::AAPCS64:        plan = ClassifyAAPCS64(fields, size); break;
+        case CAbi::DARWIN_AARCH64: plan = ClassifyDarwinAArch64(fields, size); break;
+        default:                   FATAL("unknown C ABI"); return plan;
     }
 
     if (plan.passBy == CAbiPassBy::REGS) {

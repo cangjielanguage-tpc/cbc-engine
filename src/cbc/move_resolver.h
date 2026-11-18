@@ -78,6 +78,7 @@ public:
     virtual void AssignIRegFromAddr(IReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk)      = 0;
     virtual void AssignFRegFromAddr(FReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk)      = 0;
     virtual void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) = 0;
+    virtual void LeaParamArea(IReg dst, uint32_t offset)                                                      = 0;
 };
 
 // Collects src->dst register/slot moves and resolves them into a

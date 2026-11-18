@@ -18,6 +18,7 @@ namespace Cbc {
 enum class CAbi {
     SYSV,
     AAPCS64,
+    DARWIN_AARCH64
 };
 
 // Leaf field info of a struct.
