@@ -204,7 +204,7 @@ struct IsaRewriter : public IsaParser {
     Emitter::Emitter& emit;
     FrameLayout& frameLayout;
     RewriterMoveEmitter moveEmitter { frameLayout, emit };
-    CallStager stager { &resolver, moveEmitter };
+    CallStager stager { moveEmitter, AbiAssigner::PlatformDescription::FromTraits<HOST_PLATFORM>(), HostTraits::C_ABI };
     size_t bytecodeSize;
     uint32_t maxParamPassingSize = 0;
     Utils::Vector<uint32_t> pendingParamRefSlots;
@@ -326,7 +326,7 @@ struct IsaRewriter : public IsaParser {
     std::tuple<int, int> StageForeignCallArgs(
         Utils::Span<const Location> args,
         CallAbiFlags const& flags,
-        CallSignature const& sig,
+        ForeignCallSignature const& sig,
         std::optional<CAbiStructPlan> retPlan
     )
     {
@@ -1307,14 +1307,18 @@ struct IsaRewriter : public IsaParser {
         Resolution::MethodSignature methodSig = { .resolver = &resolver,
                                                   .term     = sig,
                                                   .tvars    = tvars }; // synthetic method signature
-        auto info                             = MakeCallSignature(methodSig);
-        auto flags                            = MakeCallAbiFlags(ref.flags, ref.abiKind);
-        auto retPlan                          = stager.StageForeignStructRet(info, flags);
+        auto info                             = MakeForeignCallSignature(resolver, methodSig);
+        if (!info.has_value()) {
+            Fail("Unable to flatten struct arguments");
+            return;
+        }
+        auto flags   = MakeCallAbiFlags(ref.flags, ref.abiKind);
+        auto retPlan = stager.StageForeignStructRet(*info, flags);
         if (flags.isSRet && !retPlan.has_value()) {
             Fail("Unable to plan struct returning");
             return;
         }
-        auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, flags, info, retPlan);
+        auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, flags, *info, retPlan);
         ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
         emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
         EmitFillSRetAreaByRegs(retPlan);
@@ -1341,17 +1345,21 @@ struct IsaRewriter : public IsaParser {
         );
         auto compiled  = std::get_if<DirectCall::Compiled>(&method->data);
         auto callFlags = MakeCallAbiFlags(ref.flags, ref.abiKind);
-        auto info      = MakeCallSignature(method->signature);
+        auto callSig   = MakeCallSignature(method->signature);
 
         if (compiled && compiled->isForeign) {
-            // Foreign call
+            auto foreignSig = MakeForeignCallSignature(resolver, method->signature);
+            if (!foreignSig.has_value()) {
+                Fail("Unable to flatten struct arguments");
+                return;
+            }
             auto sym     = emit.NewAddressSym(compiled->funcPtr);
-            auto retPlan = stager.StageForeignStructRet(info, callFlags);
+            auto retPlan = stager.StageForeignStructRet(*foreignSig, callFlags);
             if (callFlags.isSRet && !retPlan.has_value()) {
                 Fail("Unable to plan struct returning");
                 return;
             }
-            auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, callFlags, info, retPlan);
+            auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, callFlags, *foreignSig, retPlan);
             EmitLogCall("call.2n", method);
             ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
             emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
@@ -1360,13 +1368,13 @@ struct IsaRewriter : public IsaParser {
         } else if (compiled) {
             // AOT managed call
             auto sym = emit.NewAddressSym(compiled->funcPtr);
-            StageManagedCallArgs(args, callFlags, info);
+            StageManagedCallArgs(args, callFlags, callSig);
             EmitLogCall("call.2c", method);
             emit.DirectCall2c(sym);
             BindStatePoint();
         } else {
             // CBC managed call
-            StageManagedCallArgs(args, callFlags, info);
+            StageManagedCallArgs(args, callFlags, callSig);
             EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));

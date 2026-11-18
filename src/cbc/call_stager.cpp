@@ -13,7 +13,9 @@ namespace Cbc {
 
 using LDK = Format::LoadAccessKind;
 
-bool CallStager::CheckArgCount(
+StagingResult CallStager::Fail(std::string&& msg) { return { .ok = false, .failure = std::move(msg) }; }
+
+bool CallStager::CheckManagedArgCount(
     size_t argCount, const CallAbiFlags& flags, const CallSignature& sig, StagingResult& result
 )
 {
@@ -28,10 +30,9 @@ bool CallStager::CheckArgCount(
         case Image::MethodAbiKind::FPRIM_RECEIVER: expected += 1; break;
         case Image::MethodAbiKind::MUT:            expected += 2; break;
     }
-    size_t paramCount  = sig.params.Size() - (sig.isVarArg ? 1 : 0); // excluding vararg label
-    expected          += paramCount;
-    expected          += sig.funcVarCount;
-    expected          += flags.hasOuterTi;
+    expected += sig.params.Size();
+    expected += sig.funcVarCount;
+    expected += flags.hasOuterTi;
 
     if (expected != argCount) {
         Stream::StringBuffer buf;
@@ -39,22 +40,43 @@ bool CallStager::CheckArgCount(
             "Expected = {}. Actual = {}. ps = {}, ftvs = {}, sret = {}, outerti = {}, abi_kind = {}",
             expected,
             argCount,
-            paramCount,
+            sig.params.Size(),
             sig.funcVarCount,
             flags.isSRet,
             flags.hasOuterTi,
             flags.abiKind
         );
-        Fail(result, buf.ToString());
+        result = Fail(buf.ToString());
         return false;
     }
     return true;
 }
 
-void CallStager::Fail(StagingResult& result, std::string&& msg)
+bool CallStager::CheckForeignArgCount(
+    size_t argCount, const CallAbiFlags& flags, const ForeignCallSignature& sig, StagingResult& result
+)
 {
-    result.ok      = false;
-    result.failure = std::move(msg);
+    ASSERT(flags.abiKind == Image::MethodAbiKind::STATIC);
+    ASSERT(!flags.hasOuterTi);
+
+    size_t expected = flags.isSRet;
+    // The vararg label is part of the reference signature but is not passed.
+    expected += sig.params.Size() - (sig.isVarArg ? 1 : 0);
+
+    if (expected != argCount) {
+        Stream::StringBuffer buf;
+        buf.PrintLn(
+            "Expected = {}. Actual = {}. ps = {}, sret = {}, abi_kind = {}",
+            expected,
+            argCount,
+            sig.params.Size(),
+            flags.isSRet,
+            flags.abiKind
+        );
+        result = Fail(buf.ToString());
+        return false;
+    }
+    return true;
 }
 
 StagingResult CallStager::StageManaged(
@@ -67,14 +89,13 @@ StagingResult CallStager::StageManaged(
 )
 {
     StagingResult result;
-    ASSERT(!sig.isVarArg);
     int funcVarsCount = sig.funcVarCount;
-    if (!CheckArgCount(args.Size(), flags, sig, result)) {
+    if (!CheckManagedArgCount(args.Size(), flags, sig, result)) {
         return result;
     }
 
     MoveResolver moves;
-    TrackedAbiAssigner abi([&](Location target, CbcTypeKind kind) {
+    TrackedAbiAssigner abi(desc, [&](Location target, CbcTypeKind kind) {
         if (target.Kind() == Location::SLOT) {
             if (kind == CbcTypeKind::REF)
                 result.paramRefSlots.PushBack(target.SlotIdx());
@@ -154,8 +175,7 @@ StagingResult CallStager::StageManaged(
     }
 
     if (!moves.Resolve(moveEmitter)) {
-        Fail(result, "Register kind mismatch");
-        return result;
+        return Fail("Register kind mismatch");
     }
 
     result.maxParamPassingSize =
@@ -163,25 +183,14 @@ StagingResult CallStager::StageManaged(
     return result;
 }
 
-std::optional<CAbiStructPlan> CallStager::StageForeignStructRet(const CallSignature& sig, const CallAbiFlags& flags)
+std::optional<CAbiStructPlan> CallStager::StageForeignStructRet(
+    const ForeignCallSignature& sig, const CallAbiFlags& flags
+)
 {
     if (!flags.isSRet) {
         return std::nullopt;
     }
-
-    Utils::Vector<CAbiField> fields0;
-    if (!FlattenCAbiFields(*resolver, sig.retType, 0, fields0)) {
-        return std::nullopt;
-    }
-
-    auto size0 = resolver->fieldManager->GetFlatSize(sig.retType);
-    if (!size0.has_value()) {
-        return std::nullopt;
-    }
-
-    auto size   = size0.value();
-    auto fields = Utils::Span<CAbiField>(fields0.Data(), fields0.Size());
-    return ClassifyCAbiStructRet(fields, size);
+    return ClassifyCAbiStructRet(cAbi, sig.retFields, sig.retSize);
 }
 
 bool CallStager::StageForeignStructArg(
@@ -193,14 +202,8 @@ bool CallStager::StageForeignStructArg(
     Utils::Vector<ForeignStructCopy>& copies
 )
 {
-    Utils::Vector<CAbiField> fields0;
-    if (!FlattenCAbiFields(*resolver, param.term, 0, fields0)) {
-        return false;
-    }
-
-    UNWRAP_OPT_B(size, resolver->fieldManager->GetFlatSize(param.term));
-    auto fields = Utils::Span<CAbiField>(fields0.Data(), fields0.Size());
-    auto plan   = ClassifyCAbiStruct(fields, size, varArgPos, abi.FreeIRegs(), abi.FreeFRegs());
+    auto size = param.flatSize;
+    auto plan = ClassifyCAbiStruct(cAbi, param.fields, size, varArgPos, abi.FreeIRegs(), abi.FreeFRegs());
     switch (plan.passBy) {
         case CAbiPassBy::EMPTY: break;
         case CAbiPassBy::REGS:  {
@@ -230,24 +233,20 @@ bool CallStager::StageForeignStructArg(
 ForeignStaging CallStager::StageForeign(
     Utils::Span<const Location> args,
     const CallAbiFlags& flags,
-    const CallSignature& sig,
+    const ForeignCallSignature& sig,
     std::optional<CAbiStructPlan> retPlan
 )
 {
     ForeignStaging staging;
     auto& result = staging.result;
 
-    ASSERT(sig.funcVarCount == 0);
-    ASSERT(flags.abiKind == Image::MethodAbiKind::STATIC);
-    ASSERT(!flags.hasOuterTi);
-
     int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
-    if (!CheckArgCount(args.Size(), flags, sig, result)) {
+    if (!CheckForeignArgCount(args.Size(), flags, sig, result)) {
         return staging;
     }
 
     MoveResolver moves;
-    TrackedAbiAssigner abi([&](Location target, CbcTypeKind kind) {
+    TrackedAbiAssigner abi(desc, [&](Location target, CbcTypeKind kind) {
         // Foreign functions cannot receive managed references.
         ASSERT(kind != CbcTypeKind::REF);
         if (target.Kind() == Location::SLOT && kind == CbcTypeKind::REC)
@@ -280,8 +279,7 @@ ForeignStaging CallStager::StageForeign(
         } else if (params[j].kind == CbcTypeKind::REC) {
             // Pass struct argument by value.
             if (!StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi, structCopies)) {
-                Fail(result, "failed to stage by-value struct argument");
-                return staging;
+                return { 0, 0, Fail("failed to stage by-value struct argument") };
             }
         } else if (!isVarArg) {
             moves.AddMove(abi.Consume(params[j].kind), args[idx++]);
@@ -315,8 +313,7 @@ ForeignStaging CallStager::StageForeign(
     }
 
     if (!moves.Resolve(moveEmitter)) {
-        Fail(result, "Register kind mismatch");
-        return staging;
+        return { 0, 0, Fail("Register kind mismatch") };
     }
 
     for (const auto& copy : structCopies) {
@@ -348,24 +345,62 @@ ForeignStaging CallStager::StageForeign(
 
 CallSignature MakeCallSignature(const Resolution::MethodSignature& sig)
 {
+    ASSERT(!sig.isVarArg);
+
     CallSignature info;
-    info.retType      = sig.ResType().term;
-    info.isVarArg     = sig.isVarArg;
     info.funcVarCount = sig.tvars.GetLength();
 
     auto params = sig.Params();
     info.params.Reserve(params.Size());
     for (auto term : params) {
         ParamInfo param;
-        param.term = term;
+        param.kind = ArgTypeTraits<Engine::Term> {}.Kind(term);
+        info.params.PushBack(param);
+    }
+    return info;
+}
+
+std::optional<ForeignCallSignature> MakeForeignCallSignature(
+    Resolution::Resolver& resolver, const Resolution::MethodSignature& sig
+)
+{
+    ForeignCallSignature info;
+    info.isVarArg = sig.isVarArg;
+
+    auto params = sig.Params();
+    info.params.Reserve(params.Size());
+    for (auto term : params) {
+        ParamInfo param;
         if (term.GetKind() == Engine::TermKind::VARARGLABEL) {
             param.isVarArgLabel = true;
         } else if (term.GetKind() == Engine::TermKind::VARRAY) {
             param.isVArray = true;
         } else {
             param.kind = ArgTypeTraits<Engine::Term> {}.Kind(term);
+            if (param.kind == CbcTypeKind::REC) {
+                if (!FlattenCAbiFields(resolver, term, 0, param.fields)) {
+                    return std::nullopt;
+                }
+                auto size = resolver.fieldManager->GetFlatSize(term);
+                if (!size.has_value()) {
+                    return std::nullopt;
+                }
+                param.flatSize = *size;
+            }
         }
         info.params.PushBack(param);
+    }
+
+    auto retType = sig.ResType().term;
+    if (retType.IsRecord()) {
+        if (!FlattenCAbiFields(resolver, retType, 0, info.retFields)) {
+            return std::nullopt;
+        }
+        auto size = resolver.fieldManager->GetFlatSize(retType);
+        if (!size.has_value()) {
+            return std::nullopt;
+        }
+        info.retSize = *size;
     }
     return info;
 }

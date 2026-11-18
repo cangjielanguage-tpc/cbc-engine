@@ -4,7 +4,7 @@
 #include "cbc/c_abi.h"
 #include "cbc/isa.h"
 #include "cbc/move_resolver.h"
-#include "engine/terms.h"
+#include "engine/image/flags.h"
 #include "utils/span.h"
 #include "utils/vector.h"
 
@@ -19,17 +19,25 @@ struct MethodSignature;
 namespace Cbc {
 
 struct ParamInfo {
-    CbcTypeKind kind = CbcTypeKind::INVALID;
-    Engine::Term term {}; // used only for by-value record arguments of foreign calls
+    CbcTypeKind kind   = CbcTypeKind::INVALID;
     bool isVarArgLabel = false;
     bool isVArray      = false;
+    Utils::Vector<CAbiField> fields; // filled only for foreign by-value records
+    uint32_t flatSize = 0;
 };
 
+/// Managed (Cangjie ABI) call: no varargs, no by-value records.
 struct CallSignature {
     Utils::Vector<ParamInfo> params;
-    Engine::Term retType {};
-    bool isVarArg    = false;
     int funcVarCount = 0;
+};
+
+/// Foreign (C ABI) call: record layouts are resolved by the time it is built.
+struct ForeignCallSignature {
+    Utils::Vector<ParamInfo> params;
+    bool isVarArg = false;
+    Utils::Vector<CAbiField> retFields;
+    uint32_t retSize = 0;
 };
 
 struct CallAbiFlags {
@@ -55,7 +63,11 @@ struct ForeignStaging {
 
 class CallStager {
 public:
-    CallStager(Resolution::Resolver* resolver, MoveEmitter& moveEmitter) : resolver(resolver), moveEmitter(moveEmitter)
+    /// `desc` selects the ABI; defaults to the host platform.
+    CallStager(MoveEmitter& moveEmitter, const AbiAssigner::PlatformDescription& desc, CAbi cAbi)
+        : moveEmitter(moveEmitter),
+          desc(desc),
+          cAbi(cAbi)
     {}
 
     StagingResult StageManaged(
@@ -70,11 +82,11 @@ public:
     ForeignStaging StageForeign(
         Utils::Span<const Location> args,
         const CallAbiFlags& flags,
-        const CallSignature& sig,
+        const ForeignCallSignature& sig,
         std::optional<CAbiStructPlan> retPlan
     );
 
-    std::optional<CAbiStructPlan> StageForeignStructRet(const CallSignature& sig, const CallAbiFlags& flags);
+    std::optional<CAbiStructPlan> StageForeignStructRet(const ForeignCallSignature& sig, const CallAbiFlags& flags);
 
 private:
     struct ForeignStructCopy {
@@ -84,7 +96,13 @@ private:
         uint32_t dstOffset = 0; // byte offset of the copy from the frame bottom
     };
 
-    bool CheckArgCount(size_t argCount, const CallAbiFlags& flags, const CallSignature& sig, StagingResult& result);
+    bool CheckManagedArgCount(
+        size_t argCount, const CallAbiFlags& flags, const CallSignature& sig, StagingResult& result
+    );
+
+    bool CheckForeignArgCount(
+        size_t argCount, const CallAbiFlags& flags, const ForeignCallSignature& sig, StagingResult& result
+    );
 
     bool StageForeignStructArg(
         Location srcAddr,
@@ -95,12 +113,17 @@ private:
         Utils::Vector<ForeignStructCopy>& copies
     );
 
-    void Fail(StagingResult& result, std::string&& msg);
+    static StagingResult Fail(std::string&& msg);
 
-    Resolution::Resolver* resolver;
     MoveEmitter& moveEmitter;
+    AbiAssigner::PlatformDescription desc;
+    CAbi cAbi;
 };
 
 CallSignature MakeCallSignature(const Resolution::MethodSignature& sig);
+
+std::optional<ForeignCallSignature> MakeForeignCallSignature(
+    Resolution::Resolver& resolver, const Resolution::MethodSignature& sig
+);
 
 } // namespace Cbc
