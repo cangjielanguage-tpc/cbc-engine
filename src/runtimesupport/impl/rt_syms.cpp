@@ -6,11 +6,6 @@
 #include "utils/sharedobj.h"
 #include <dlfcn.h>
 #include <string_view>
-#include <utility>
-
-#include <atomic>
-#include <cstdint>
-#include <mutex>
 
 #include "engine/engine.h"
 #include "interpreter/adapters.h"
@@ -41,8 +36,7 @@ namespace {
 
 // External fallback source for `fallbackToStdCore` specs. Under
 // STATIC_HELPER std.core is statically linked into the application itself,
-// so the executable's symbol table is the fallback source and is always
-// available (no lazy open, no mutex).
+// so the executable's symbol table is the fallback source.
 #if defined(STATIC_HELPER)
 constexpr std::string_view STD_CORE_LIB_NAME = "the application";
 
@@ -56,66 +50,44 @@ constexpr std::string_view STD_CORE_LIB_NAME = "libcangjie-std-core.so";
 
 Utils::SharedObject* StdCoreLibrary()
 {
-    static std::mutex openMutex;
-    static Utils::SharedObject stdCore;
-    std::lock_guard guard(openMutex);
-    if (!stdCore.IsOpened()) {
-        stdCore = Utils::SharedObject::Open(std::string_view(STD_CORE_LIB_NAME));
-    }
+    static Utils::SharedObject stdCore = Utils::SharedObject::Open(std::string_view(STD_CORE_LIB_NAME));
     return &stdCore;
 }
 #endif
 
-// Optional side effect of the first resolution (e.g. installing an asm
-// trampoline callback); runs in the resolver critical section before the
-// cache store, so concurrent fast-path resolvers observe it through the
-// acquire load.
-using ExecutedOnceCallback = void (*)(void* symbol);
+// Optional side effect of the resolution (e.g. installing an asm trampoline
+// callback), applied before the resolved address is published to other threads.
+using ResolvedCallback = void (*)(void* symbol);
 
-// Lazily resolved runtime callback, may be
+// Runtime callback to resolve, may be
 //   - a direct call trampoline of the cbc method found in the image, or
 //   - a raw symbol from AOT compiled libcangjie-std-core.so (when `fallbackToStdCore`)
-//
-// Owns the resolution state, so each lazily resolved method is declared as a
-// single self-contained object.
-struct LazyMethodSpec {
+struct MethodSpec {
     std::string_view typeName;
     const char* linkageName;
     const char* errorMessage;
     bool fallbackToStdCore;
-    ExecutedOnceCallback callback = nullptr;
-    std::atomic<void*> cache{nullptr};
-    std::mutex resolveMutex;
 };
 
 // Fatal exit for a `fallbackToStdCore` spec: the source is std-core, either
 // the shared library or the application itself (STATIC_HELPER).
-[[noreturn]] void FatalStdCoreNotFound(const LazyMethodSpec& spec)
+[[noreturn]] void FatalStdCoreNotFound(const MethodSpec& spec)
 {
     FATAL("%s was not found in the image (type %.*s) and %s could not be opened", spec.errorMessage,
         static_cast<int>(spec.typeName.size()), spec.typeName.data(), STD_CORE_LIB_NAME.data());
 }
 
-[[noreturn]] void FatalStdCoreSymNotFound(const LazyMethodSpec& spec, const std::string& error)
+[[noreturn]] void FatalStdCoreSymNotFound(const MethodSpec& spec, const std::string& error)
 {
     FATAL("%s was not found in the image (type %.*s) nor in %s: %s", spec.errorMessage,
         static_cast<int>(spec.typeName.size()), spec.typeName.data(), STD_CORE_LIB_NAME.data(),
         error.c_str());
 }
 
-void* ResolveLazyMethod(LazyMethodSpec& spec)
+// Stateless resolution: callers keep the result in a function-local static,
+// which provides thread-safe lazy initialization.
+void* ResolveMethod(const MethodSpec& spec, ResolvedCallback callback = nullptr)
 {
-    auto cached = spec.cache.load(std::memory_order_acquire);
-    if (cached != nullptr) {
-        return cached;
-    }
-
-    std::lock_guard guard(spec.resolveMutex);
-    cached = spec.cache.load(std::memory_order_relaxed);
-    if (cached != nullptr) {
-        return cached;
-    }
-
     void* resolved = nullptr;
     {
         auto& engine     = Engine::GetEngineInstance();
@@ -157,10 +129,9 @@ void* ResolveLazyMethod(LazyMethodSpec& spec)
         );
     }
 
-    if (spec.callback != nullptr) {
-        spec.callback(resolved);
+    if (callback != nullptr) {
+        callback(resolved);
     }
-    spec.cache.store(resolved, std::memory_order_release);
     return resolved;
 }
 
@@ -169,43 +140,48 @@ void InstallThreadHandleSetter(void* setter)
     Asm::engine_set_runtime_cjthread_handle_function = setter;
 }
 
-LazyMethodSpec THROWER_SPEC{
+// Temporary: lazy resolution here is a stopgap to let std.core compiled to CBC
+// move forward.
+// FIXME(#270): rework runtimesupport / rt_syms.
+constexpr MethodSpec THROWER_SPEC{
     "$P$cangjie.runtime.cbcengine.helper",
     "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl",
     "ImplicitExceptionThrower",
     false,
 };
 
-LazyMethodSpec FUTURE_EXECUTE_SPEC{
+constexpr MethodSpec FUTURE_EXECUTE_SPEC{
     "std.core:Future",
     "_CNat6FutureIG_E7executeHv",
     "Future.execute",
     true,
 };
 
-LazyMethodSpec THREAD_HANDLE_SETTER_SPEC{
+constexpr MethodSpec THREAD_HANDLE_SETTER_SPEC{
     "std.core:Thread",
     "_CNat6Thread24setRuntimeCJThreadHandleHPu",
     "Thread.setRuntimeCJThreadHandle",
     true,
-    &InstallThreadHandleSetter,
 };
 
 } // namespace
 
 void* ResolveFutureExecute()
 {
-    return ResolveLazyMethod(FUTURE_EXECUTE_SPEC);
+    static void* func = ResolveMethod(FUTURE_EXECUTE_SPEC);
+    return func;
 }
 
 void* ResolveThreadHandleSetter()
 {
-    return ResolveLazyMethod(THREAD_HANDLE_SETTER_SPEC);
+    static void* func = ResolveMethod(THREAD_HANDLE_SETTER_SPEC, &InstallThreadHandleSetter);
+    return func;
 }
 
 void* ResolveImplicitExceptionThrower()
 {
-    return ResolveLazyMethod(THROWER_SPEC);
+    static void* func = ResolveMethod(THROWER_SPEC);
+    return func;
 }
 
 } // namespace RTSupport
