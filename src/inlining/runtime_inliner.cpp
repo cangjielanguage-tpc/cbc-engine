@@ -87,7 +87,7 @@ std::optional<PreparedInlineSite> PrepareSite(
         return std::nullopt;
     }
     if (!callee->gcInfo.positionalInfo.Empty() || !callee->stackPtrsInfo.positionalInfo.Empty() ||
-        !IsSupportedLinearBody(callee->code)) {
+        !IsSupportedBody(callee->code)) {
         return std::nullopt;
     }
 

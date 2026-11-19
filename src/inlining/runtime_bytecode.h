@@ -18,6 +18,6 @@ std::vector<RuntimeInstruction> DecodeRuntimeBytecode(const Interpretation::Code
 
 bool IsRuntimeBranch(RT::Opcode opcode);
 
-bool IsSupportedLinearBody(const Interpretation::Code& code);
+bool IsSupportedBody(const Interpretation::Code& code);
 
 } // namespace Cbc

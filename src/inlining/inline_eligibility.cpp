@@ -64,7 +64,7 @@ InlineEligibilityResult CheckInlineEligibility(
     }
     if (!expectedCalleeBytecode->gcInfo.positionalInfo.Empty() ||
         !expectedCalleeBytecode->stackPtrsInfo.positionalInfo.Empty() ||
-        !IsSupportedLinearBody(expectedCalleeBytecode->code)) {
+        !IsSupportedBody(expectedCalleeBytecode->code)) {
         return Reject(InlineRejectionReason::UNSUPPORTED_INSTRUCTION);
     }
     return { InlineRejectionReason::NONE };
