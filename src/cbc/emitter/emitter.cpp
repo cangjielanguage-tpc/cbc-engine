@@ -1490,14 +1490,14 @@ void Emitter::StackParamF(FReg src, uint16_t dst, Format::StoreAccessKind stk)
     Encode(segment, RT::StackParamF { .opc = RT::Opcode::STK_PARAM_F, .src = src, .stk = stk, .dst = dst });
 }
 
-void Emitter::StackParamS16(int16_t src, uint16_t dst)
+void Emitter::StackParamS16(int16_t src, uint16_t dst, Format::StoreAccessKind stk)
 {
-    Encode(segment, RT::StackParamS16 { .opc = RT::Opcode::STK_PARAM_S16, .src = src, .dst = dst });
+    Encode(segment, RT::StackParamS16 { .opc = RT::Opcode::STK_PARAM_S16, .src = src, .dst = dst, .stk = stk });
 }
 
-void Emitter::StackParamS32(int32_t src, uint16_t dst)
+void Emitter::StackParamS32(int32_t src, uint16_t dst, Format::StoreAccessKind stk)
 {
-    Encode(segment, RT::StackParamS32 { .opc = RT::Opcode::STK_PARAM_S32, .src = src, .dst = dst });
+    Encode(segment, RT::StackParamS32 { .opc = RT::Opcode::STK_PARAM_S32, .src = src, .dst = dst, .stk = stk });
 }
 
 void Emitter::LeaStackParam(IReg dst, uint16_t offset)

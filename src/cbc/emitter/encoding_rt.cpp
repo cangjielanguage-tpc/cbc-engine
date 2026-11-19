@@ -361,6 +361,7 @@ void Encode(ByteBuffer& buf, RT::StackParamS16 command)
     buf.AddW8(static_cast<uint8_t>(command.opc));
     buf.AddW16(static_cast<uint16_t>(command.src));
     buf.AddW16(command.dst);
+    buf.AddW8(static_cast<uint8_t>(command.stk));
 }
 
 void Encode(ByteBuffer& buf, RT::StackParamS32 command)
@@ -368,6 +369,7 @@ void Encode(ByteBuffer& buf, RT::StackParamS32 command)
     buf.AddW8(static_cast<uint8_t>(command.opc));
     buf.AddW32(static_cast<uint32_t>(command.src));
     buf.AddW16(command.dst);
+    buf.AddW8(static_cast<uint8_t>(command.stk));
 }
 
 void Encode(ByteBuffer& buf, RT::LeaStackParam command)
