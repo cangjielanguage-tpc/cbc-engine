@@ -253,10 +253,10 @@ private:
             }
         }
         LogProfilerPass(callsFoLog, recordedCallCount, scanTimeUs);
-        InlineCalls(session, BuildInlinePlans(session, callsForInline));
+        ApplyInlinePlans(session, BuildInlinePlans(session, callsForInline));
     }
 
-    void InlineCalls(Engine::Session& session, const std::vector<InlinePlan>& plans)
+    void ApplyInlinePlans(Engine::Session& session, const std::vector<InlinePlan>& plans)
     {
         auto& manager = Interpretation::FunctionHandleManager::Of(session);
         for (const auto& plan : plans) {

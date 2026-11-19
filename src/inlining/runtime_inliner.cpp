@@ -19,13 +19,6 @@ namespace {
 
 using Interpretation::ExecBytecodeInfo;
 
-bool HasRuntimeBranches(const std::vector<RuntimeInstruction>& instructions)
-{
-    return std::any_of(instructions.begin(), instructions.end(), [](const auto& instruction) {
-        return IsRuntimeBranch(instruction.opcode);
-    });
-}
-
 struct PreparedInlineSite {
     const Interpretation::Code* calleeCode;
     uint32_t oldBegin;
@@ -37,6 +30,7 @@ struct PreparedInlining {
     const ExecBytecodeInfo* source;
     std::vector<PreparedInlineSite> sites;
     std::vector<RewrittenCodeEdit> edits;
+    std::vector<BranchPatch> branchPatches;
     uint32_t bytecodeSize;
 };
 
@@ -118,10 +112,6 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
     }
 
     const auto callerInstructions = DecodeRuntimeBytecode(source->code);
-    if (HasRuntimeBranches(callerInstructions)) {
-        return std::nullopt;
-    }
-
     std::vector<PreparedInlineSite> preparedSites;
     std::vector<RewrittenCodeEdit> edits;
     preparedSites.reserve(plan.callSites.size());
@@ -153,11 +143,17 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
         preparedSites.push_back(*prepared);
     }
 
+    auto branchPatches = PrepareBranchPatches(source->code, callerInstructions, edits);
+    if (!branchPatches.has_value()) {
+        return std::nullopt;
+    }
+
     return PreparedInlining {
-        .source       = source,
-        .sites        = std::move(preparedSites),
-        .edits        = std::move(edits),
-        .bytecodeSize = static_cast<uint32_t>(newBytecodeSize),
+        .source        = source,
+        .sites         = std::move(preparedSites),
+        .edits         = std::move(edits),
+        .branchPatches = std::move(*branchPatches),
+        .bytecodeSize  = static_cast<uint32_t>(newBytecodeSize),
     };
 }
 
@@ -180,6 +176,7 @@ uint8_t* EmitBytecode(const PreparedInlining& prepared, Memory::Heap& heap)
     std::memcpy(newBytecode + newCursor, source->code.bytecode + oldCursor, suffixSize);
     newCursor += suffixSize;
     ASSERT(newCursor == prepared.bytecodeSize);
+    ApplyBranchPatches(newBytecode, prepared.bytecodeSize, prepared.branchPatches);
     return newBytecode;
 }
 

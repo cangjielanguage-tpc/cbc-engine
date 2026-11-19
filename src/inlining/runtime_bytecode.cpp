@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <limits>
 #include <optional>
 
@@ -158,6 +159,20 @@ bool IsSupportedBranch(
     return targetInstruction != instructions.end() && targetInstruction->offset == static_cast<uint32_t>(*target);
 }
 
+bool IsInstructionBoundary(const std::vector<RuntimeInstruction>& instructions, int64_t offset)
+{
+    if (offset < 0 || offset > std::numeric_limits<uint32_t>::max()) {
+        return false;
+    }
+    const auto instruction = std::lower_bound(
+        instructions.begin(),
+        instructions.end(),
+        static_cast<uint32_t>(offset),
+        [](const RuntimeInstruction& candidate, uint32_t target) { return candidate.offset < target; }
+    );
+    return instruction != instructions.end() && instruction->offset == static_cast<uint32_t>(offset);
+}
+
 } // namespace
 
 std::vector<RuntimeInstruction> DecodeRuntimeBytecode(const Interpretation::Code& code)
@@ -198,6 +213,87 @@ bool IsRuntimeBranch(RT::Opcode opcode)
         case Opcode::JMP32:
         case Opcode::BRANCH_IS_REF: return true;
         default:                    return false;
+    }
+}
+
+bool FitsBranchDelta(RT::Opcode opcode, int64_t delta)
+{
+    switch (opcode) {
+        case RT::Opcode::BCC16I:
+        case RT::Opcode::BCC32I:
+        case RT::Opcode::BCC64I:
+        case RT::Opcode::BCCI32I:
+        case RT::Opcode::BCCI64I:
+        case RT::Opcode::BRANCH_IS_REF: return MathUtils::IsNBitsSigned(delta, 12);
+        case RT::Opcode::JMP32:         return MathUtils::IsNBitsSigned(delta, 32);
+        default:                        return false;
+    }
+}
+
+std::optional<std::vector<BranchPatch>> PrepareBranchPatches(
+    const Interpretation::Code& code,
+    const std::vector<RuntimeInstruction>& instructions,
+    const std::vector<RewrittenCodeEdit>& edits
+)
+{
+    std::vector<BranchPatch> patches;
+    for (const auto& instruction : instructions) {
+        if (!IsRuntimeBranch(instruction.opcode)) {
+            continue;
+        }
+
+        const auto oldTarget = BranchTarget(code, instruction);
+        if (!oldTarget.has_value() || !IsInstructionBoundary(instructions, *oldTarget)) {
+            return std::nullopt;
+        }
+        const auto newOffset = RelocateRewrittenPosition(instruction.offset, edits);
+        const auto newTarget = RelocateRewrittenPosition(static_cast<uint32_t>(*oldTarget), edits);
+        if (!newOffset.has_value() || !newTarget.has_value()) {
+            return std::nullopt;
+        }
+
+        const auto newEnd = static_cast<int64_t>(*newOffset) + instruction.size;
+        const auto delta  = static_cast<int64_t>(*newTarget) - newEnd;
+        if (!FitsBranchDelta(instruction.opcode, delta)) {
+            return std::nullopt;
+        }
+        patches.push_back(BranchPatch {
+            .opcode = instruction.opcode,
+            .offset = *newOffset,
+            .delta  = delta,
+        });
+    }
+    return patches;
+}
+
+void ApplyBranchPatches(uint8_t* bytecode, uint32_t bytecodeSize, const std::vector<BranchPatch>& patches)
+{
+    for (const auto& patch : patches) {
+        ASSERT(patch.offset < bytecodeSize);
+        ASSERT(bytecode[patch.offset] == static_cast<uint8_t>(patch.opcode));
+        switch (patch.opcode) {
+            case RT::Opcode::BCC16I:
+            case RT::Opcode::BCC32I:
+            case RT::Opcode::BCC64I:
+            case RT::Opcode::BCCI32I:
+            case RT::Opcode::BCCI64I:
+            case RT::Opcode::BRANCH_IS_REF: {
+                ASSERT(bytecodeSize - patch.offset >= sizeof(uint8_t) + sizeof(uint16_t));
+                uint16_t encoded;
+                std::memcpy(&encoded, bytecode + patch.offset + sizeof(uint8_t), sizeof(encoded));
+                encoded =
+                    static_cast<uint16_t>((encoded & 0xfU) | ((static_cast<uint16_t>(patch.delta) & 0xfffU) << 4U));
+                std::memcpy(bytecode + patch.offset + sizeof(uint8_t), &encoded, sizeof(encoded));
+                break;
+            }
+            case RT::Opcode::JMP32: {
+                ASSERT(bytecodeSize - patch.offset >= sizeof(uint8_t) + sizeof(uint32_t));
+                const auto encoded = static_cast<uint32_t>(static_cast<int32_t>(patch.delta));
+                std::memcpy(bytecode + patch.offset + sizeof(uint8_t), &encoded, sizeof(encoded));
+                break;
+            }
+            default: FATAL("Unsupported runtime branch patch");
+        }
     }
 }
 
