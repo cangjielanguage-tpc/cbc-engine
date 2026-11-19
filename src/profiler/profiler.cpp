@@ -162,16 +162,18 @@ private:
 
         auto* callSite = reinterpret_cast<uint8_t*>(edge.callSite);
         Decoder::ByteReader reader(callSite, bytecode->code.bytecode, reinterpret_cast<uint8_t*>(bytecodeEnd));
+        if (Cbc::RT::Opcode(reader.PeekOpcode()) != Cbc::RT::Opcode::DIRECT_CALL_2I) {
+            return std::nullopt;
+        }
         const auto args = Cbc::RT::B3xi12::Decode(reader);
-        if (args.opc != Cbc::RT::Opcode::DIRECT_CALL_2I) {
+        if (args.xi12.imm12 >= bytecode->code.literals->size()) {
             return std::nullopt;
         }
 
         const auto callee                = bytecode->code.literals->at(args.xi12.imm12).uintptr;
         auto* calleeFuh                  = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
         const auto runtimeCallSiteOffset = static_cast<uint32_t>(edge.callSite - bytecodeStart);
-        const auto cbcCallSiteOffset =
-            bytecode->offsetsIndex.FindMappedOffset(Cbc::InstructionType::REWRITTEN, runtimeCallSiteOffset);
+        const auto cbcCallSiteOffset = bytecode->offsetsIndex.FindContainingCbcOffset(runtimeCallSiteOffset);
         if (!cbcCallSiteOffset.has_value()) {
             return std::nullopt;
         }

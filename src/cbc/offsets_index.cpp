@@ -62,6 +62,16 @@ std::optional<Offset> InstructionOffsetsIndex::FindMappedOffset(InstructionType 
     return resultVec[std::distance(searchVec.begin(), it)];
 }
 
+std::optional<Offset> InstructionOffsetsIndex::FindContainingCbcOffset(Offset rtOffset) const
+{
+    auto it = std::upper_bound(rtOffsets.begin(), rtOffsets.end(), rtOffset);
+    if (it == rtOffsets.begin()) {
+        return std::nullopt;
+    }
+    --it;
+    return cbcOffsets[std::distance(rtOffsets.begin(), it)];
+}
+
 std::optional<uint32_t> RelocateRewrittenPosition(uint32_t oldPosition, const std::vector<RewrittenCodeEdit>& edits)
 {
     int64_t delta        = 0;

@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "adapters.h"
+#include "cbc/formater_rt.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
@@ -275,19 +276,32 @@ ExecBytecodeInfo* FunctionHandleManager::RebuildAndPublish(Session& session, con
     rebuilt->version = expectedVersion + 1;
     rebuilt->ownerFuh = fuh;
 
-    std::lock_guard guard(fuh->lock);
-    auto* current = fuh->bytecode.load();
-    if (current != expectedBytecode || current->version != expectedVersion) {
-        return nullptr;
+    ExecBytecodeInfo* published;
+    {
+        std::lock_guard guard(fuh->lock);
+        auto* current = fuh->bytecode.load();
+        if (current != expectedBytecode || current->version != expectedVersion) {
+            return nullptr;
+        }
+
+        for (const auto& version : fuh->bytecodeVersions) {
+            ASSERT(!CodeRangesOverlap(*version, *rebuilt));
+        }
+
+        published = rebuilt.get();
+        fuh->bytecodeVersions.emplace_back(std::move(rebuilt));
+        fuh->bytecode.store(published);
     }
 
-    for (const auto& version : fuh->bytecodeVersions) {
-        ASSERT(!CodeRangesOverlap(*version, *rebuilt));
-    }
-
-    auto* published = rebuilt.get();
-    fuh->bytecodeVersions.emplace_back(std::move(rebuilt));
-    fuh->bytecode.store(published);
+    Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        out.PrintLn(
+            "Inlined bytecode version {}: {}+{}",
+            published->version,
+            static_cast<const void*>(published->code.bytecode),
+            published->code.bytecodeSize
+        );
+        Cbc::RT::Log(published->code, out);
+    });
     return published;
 }
 

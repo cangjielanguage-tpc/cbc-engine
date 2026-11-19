@@ -63,7 +63,7 @@ std::optional<PreparedInlineSite> PrepareSite(
         instruction->opcode != RT::Opcode::DIRECT_CALL_2I || instruction->size != RT::B3xi12::SIZE) {
         return std::nullopt;
     }
-    const auto cbcOffset = caller.offsetsIndex.FindMappedOffset(InstructionType::REWRITTEN, site.runtimeCallSiteOffset);
+    const auto cbcOffset = caller.offsetsIndex.FindContainingCbcOffset(site.runtimeCallSiteOffset);
     if (!cbcOffset.has_value() || cbcOffset.value() != site.cbcCallSiteOffset || site.calleeFuh == nullptr) {
         return std::nullopt;
     }

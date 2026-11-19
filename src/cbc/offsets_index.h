@@ -46,6 +46,8 @@ public:
 
     std::optional<Offset> FindMappedOffset(InstructionType type, Offset srcOffset) const;
 
+    std::optional<Offset> FindContainingCbcOffset(Offset rtOffset) const;
+
     InstructionOffsetsIndex RelocateRewrittenOffsets(const std::vector<RewrittenCodeEdit>& edits) const;
 
 private:

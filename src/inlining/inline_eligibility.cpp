@@ -77,7 +77,7 @@ Stream::Output& operator<<(Stream::Output& out, InlineRejectionReason reason)
         case InlineRejectionReason::RECURSION:               return out << "recursion";
         case InlineRejectionReason::MISSING_BYTECODE:        return out << "missing bytecode";
         case InlineRejectionReason::TOO_LARGE:               return out << "callee is too large";
-        case InlineRejectionReason::STACK_SLOTS:             return out << "callee uses stack slots";
+        case InlineRejectionReason::STACK_SLOTS:             return out << "callee or caller uses stack slots";
         case InlineRejectionReason::LIVENESS_INFO:           return out << "callee has liveness info";
         case InlineRejectionReason::STACK_PTRS_INFO:         return out << "callee has stack pointers info";
         case InlineRejectionReason::EXCEPTION_REGIONS:       return out << "callee has exception regions";
