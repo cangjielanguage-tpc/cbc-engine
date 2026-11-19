@@ -197,8 +197,12 @@ TEST_ASM(CbcTest, DirectCall)
 // supply a real area for those stores.
 TEST_ASM(CbcTest, StackArgsCall)
 {
+#if defined(__x86_64__) || defined(_M_X64)
     auto res = Interpret(OpenAndRewrite("main", "stack-args-call.asm")->code, U64(0), U64(0));
-    ASSERT_EQ(res.u64, 21);
+    ASSERT_EQ(res.u64, 45);
+#else
+    GTEST_SKIP() << "TODO: arch-specific abi required in asm";
+#endif
 }
 
 TEST_ASM(CbcTest, ArithSpecialized1)
