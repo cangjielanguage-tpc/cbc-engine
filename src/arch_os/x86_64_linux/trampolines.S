@@ -544,7 +544,11 @@ FUNC_START perform_2i_call
   lea   r8, [rbp - READER_SLOT_OFFSET]
   mov   r9, rsp
 
+  sub   rsp, 16
+  mov   rax, [rbp - FUH_SLOT_OFFSET]
+  mov   [rsp], rax
   call  engine_interpretation_loop
+  add   rsp, 16
 
   // Thunk is returned on rax: op (low byte), rdx: arg.
   // If usual return is needed, interpretation_loop returns op == None (0).

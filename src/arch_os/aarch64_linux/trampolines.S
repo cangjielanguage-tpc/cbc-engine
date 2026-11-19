@@ -537,6 +537,7 @@ CFI_LABEL .Lrestart_interpretation
   mov   x3, LITERALS_REG
   sub   x4, x29, #READER_SLOT_OFFSET
   mov   x5, sp
+  ldr   x6, [x29, #-FUH_SLOT_OFFSET]
 
   bl    engine_interpretation_loop
 
