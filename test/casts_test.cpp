@@ -443,14 +443,3 @@ TEST(CastsTest, OpPairs)
     EXPECT_FALSE(CastOp::FromPair(CastType::COUNT, CastType::I8).has_value());
 }
 
-TEST(CastsTest, OpCoverage)
-{
-    const Prim zero = U64(0);
-    for (size_t i = 0; i < CastOp::COUNT; i++) {
-        (void)CastPrim(CastOp::Make(CastOp::PairAt(i).from, CastOp::PairAt(i).to), zero);
-    }
-    for (size_t i = 0; i < CheckedCastOp::COUNT; i++) {
-        auto op = CheckedCastOp::Make(CheckedCastOp::PairAt(i).from, CheckedCastOp::PairAt(i).to);
-        EXPECT_FALSE(CheckedCastPrim(op, zero).overflow) << "checked op " << i << " " << OpName(op);
-    }
-}

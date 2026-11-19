@@ -132,13 +132,6 @@ public:
 
     static constexpr size_t COUNT = sizeof(Kind::pairs) / sizeof(Kind::pairs[0]);
 
-    /// Pair encoded at `index`; the index is the RT operand byte.
-    constexpr static TypePair PairAt(size_t index)
-    {
-        ASSERT(index < COUNT);
-        return Kind::pairs[index];
-    }
-
     /// Encodes the pair, or returns `std::nullopt` if the pair has no opcode of this kind.
     constexpr static std::optional<CastInst> FromPair(uint8_t from, uint8_t to)
     {
