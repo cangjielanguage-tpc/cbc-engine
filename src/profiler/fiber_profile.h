@@ -9,7 +9,7 @@
 namespace Cbc::Profiler {
 
 #ifndef CBC_PROFILER_CALL_BUFFER_SIZE
-    #define CBC_PROFILER_CALL_BUFFER_SIZE 4096
+    #define CBC_PROFILER_CALL_BUFFER_SIZE 8192
 #endif
 
 using FunctionId = uintptr_t;

@@ -268,7 +268,8 @@ private:
             Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
                 if (published != nullptr) {
                     out.PrintLn(
-                        "Rebuild succeeded: bytecode {} version {}, code {}+{}",
+                        "Rebuild succeeded: function {} bytecode {} version {}, code {}+{}",
+                        ResolveFunctionName(session, *published->ownerFuh),
                         reinterpret_cast<const void*>(published),
                         published->version,
                         reinterpret_cast<const void*>(published->code.bytecode),
@@ -276,7 +277,8 @@ private:
                     );
                 } else {
                     out.PrintLn(
-                        "Rebuild failed: bytecode {} version {} was stale or the runtime transformation was rejected",
+                        "Rebuild failed: function {} bytecode {} version {} was stale or the runtime transformation was rejected",
+                        ResolveFunctionName(session, *published->ownerFuh),
                         reinterpret_cast<const void*>(plan.expectedBytecode),
                         plan.expectedVersion
                     );
