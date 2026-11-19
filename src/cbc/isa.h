@@ -1083,6 +1083,7 @@ inline Format::LoadAccessKind Ldk(CbcTypeKind kind)
         case CbcTypeKind::I32: return LDK::LD_32;
         case CbcTypeKind::U64:
         case CbcTypeKind::I64: return LDK::LD_64;
+        case CbcTypeKind::F16: return LDK::LD_F16;
         case CbcTypeKind::F32: return LDK::LD_F32;
         case CbcTypeKind::F64: return LDK::LD_F64;
 
@@ -1109,6 +1110,7 @@ inline Format::StoreAccessKind Stk(CbcTypeKind kind)
         case CbcTypeKind::I32: return STK::ST_32;
         case CbcTypeKind::U64:
         case CbcTypeKind::I64: return STK::ST_64;
+        case CbcTypeKind::F16: return STK::ST_F16;
         case CbcTypeKind::F32: return STK::ST_F32;
         case CbcTypeKind::F64: return STK::ST_F64;
 

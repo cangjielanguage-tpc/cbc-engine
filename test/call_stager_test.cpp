@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <optional>
+
 #include "cbc/call_stager.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
@@ -923,6 +925,140 @@ TEST_P(StagerTest, CompactedArgumentFromFrameSlotKeepsItsWidth)
             EXPECT_EQ(static_cast<int>(sink.SlotSizes[0]), static_cast<int>(Format::StoreAccessKind::ST_16));
             break;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Tail parameters: the callee reads stack arguments via `ld.tail N`, where N is
+// the ordinal of the n-th stack-passed parameter. The rewriter maps each
+// ordinal to a byte offset with ComputeTailParams, which must agree with the
+// placement StageManaged produces for the same signature.
+// ---------------------------------------------------------------------------
+
+TEST_P(StagerTest, TailOffsetsPackPerPlatform)
+{
+    Utils::Vector<ParamInfo> params;
+    for (int i = 0; i < IntRegCount(); i++) {
+        params.PushBack(IntParam());
+    }
+    for (int i = 0; i < FloatRegCount(); i++) {
+        params.PushBack(F64Param());
+    }
+    // Every following parameter overflows to the passing area.
+    params.PushBack(Param(CbcTypeKind::U8));
+    params.PushBack(Param(CbcTypeKind::U8));
+    params.PushBack(IntParam());
+    params.PushBack(F32Param());
+    params.PushBack(Param(CbcTypeKind::I16));
+
+    CallSignature sig { params, 0 };
+    auto tail = ComputeTailParams(sig, StaticFlags(), Info().desc);
+
+    ASSERT_EQ(tail.Size(), 5u);
+    switch (GetParam()) {
+        case Platform::LINUX_X64:
+        case Platform::LINUX_AARCH64:
+            EXPECT_EQ(tail[0].offset, 0u);
+            EXPECT_EQ(tail[1].offset, 8u);
+            EXPECT_EQ(tail[2].offset, 16u);
+            EXPECT_EQ(tail[3].offset, 24u);
+            EXPECT_EQ(tail[4].offset, 32u);
+            break;
+        case Platform::DARWIN_AARCH64:
+            EXPECT_EQ(tail[0].offset, 0u);
+            EXPECT_EQ(tail[1].offset, 1u);
+            EXPECT_EQ(tail[2].offset, 8u);  // 64-bit value aligned to 8
+            EXPECT_EQ(tail[3].offset, 16u); // f32 aligned to 4
+            EXPECT_EQ(tail[4].offset, 20u); // i16 aligned to 2
+            break;
+    }
+}
+
+TEST_P(StagerTest, TailLoadKindsFollowParameterKinds)
+{
+    Utils::Vector<ParamInfo> params;
+    for (int i = 0; i < IntRegCount(); i++) {
+        params.PushBack(IntParam());
+    }
+    for (int i = 0; i < FloatRegCount(); i++) {
+        params.PushBack(F64Param());
+    }
+    params.PushBack(Param(CbcTypeKind::U8));
+    params.PushBack(Param(CbcTypeKind::I8));
+    params.PushBack(Param(CbcTypeKind::U16));
+    params.PushBack(Param(CbcTypeKind::I16));
+    params.PushBack(Param(CbcTypeKind::I32));
+    params.PushBack(F32Param());
+    params.PushBack(IntParam());
+    params.PushBack(RefParam());
+    params.PushBack(RecParam());
+
+    CallSignature sig { params, 0 };
+    auto tail = ComputeTailParams(sig, StaticFlags(), Info().desc);
+
+    ASSERT_EQ(tail.Size(), 9u);
+    // Short integrals are widened to 32-bit in the bytecode (`ld.tail.32`) but
+    // occupy their natural width in the passing area, so the load kind comes
+    // from the parameter kind. Records arrive as pointers and load as words.
+    EXPECT_EQ(tail[0].ldk, Format::LoadAccessKind::LD_U8);
+    EXPECT_EQ(tail[1].ldk, Format::LoadAccessKind::LD_S8);
+    EXPECT_EQ(tail[2].ldk, Format::LoadAccessKind::LD_U16);
+    EXPECT_EQ(tail[3].ldk, Format::LoadAccessKind::LD_S16);
+    EXPECT_EQ(tail[4].ldk, Format::LoadAccessKind::LD_32);
+    EXPECT_EQ(tail[5].ldk, Format::LoadAccessKind::LD_F32);
+    EXPECT_EQ(tail[6].ldk, Format::LoadAccessKind::LD_64);
+    EXPECT_EQ(tail[7].ldk, Format::LoadAccessKind::LD_REF);
+    EXPECT_EQ(tail[8].ldk, Format::LoadAccessKind::LD_64);
+}
+
+TEST_P(StagerTest, TailParamsMatchManagedStaging)
+{
+    Utils::Vector<ParamInfo> params;
+    Utils::Vector<Location> args;
+    for (int i = 0; i < IntRegCount(); i++) {
+        params.PushBack(IntParam());
+    }
+    for (int i = 0; i < FloatRegCount(); i++) {
+        params.PushBack(F64Param());
+    }
+    params.PushBack(Param(CbcTypeKind::U8));
+    params.PushBack(Param(CbcTypeKind::I16));
+    params.PushBack(IntParam());
+    params.PushBack(F32Param());
+    params.PushBack(RefParam());
+    params.PushBack(RecParam());
+    for (size_t i = 0; i < params.Size(); i++) {
+        args.PushBack(SlotLoc(static_cast<int>(i)));
+    }
+
+    CallSignature sig { params, 0 };
+    RecordArgs(args);
+    auto result = stager.StageManaged(args, StaticFlags(), sig);
+    ASSERT_TRUE(result.ok) << result.failure;
+
+    auto tail = ComputeTailParams(sig, StaticFlags(), Info().desc);
+
+    // Each argument that landed in the passing area must take the next tail
+    // ordinal, at exactly the byte offset the caller-side staging chose.
+    int ordinal = 0;
+    for (size_t i = 0; i < params.Size(); i++) {
+        std::optional<size_t> at;
+        for (size_t off = 0; off < sink.stackSlotCount * 8; off++) {
+            if (sink.paramBytes[off].tag == Cell::MOVE && sink.paramBytes[off].value == argValues[i]) {
+                at = off;
+                break;
+            }
+        }
+        if (!at.has_value()) {
+            continue; // argument landed in a register
+        }
+        ASSERT_LT(ordinal, static_cast<int>(tail.Size())) << "argument " << i << " has no tail ordinal";
+        EXPECT_EQ(tail[ordinal].offset, static_cast<uint32_t>(*at))
+            << "tail ordinal " << ordinal << " for argument " << i;
+        EXPECT_EQ(static_cast<int>(sink.SlotSizes[*at]), static_cast<int>(StkArg(params[i].kind)))
+            << "store width for argument " << i;
+        ordinal++;
+    }
+    EXPECT_EQ(ordinal, static_cast<int>(tail.Size()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

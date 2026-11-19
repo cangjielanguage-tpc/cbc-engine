@@ -223,12 +223,12 @@ TEST(Float16, IntegerBoundsAndCheckedCasts)
 TEST(Float16, AggregatePieceKinds)
 {
     CAbiField fields[] { { 0, 2, true }, { 2, 2, true }, { 4, 2, true } };
-    auto singleHalf = ClassifyCAbiStruct({ fields, 1 }, 2, false, 8, 8);
+    auto singleHalf = ClassifyCAbiStruct(HostTraits::C_ABI, { fields, 1 }, 2, false, 8, 8);
     ASSERT_EQ(singleHalf.passBy, CAbiPassBy::REGS);
     ASSERT_EQ(singleHalf.pieces.Size(), 1);
     EXPECT_EQ(singleHalf.pieces[0].kind, CbcTypeKind::F16);
 
-    auto aggregate = ClassifyCAbiStruct({ fields, 3 }, 6, false, 8, 8);
+    auto aggregate = ClassifyCAbiStruct(HostTraits::C_ABI, { fields, 3 }, 6, false, 8, 8);
     ASSERT_EQ(aggregate.passBy, CAbiPassBy::REGS);
     if (HostTraits::C_ABI == CAbi::SYSV) {
         ASSERT_EQ(aggregate.pieces.Size(), 1);
@@ -240,10 +240,10 @@ TEST(Float16, AggregatePieceKinds)
             EXPECT_EQ(aggregate.pieces[i].kind, CbcTypeKind::F16);
         }
     }
-    EXPECT_EQ(ClassifyCAbiStruct({ fields, 3 }, 6, false, 8, 0).passBy, CAbiPassBy::STACK);
+    EXPECT_EQ(ClassifyCAbiStruct(HostTraits::C_ABI, { fields, 3 }, 6, false, 8, 0).passBy, CAbiPassBy::STACK);
 
     CAbiField integers[] { { 0, 2, false }, { 2, 2, false }, { 4, 2, false } };
-    auto integerAggregate = ClassifyCAbiStruct({ integers, 3 }, 6, false, 8, 8);
+    auto integerAggregate = ClassifyCAbiStruct(HostTraits::C_ABI, { integers, 3 }, 6, false, 8, 8);
     ASSERT_EQ(integerAggregate.passBy, CAbiPassBy::REGS);
     ASSERT_EQ(integerAggregate.pieces.Size(), 1);
     EXPECT_EQ(integerAggregate.pieces[0].kind, CbcTypeKind::I64);

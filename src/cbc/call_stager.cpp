@@ -344,20 +344,25 @@ ForeignStaging CallStager::StageForeign(
     return staging;
 }
 
+CallSignature MakeCallSignature(Engine::Term signature)
+{
+    CallSignature info;
+    uint32_t paramCount = signature.GetLength() - 1; // skip ret type
+    info.params.Reserve(paramCount);
+    for (uint32_t i = 0; i < paramCount; i++) {
+        ParamInfo param;
+        param.kind = ArgTypeTraits<Engine::Term> {}.Kind(signature.Subterm(i));
+        info.params.PushBack(param);
+    }
+    return info;
+}
+
 CallSignature MakeCallSignature(const Resolution::MethodSignature& sig)
 {
     ASSERT(!sig.isVarArg);
 
-    CallSignature info;
-    info.funcVarCount = sig.tvars.GetLength();
-
-    auto params = sig.Params();
-    info.params.Reserve(params.Size());
-    for (auto term : params) {
-        ParamInfo param;
-        param.kind = ArgTypeTraits<Engine::Term> {}.Kind(term);
-        info.params.PushBack(param);
-    }
+    CallSignature info = MakeCallSignature(sig.term);
+    info.funcVarCount  = sig.tvars.GetLength();
     return info;
 }
 
@@ -404,6 +409,65 @@ std::optional<ForeignCallSignature> MakeForeignCallSignature(
         info.retSize = *size;
     }
     return info;
+}
+
+/// Load kind of one tail parameter. Records cross the boundary as pointers to
+/// the caller-owned copy, so they load as raw words.
+static Format::LoadAccessKind TailLoadKind(CbcTypeKind kind)
+{
+    if (kind == CbcTypeKind::REC) {
+        return Format::LoadAccessKind::LD_64;
+    }
+    return Ldk(kind);
+}
+
+Utils::Vector<TailParamInfo> ComputeTailParams(
+    const CallSignature& sig, const CallAbiFlags& flags, const AbiAssigner::PlatformDescription& desc
+)
+{
+    Utils::Vector<TailParamInfo> tail;
+    AbiAssigner abi(desc);
+
+    auto record = [&](ArgTarget target, CbcTypeKind kind) {
+        if (target.loc.Kind() != Location::SLOT) {
+            return;
+        }
+        tail.PushBack(TailParamInfo {
+            .offset = static_cast<uint32_t>(target.loc.SlotIdx()) * STACK_SLOT_SIZE + target.byteOffset,
+            .ldk    = TailLoadKind(kind),
+        });
+    };
+
+    if (flags.isSRet) {
+        record(abi.ConsumeSret(), CbcTypeKind::REC);
+    }
+
+    // Same consumption order as StageManaged: receiver, parameters, then the
+    // hidden trailing arguments.
+    switch (flags.abiKind) {
+        case Image::MethodAbiKind::MUT: {
+            record(abi.Consume(CbcTypeKind::REC), CbcTypeKind::REC);
+            record(abi.Consume(CbcTypeKind::REF), CbcTypeKind::REF);
+            break;
+        }
+        case Image::MethodAbiKind::REF_RECEIVER:   record(abi.Consume(CbcTypeKind::REF), CbcTypeKind::REF); break;
+        case Image::MethodAbiKind::PRIM_RECEIVER:  record(abi.Consume(CbcTypeKind::I64), CbcTypeKind::I64); break;
+        case Image::MethodAbiKind::FPRIM_RECEIVER: record(abi.Consume(CbcTypeKind::F64), CbcTypeKind::F64); break;
+        case Image::MethodAbiKind::REC_RECEIVER:   record(abi.Consume(CbcTypeKind::REC), CbcTypeKind::REC); break;
+        case Image::MethodAbiKind::STATIC:
+        case Image::MethodAbiKind::HAS_THIS_TI:    break;
+    }
+
+    for (const auto& param : sig.params) {
+        record(abi.Consume(param.kind), param.kind);
+    }
+
+    int hiddenCount = sig.funcVarCount + flags.hasOuterTi + (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI);
+    for (int i = 0; i < hiddenCount; i++) {
+        record(abi.Consume(CbcTypeKind::I64), CbcTypeKind::I64);
+    }
+
+    return tail;
 }
 
 } // namespace Cbc

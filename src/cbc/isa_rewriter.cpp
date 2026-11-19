@@ -202,7 +202,8 @@ struct IsaRewriter : public IsaParser {
         Image::Identifier<Image::MethodDefinition> method,
         MethodCode& code,
         FrameLayout& frameLayout,
-        Emitter::Emitter& emit
+        Emitter::Emitter& emit,
+        Utils::Vector<TailParamInfo> tailParams
     )
         : IsaParser(code),
           session(session),
@@ -212,6 +213,7 @@ struct IsaRewriter : public IsaParser {
           code(code),
           emit(emit),
           frameLayout(frameLayout),
+          tailParams(std::move(tailParams)),
           bytecodeSize(reader.End() - reader.Start()),
           startPosition(0)
     {}
@@ -225,6 +227,7 @@ struct IsaRewriter : public IsaParser {
     FrameLayout& frameLayout;
     RewriterMoveEmitter moveEmitter { frameLayout, emit };
     CallStager stager { moveEmitter, AbiAssigner::PlatformDescription::FromTraits<HOST_PLATFORM>(), HostTraits::C_ABI };
+    Utils::Vector<TailParamInfo> tailParams;
     size_t bytecodeSize;
     uint32_t maxParamPassingSize = 0;
     Utils::Vector<uint32_t> pendingParamRefSlots;
@@ -828,10 +831,14 @@ struct IsaRewriter : public IsaParser {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, TypedSlotOffset(ts));
     }
 
-    void LoadTailParam(AnyReg dst, IReg tailReg, int64_t number, Format::LoadAccessKind ldk) override
+    void LoadTailParam(AnyReg dst, IReg tailReg, int64_t number, Format::LoadAccessKind) override
     {
-        auto offset = number * Cbc::STACK_SLOT_SIZE; // TODO: support different stack param layouts (e.g. iOS)
-        LoadRawMemory(dst, tailReg, offset, ldk);
+        if (number < 0 || static_cast<size_t>(number) >= tailParams.Size()) {
+            Fail("tail parameter index " + std::to_string(number) + " is out of range");
+            return;
+        }
+        const auto& param = tailParams[static_cast<size_t>(number)];
+        LoadRawMemory(dst, tailReg, param.offset, param.ldk);
     }
 
     void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
@@ -1365,7 +1372,6 @@ struct IsaRewriter : public IsaParser {
         );
         auto compiled  = std::get_if<DirectCall::Compiled>(&method->data);
         auto callFlags = MakeCallAbiFlags(ref.flags, ref.abiKind);
-        auto callSig   = MakeCallSignature(method->signature);
 
         if (compiled && compiled->isForeign) {
             auto foreignSig = MakeForeignCallSignature(resolver, method->signature);
@@ -1387,6 +1393,7 @@ struct IsaRewriter : public IsaParser {
             EmitFillSRetAreaByRegs(retPlan);
         } else if (compiled) {
             // AOT managed call
+            auto callSig = MakeCallSignature(method->signature);
             auto sym = emit.NewAddressSym(compiled->funcPtr);
             StageManagedCallArgs(args, callFlags, callSig);
             EmitLogCall("call.2c", method);
@@ -1394,6 +1401,7 @@ struct IsaRewriter : public IsaParser {
             BindStatePoint();
         } else {
             // CBC managed call
+            auto callSig = MakeCallSignature(method->signature);
             StageManagedCallArgs(args, callFlags, callSig);
             EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
@@ -2175,7 +2183,21 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
         FATAL("Rewriter failed: cannot make frame layout.");
     }
 
-    auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
+    auto def     = Decode::Read(session, method);
+    auto flags   = def.GetABIFlags();
+    auto sigTerm = Engine::TermManager::Resolve(session, def.Signature());
+
+    auto selfSig         = MakeCallSignature(sigTerm);
+    selfSig.funcVarCount = def->arity;
+    auto tailParams      = ComputeTailParams(
+        selfSig,
+        { .isSRet     = flags.Is(Image::MethodRefFlag::SRET),
+               .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+               .abiKind    = def->abiKind },
+        AbiAssigner::PlatformDescription::FromTraits<HOST_PLATFORM>()
+    );
+
+    auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter, std::move(tailParams));
     rewriter.ParseAll();
 
     auto fullFrameSize =
@@ -2191,11 +2213,9 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
         return std::nullopt;
     }
 
-    auto def     = Decode::Read(session, method);
-    auto flags   = def.GetABIFlags();
     auto abiInfo = Interpretation::BuildAbiInfo(
         session,
-        Engine::TermManager::Resolve(session, def.Signature()),
+        sigTerm,
         {
             .isSRet     = flags.Is(Image::MethodRefFlag::SRET),
             .isMut      = def->abiKind == Image::MethodAbiKind::MUT,

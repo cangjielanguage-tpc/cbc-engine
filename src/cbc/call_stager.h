@@ -11,6 +11,10 @@
 #include <optional>
 #include <string>
 
+namespace Engine {
+struct Term;
+} // namespace Engine
+
 namespace Resolution {
 struct Resolver;
 struct MethodSignature;
@@ -30,6 +34,17 @@ struct ParamInfo {
 struct CallSignature {
     Utils::Vector<ParamInfo> params;
     int funcVarCount = 0;
+};
+
+/// One stack-passed parameter as seen by the callee: its byte offset from the
+/// tail base (the `n`-th stack parameter is `ld.tail` operand `n`) and the
+/// load kind that reads exactly what the caller-side store wrote. Short
+/// integrals are widened to 32-bit in the bytecode (`ld.tail.32`) but occupy
+/// their natural width in the passing area, so the load kind comes from the
+/// parameter kind, not from the instruction.
+struct TailParamInfo {
+    uint32_t offset;
+    Format::LoadAccessKind ldk;
 };
 
 /// Foreign (C ABI) call: record layouts are resolved by the time it is built.
@@ -122,8 +137,18 @@ private:
 
 CallSignature MakeCallSignature(const Resolution::MethodSignature& sig);
 
+/// Signature of a method from its raw signature term (ret type excluded from params).
+CallSignature MakeCallSignature(Engine::Term signature);
+
 std::optional<ForeignCallSignature> MakeForeignCallSignature(
     Resolution::Resolver& resolver, const Resolution::MethodSignature& sig
+);
+
+/// Tail layout of a managed method: one entry per stack-passed parameter, in
+/// `ld.tail` ordinal order. Mirrors the placement `StageManaged` produces for
+/// a call to the same signature.
+Utils::Vector<TailParamInfo> ComputeTailParams(
+    const CallSignature& sig, const CallAbiFlags& flags, const AbiAssigner::PlatformDescription& desc
 );
 
 } // namespace Cbc
