@@ -25,7 +25,7 @@
 ///     InitCJRuntime(&rtParams);
 ///     struct InterpreterParam params = {.interpreterLibName = "libcbcengine.so"};
 ///     InitCJInterpreter(&params);
-///     engine_initialize_rt_staging(&staging);
+///     engine_preset_init_staging(resolver);
 ///
 ///     // Library initialization stage: either preset AOT builtins
 ///     engine_preset_cjnative_builtins(resolver);
@@ -134,7 +134,7 @@ typedef struct CbcFunction {
 
 /// Query the function with the given name in the form of "<pkg name>:<func name>".
 /// If `needTrampoline` is set, the `code` part of `CbcFunction` will contain a ready-to-use trampoline.
-CBC_EXPORT CbcStatus engine_query_function(CbcFunction* rloc, char const* name, bool needTrampoline);
+CBC_EXPORT CbcStatus engine_query_function(CbcFunction* rloc, char const* name, int needTrampoline);
 
 /// The special version of `engine_query_function`, where the engine itself computes the actual `name` of the queried function.
 CBC_EXPORT CbcStatus engine_query_main_function(CbcFunction* rloc);
@@ -185,8 +185,17 @@ CBC_EXPORT CbcStatus engine_apply_hotfix_patches();
 /// Preset builtins initializer for cjnative AOT compiled stdlib.
 CBC_EXPORT CbcStatus engine_preset_cjnative_builtins(CbcDlsym resolver);
 
+/// Preset staging initialization that uses provided symbol resolver.
+CBC_EXPORT CbcStatus engine_preset_init_staging(CbcDlsym resolver);
+
 /// Preset resolver that performs symbol resolution in the current executable and its transitive dependencies.
 CBC_EXPORT CbcStatus engine_preset_in_executable_resolver(CbcDlsym* rloc);
+
+/// Preset resolver that performs symbol resolution in provided shared library handle.
+CBC_EXPORT CbcStatus engine_preset_in_library_resolver(CbcDlsym* rloc, void *handle);
+
+/// Preset resolver that performs symbol resolution in shared library that hosts provided symbol.
+CBC_EXPORT CbcStatus engine_preset_in_host_library_resolver(CbcDlsym* rloc, void *symbol_location);
 
 #ifdef __cplusplus
 } // extern "C"
