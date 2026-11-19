@@ -110,14 +110,26 @@ struct RewriterMoveEmitter : public MoveEmitter {
 
     void AssignFReg(FReg dst, FReg src) override { emit.Mov(dst, src); }
 
-    void AssignParamSlot(int paramSlot, int stackSlot) override
+    void AssignParamSlot(int paramSlot, int stackSlot, Format::StoreAccessKind stk, uint32_t byteOffset) override
     {
         auto srcOffset = frameLayout.UntypedSlotOffset(stackSlot);
-        auto dstOffset = static_cast<uint16_t>(paramSlot) * Cbc::STACK_SLOT_SIZE;
-        if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
-            emit.StackParamS16(srcOffset, dstOffset);
+        auto dstOffset = static_cast<uint16_t>(paramSlot) * Cbc::STACK_SLOT_SIZE + byteOffset;
+        if (stk == Format::StoreAccessKind::ST_64) {
+            // Whole slot: the frame-slot copy instructions carry the value
+            // verbatim and need no staging register.
+            if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
+                emit.StackParamS16(srcOffset, dstOffset);
+            } else {
+                emit.StackParamS32(srcOffset, dstOffset);
+            }
+        } else if (Format::StoreAccessKind(stk).IsFloat()) {
+            // Compacted float argument: route through a float register.
+            emit.LoadFrame(LdkOfStk(stk), SCRATCH_FOR_PBV_F, srcOffset);
+            emit.StackParamF(SCRATCH_FOR_PBV_F, dstOffset, stk);
         } else {
-            emit.StackParamS32(srcOffset, dstOffset);
+            // Compacted argument: copy exactly its width so neighbours survive.
+            emit.LoadFrame(LdkOfStk(stk), SCRATCH_FOR_PBV, srcOffset);
+            emit.StackParam(SCRATCH_FOR_PBV, dstOffset, stk);
         }
     }
 
@@ -131,14 +143,14 @@ struct RewriterMoveEmitter : public MoveEmitter {
         emit.LoadFrame(LDK::LD_64, dst, frameLayout.UntypedSlotOffset(slot));
     }
 
-    void AssignSlotFromIReg(int slot, IReg src) override
+    void AssignSlotFromIReg(int slot, IReg src, Format::StoreAccessKind stk, uint32_t byteOffset) override
     {
-        emit.StackParam(src, static_cast<uint16_t>(slot) * Cbc::STACK_SLOT_SIZE);
+        emit.StackParam(src, static_cast<uint16_t>(slot) * Cbc::STACK_SLOT_SIZE + byteOffset, stk);
     }
 
-    void AssignSlotFromFReg(int slot, FReg src) override
+    void AssignSlotFromFReg(int slot, FReg src, Format::StoreAccessKind stk, uint32_t byteOffset) override
     {
-        emit.StackParamF(src, static_cast<uint16_t>(slot) * Cbc::STACK_SLOT_SIZE);
+        emit.StackParamF(src, static_cast<uint16_t>(slot) * Cbc::STACK_SLOT_SIZE + byteOffset, stk);
     }
 
     void AssignIRegFromAddr(IReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
@@ -151,11 +163,15 @@ struct RewriterMoveEmitter : public MoveEmitter {
         emit.LoadRec(ldk, dst, AddrReg(addr), offset);
     }
 
-    void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
+    void AssignSlotFromAddr(
+        int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk, uint32_t byteOffset
+    ) override
     {
         auto base = AddrReg(addr);
         emit.LoadRec(ldk, SCRATCH_FOR_PBV, base, offset);
-        emit.StackParam(SCRATCH_FOR_PBV, static_cast<uint16_t>(paramSlot) * Cbc::STACK_SLOT_SIZE);
+        emit.StackParam(
+            SCRATCH_FOR_PBV, static_cast<uint16_t>(paramSlot) * Cbc::STACK_SLOT_SIZE + byteOffset, StkOfLdk(ldk)
+        );
     }
 
     void LeaParamArea(IReg dst, uint32_t offset) override { emit.LeaStackParam(dst, offset); }
@@ -173,6 +189,10 @@ struct RewriterMoveEmitter : public MoveEmitter {
 
     // Not a value needed after a foreign call, so it is free for staging.
     static constexpr IReg SCRATCH_FOR_PBV = IReg::IR_ACC;
+    // Float counterpart, same contract as above. FR15 is also the
+    // MoveResolver's cycle-breaking temp, but slot destinations are emitted
+    // before that shuffle starts, so it is free here.
+    static constexpr FReg SCRATCH_FOR_PBV_F = FReg::FR15;
 };
 
 struct IsaRewriter : public IsaParser {
@@ -337,7 +357,7 @@ struct IsaRewriter : public IsaParser {
         }
         maxParamPassingSize  = std::max(maxParamPassingSize, staging.result.maxParamPassingSize);
         pendingParamRecSlots = std::move(staging.result.paramRecSlots);
-        return { staging.stackSlots, staging.fregs };
+        return { staging.stackBytes, staging.fregs };
     }
 
     void StageManagedCallArgs(
@@ -1319,8 +1339,8 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, flags, *info, retPlan);
-        ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
-        emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
+        ASSERTION(stackSlotsCount <= UINT8_MAX, "too many stack arguments in foreign call");
+        emit.CallCFunc(target, stackSlotsCount, fregsCount);
         EmitFillSRetAreaByRegs(retPlan);
         BindStatePoint();
         EmitReturnedTo();
@@ -1361,8 +1381,8 @@ struct IsaRewriter : public IsaParser {
             }
             auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, callFlags, *foreignSig, retPlan);
             EmitLogCall("call.2n", method);
-            ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
-            emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
+            ASSERTION(stackSlotsCount <= UINT8_MAX, "too many stack arguments in foreign call");
+            emit.DirectCall2n(sym, stackSlotsCount, fregsCount);
             BindStatePoint();
             EmitFillSRetAreaByRegs(retPlan);
         } else if (compiled) {

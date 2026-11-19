@@ -1122,6 +1122,47 @@ inline Format::StoreAccessKind Stk(CbcTypeKind kind)
     }
 }
 
+/// Store width of a value pushed into the passing area. Records and references
+/// are pushed as 8-byte pointers, so they use a whole slot.
+inline Format::StoreAccessKind StkArg(CbcTypeKind kind)
+{
+    switch (kind) {
+        case CbcTypeKind::REC:
+        case CbcTypeKind::REF: return Format::StoreAccessKind::ST_64;
+        default:               return Stk(kind);
+    }
+}
+
+/// Store width matching a load width.
+inline Format::StoreAccessKind StkOfLdk(Format::LoadAccessKind ldk)
+{
+    switch (ldk) {
+        case Format::LoadAccessKind::LD_U8:
+        case Format::LoadAccessKind::LD_S8:  return Format::StoreAccessKind::ST_8;
+        case Format::LoadAccessKind::LD_U16:
+        case Format::LoadAccessKind::LD_S16: return Format::StoreAccessKind::ST_16;
+        case Format::LoadAccessKind::LD_32:  return Format::StoreAccessKind::ST_32;
+        case Format::LoadAccessKind::LD_REF: return Format::StoreAccessKind::ST_REF;
+        case Format::LoadAccessKind::LD_F32: return Format::StoreAccessKind::ST_F32;
+        case Format::LoadAccessKind::LD_F64: return Format::StoreAccessKind::ST_F64;
+        default:                             return Format::StoreAccessKind::ST_64;
+    }
+}
+
+/// Load width matching a store width.
+inline Format::LoadAccessKind LdkOfStk(Format::StoreAccessKind stk)
+{
+    switch (stk) {
+        case Format::StoreAccessKind::ST_8:   return Format::LoadAccessKind::LD_U8;
+        case Format::StoreAccessKind::ST_16:  return Format::LoadAccessKind::LD_U16;
+        case Format::StoreAccessKind::ST_32:  return Format::LoadAccessKind::LD_32;
+        case Format::StoreAccessKind::ST_REF: return Format::LoadAccessKind::LD_REF;
+        case Format::StoreAccessKind::ST_F32: return Format::LoadAccessKind::LD_F32;
+        case Format::StoreAccessKind::ST_F64: return Format::LoadAccessKind::LD_F64;
+        default:                              return Format::LoadAccessKind::LD_64;
+    }
+}
+
 } // namespace Cbc
 
 namespace Stream {

@@ -1036,6 +1036,7 @@ struct InterfaceCallGeneric {
 struct StackParam {
     Opcode opc;
     IReg src;
+    Format::StoreAccessKind stk;
     uint16_t dst;
 
     inline static StackParam Decode(Decoder::ByteReader& reader)
@@ -1043,14 +1044,16 @@ struct StackParam {
         auto opc    = Opcode(reader.Read8());
         auto b      = reader.Read8();
         auto src    = IReg::From(b >> 4);
+        auto stk    = Format::StoreAccessKind::From(b & 0xf);
         auto offset = reader.Read16();
-        return StackParam { opc, src, offset };
+        return StackParam { opc, src, stk, offset };
     }
 };
 
 struct StackParamF {
     Opcode opc;
     FReg src;
+    Format::StoreAccessKind stk;
     uint16_t dst;
 
     inline static StackParamF Decode(Decoder::ByteReader& reader)
@@ -1058,8 +1061,9 @@ struct StackParamF {
         auto opc = Opcode(reader.Read8());
         auto b   = reader.Read8();
         auto src = FReg::From(b >> 4);
+        auto stk = Format::StoreAccessKind::From(b & 0xf);
         auto dst = reader.Read16();
-        return StackParamF { opc, src, dst };
+        return StackParamF { opc, src, stk, dst };
     }
 };
 

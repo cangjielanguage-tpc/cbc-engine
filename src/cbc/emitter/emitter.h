@@ -190,8 +190,8 @@ public:
     void LogInstruction(std::string_view string);
     void LogInstruction(char* string);
 
-    void StackParam(IReg src, uint16_t offset);
-    void StackParamF(FReg src, uint16_t dst);
+    void StackParam(IReg src, uint16_t offset, Format::StoreAccessKind stk = Format::StoreAccessKind::ST_64);
+    void StackParamF(FReg src, uint16_t dst, Format::StoreAccessKind stk = Format::StoreAccessKind::ST_F64);
     void StackParamS16(int16_t src, uint16_t dst);
     void StackParamS32(int32_t src, uint16_t dst);
     void LeaStackParam(IReg dst, uint16_t offset);

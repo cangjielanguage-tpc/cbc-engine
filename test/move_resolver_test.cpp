@@ -111,8 +111,8 @@ TEST(MoveResolver, SlotCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(StValue(1)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(0), Cell::Move(StValue(1)));
 }
 
 TEST(MoveResolver, SingleMove)
@@ -258,9 +258,9 @@ TEST(MoveResolver, SimilarSlotNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
-    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(3), Cell::Move(StValue(2)));
+    EXPECT_EQ(r.Slot(5), Cell::Move(StValue(4)));
 }
 
 // --- Doc invariant: volatile src -> param-passing dst (no cycle) ---
@@ -380,8 +380,8 @@ TEST(MoveResolver, ThreeIndependentCyclesMixed)
     EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
     EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
     EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(3), Cell::Move(StValue(2)));
 }
 
 TEST(MoveResolver, IndependentCyclesWithSlotMoves)
@@ -407,9 +407,9 @@ TEST(MoveResolver, IndependentCyclesWithSlotMoves)
     EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(3)));
     EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
     EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
-    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(3), Cell::Move(StValue(2)));
+    EXPECT_EQ(r.Slot(5), Cell::Move(StValue(4)));
 }
 
 TEST(MoveResolver, ManySlotMovesNoCycle)
@@ -427,12 +427,12 @@ TEST(MoveResolver, ManySlotMovesNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 6);
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
-    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
-    EXPECT_EQ(r.paramPassingStackSlots[7], Cell::Move(StValue(6)));
-    EXPECT_EQ(r.paramPassingStackSlots[9], Cell::Move(StValue(8)));
-    EXPECT_EQ(r.paramPassingStackSlots[11], Cell::Move(StValue(10)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(3), Cell::Move(StValue(2)));
+    EXPECT_EQ(r.Slot(5), Cell::Move(StValue(4)));
+    EXPECT_EQ(r.Slot(7), Cell::Move(StValue(6)));
+    EXPECT_EQ(r.Slot(9), Cell::Move(StValue(8)));
+    EXPECT_EQ(r.Slot(11), Cell::Move(StValue(10)));
 }
 
 TEST(MoveResolver, SlotMovesWithSingleRegCycle)
@@ -453,10 +453,10 @@ TEST(MoveResolver, SlotMovesWithSingleRegCycle)
     ASSERT_EQ(r.movCount, 7);
     EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(5)));
     EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(6)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
-    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
-    EXPECT_EQ(r.paramPassingStackSlots[7], Cell::Move(StValue(6)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(3), Cell::Move(StValue(2)));
+    EXPECT_EQ(r.Slot(5), Cell::Move(StValue(4)));
+    EXPECT_EQ(r.Slot(7), Cell::Move(StValue(6)));
 }
 
 TEST(MoveResolver, ThreeIndependentIRCycles)
@@ -509,8 +509,8 @@ TEST(MoveResolver, MixedCycleSizesWithSlots)
     EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(5)));
     EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
     EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(3), Cell::Move(StValue(2)));
 }
 
 // --- Fan-out: one src used by multiple dsts ---
@@ -578,8 +578,8 @@ TEST(MoveResolver, FanOutToSlots)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(1)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.Slot(0), Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, FanOutMultipleSrcs)
@@ -676,7 +676,7 @@ TEST(MoveResolver, FanOutWithSlotAndCycle)
     ASSERT_EQ(r.movCount, 4);
     EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
     EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.Slot(0), Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, RegressionMatrixMultiply_parallel_bench)
@@ -707,9 +707,9 @@ TEST(MoveResolver, RegressionMatrixMultiply_parallel_bench)
     EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(10)));
     EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(11)));
     EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(13)));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(12)));
-    EXPECT_EQ(r.paramPassingStackSlots[2], Cell::Move(IrValue(8)));
+    EXPECT_EQ(r.Slot(0), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(IrValue(12)));
+    EXPECT_EQ(r.Slot(2), Cell::Move(IrValue(8)));
 }
 
 // --- Load-from-address tests ---
@@ -747,7 +747,7 @@ TEST(MoveResolver, LoadIntoSlotFromIRegAddr)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 1);
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(IrValue(1), 16, LDK::LD_64));
+    EXPECT_EQ(r.Slot(0), Cell::Load(IrValue(1), 16, LDK::LD_64));
 }
 
 TEST(MoveResolver, LoadFromSlotAddrIntoRegs)
@@ -774,7 +774,7 @@ TEST(MoveResolver, LoadFromSlotAddrIntoSlot)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 1);
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(StValue(2), 8, LDK::LD_64));
+    EXPECT_EQ(r.Slot(0), Cell::Load(StValue(2), 8, LDK::LD_64));
 }
 
 TEST(MoveResolver, LoadToSlotIsAtTheBeginning)
@@ -788,7 +788,7 @@ TEST(MoveResolver, LoadToSlotIsAtTheBeginning)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(IrValue(1), 8, LDK::LD_64));
+    EXPECT_EQ(r.Slot(0), Cell::Load(IrValue(1), 8, LDK::LD_64));
     EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
 }
 
@@ -979,11 +979,11 @@ TEST(MoveResolver, AllSrcDstKindsWithLoads)
     EXPECT_EQ(r.fregs[1], Cell::Load(IrValue(2), 16, LDK::LD_F64));
     EXPECT_EQ(r.fregs[2], Cell::Move(StValue(7)));
     EXPECT_EQ(r.fregs[3], Cell::Load(StValue(9), 16, LDK::LD_F32));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(4)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(FrValue(3)));
-    EXPECT_EQ(r.paramPassingStackSlots[2], Cell::Move(StValue(0)));
-    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Load(IrValue(2), 24, LDK::LD_32));
-    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Load(StValue(4), 0, LDK::LD_U16));
+    EXPECT_EQ(r.Slot(0), Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.Slot(1), Cell::Move(FrValue(3)));
+    EXPECT_EQ(r.Slot(2), Cell::Move(StValue(0)));
+    EXPECT_EQ(r.Slot(3), Cell::Load(IrValue(2), 24, LDK::LD_32));
+    EXPECT_EQ(r.Slot(5), Cell::Load(StValue(4), 0, LDK::LD_U16));
 }
 
 TEST(MoveResolver, MixedCyclesLoadsAndSlots)
@@ -1020,8 +1020,8 @@ TEST(MoveResolver, MixedCyclesLoadsAndSlots)
     EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
     EXPECT_EQ(r.fregs[2], Cell::Load(StValue(2), 16, LDK::LD_F32));
     EXPECT_EQ(r.fregs[3], Cell::Move(StValue(4)));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(4)));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Load(IrValue(5), 8, LDK::LD_32));
+    EXPECT_EQ(r.Slot(0), Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.Slot(1), Cell::Load(IrValue(5), 8, LDK::LD_32));
 }
 
 TEST(MoveResolver, LoadsFromSlotsAfterResolving)
@@ -1079,7 +1079,7 @@ TEST(MoveResolver, TwoCyclesOneWithLoad)
     EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(4)));
     EXPECT_EQ(r.iregs[6], Cell::Move(StValue(2)));
     EXPECT_EQ(r.fregs[1], Cell::Load(StValue(1), 8, LDK::LD_64));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.Slot(0), Cell::Move(FrValue(0)));
 }
 
 TEST(MoveResolver, ManyLoadsFromOneAddr)
@@ -1113,6 +1113,6 @@ TEST(MoveResolver, ManyLoadsFromOneAddr)
     EXPECT_EQ(r.iregs[9], Cell::Move(IrValue(5)));
     EXPECT_EQ(r.fregs[0], Cell::Load(IrValue(9), 8, LDK::LD_F64));
     EXPECT_EQ(r.fregs[2], Cell::Move(FrValue(1)));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(IrValue(9), 24, LDK::LD_64));
-    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(11)));
+    EXPECT_EQ(r.Slot(0), Cell::Load(IrValue(9), 24, LDK::LD_64));
+    EXPECT_EQ(r.Slot(1), Cell::Move(IrValue(11)));
 }

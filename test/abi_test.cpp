@@ -91,16 +91,16 @@ struct TestAbiBuilder {
     {
         auto target = assigner.Consume(kind);
         moves.AddMove(target, loc);
-        track(target, kind);
-        return target;
+        track(target.loc, kind);
+        return target.loc;
     }
 
     Location ConsumeSret(Location loc)
     {
         auto target = assigner.ConsumeSret();
         moves.AddMove(target, loc);
-        track(target, CbcTypeKind::REC);
-        return target;
+        track(target.loc, CbcTypeKind::REC);
+        return target.loc;
     }
 
     Location ConsumeReceiverMut(Location loc0, Location loc1)
@@ -109,9 +109,9 @@ struct TestAbiBuilder {
         auto t1 = assigner.Consume(CbcTypeKind::REF);
         moves.AddMove(t0, loc0);
         moves.AddMove(t1, loc1);
-        track(t0, CbcTypeKind::I64);
-        track(t1, CbcTypeKind::REF);
-        return t0;
+        track(t0.loc, CbcTypeKind::I64);
+        track(t1.loc, CbcTypeKind::REF);
+        return t0.loc;
     }
 
     template <typename ArgType> Location Consume(ArgType arg, Location loc)
@@ -296,7 +296,7 @@ TEST(AbiBuilder, IntOverflowToStack)
     EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(10)));
     EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(11)));
     EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(12)));
-    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(13)));
+    EXPECT_EQ(r.Slot(0), Cell::Move(IrValue(13)));
 }
 
 TEST(AbiBuilder, FloatParamsNoOverflow)
@@ -407,8 +407,8 @@ TEST(AbiBuilder, PlatformParameterized)
         r.Resolve(builder.moves);
         ASSERT_EQ(r.movCount, 8);
         EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(11)));
-        EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(12)));
-        EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(13)));
+        EXPECT_EQ(r.Slot(0), Cell::Move(IrValue(12)));
+        EXPECT_EQ(r.Slot(1), Cell::Move(IrValue(13)));
     }
 
     // aarch64: 8 int regs, no overflow

@@ -56,7 +56,7 @@ struct StagingResult {
 };
 
 struct ForeignStaging {
-    int stackSlots = 0;
+    int stackBytes = 0;
     int fregs      = 0;
     StagingResult result;
 };
@@ -91,7 +91,7 @@ public:
 private:
     struct ForeignStructCopy {
         Location srcAddr; // location of caller-owned struct
-        Location ptrLoc;  // where the pointer to the callee-owned copy is saved
+        ArgTarget ptrLoc; // where the pointer to the callee-owned copy is saved
         uint32_t size;
         uint32_t dstOffset = 0; // byte offset of the copy from the frame bottom
     };

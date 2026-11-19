@@ -116,8 +116,8 @@ StagingResult CallStager::StageManaged(
             auto baseLoc    = abi.Consume(CbcTypeKind::REF);
             moves.AddMove(derivedLoc, derived);
             moves.AddMove(baseLoc, base);
-            ASSERT(derivedLoc.Kind() == Location::IREG);
-            result.derived = derivedLoc.IRegIdx();
+            ASSERT(derivedLoc.loc.Kind() == Location::IREG);
+            result.derived = derivedLoc.loc.IRegIdx();
             break;
         }
         case Image::MethodAbiKind::REF_RECEIVER: {
@@ -161,25 +161,24 @@ StagingResult CallStager::StageManaged(
     }
 
     if (flags.hasOuterTi) {
-        Location loc = abi.Consume(CbcTypeKind::I64);
+        auto loc = abi.Consume(CbcTypeKind::I64);
         moves.AddMove(loc, args[idx++]);
         if (outerTiLoc)
-            *outerTiLoc = loc;
+            *outerTiLoc = loc.loc;
     }
 
     if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
-        Location loc = abi.Consume(CbcTypeKind::I64);
+        auto loc = abi.Consume(CbcTypeKind::I64);
         moves.AddMove(loc, args[idx++]);
         if (thisTiLoc)
-            *thisTiLoc = loc;
+            *thisTiLoc = loc.loc;
     }
 
     if (!moves.Resolve(moveEmitter)) {
         return Fail("Register kind mismatch");
     }
 
-    result.maxParamPassingSize =
-        std::max(result.maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot()) * STACK_SLOT_SIZE);
+    result.maxParamPassingSize = std::max(result.maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackBytes()));
     return result;
 }
 
@@ -301,7 +300,7 @@ ForeignStaging CallStager::StageForeign(
     // By-reference struct copies are placed after all stack arguments:
     // the I2N adapter copies only the stack-argument area, so each copy
     // stays in the frame and only its pointer is passed.
-    uint32_t copyOffset = static_cast<uint32_t>(abi.MaxStackSlot()) * STACK_SLOT_SIZE;
+    uint32_t copyOffset = static_cast<uint32_t>(abi.MaxStackBytes());
     for (auto& copy : structCopies) {
         copy.dstOffset = copyOffset;
         for (uint32_t offset = 0; offset < copy.size; offset += STACK_SLOT_SIZE) {
@@ -318,11 +317,13 @@ ForeignStaging CallStager::StageForeign(
 
     for (const auto& copy : structCopies) {
         // Done after moves resolve, so copy.ptrLoc doesn't contain any useful data.
-        if (copy.ptrLoc.Kind() == Location::SLOT) {
+        if (copy.ptrLoc.loc.Kind() == Location::SLOT) {
             moveEmitter.LeaParamArea(IReg::IR_ACC, copy.dstOffset);
-            moveEmitter.AssignSlotFromIReg(copy.ptrLoc.SlotIdx(), IReg::IR_ACC);
+            moveEmitter.AssignSlotFromIReg(
+                copy.ptrLoc.loc.SlotIdx(), IReg::IR_ACC, copy.ptrLoc.stk, copy.ptrLoc.byteOffset
+            );
         } else {
-            moveEmitter.LeaParamArea(IReg::From(copy.ptrLoc.IRegIdx()), copy.dstOffset);
+            moveEmitter.LeaParamArea(IReg::From(copy.ptrLoc.loc.IRegIdx()), copy.dstOffset);
         }
     }
 
@@ -337,7 +338,7 @@ ForeignStaging CallStager::StageForeign(
         }
     }
 
-    staging.stackSlots         = abi.MaxStackSlot();
+    staging.stackBytes         = abi.MaxStackBytes();
     staging.fregs              = abi.MaxFRegs();
     result.maxParamPassingSize = std::max(result.maxParamPassingSize, copyOffset);
     return staging;

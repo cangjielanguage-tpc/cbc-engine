@@ -68,7 +68,8 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         case Image::MethodAbiKind::MUT: {
             auto derived = abi.Consume(Cbc::CbcTypeKind::I64);
             abi.Consume(Cbc::CbcTypeKind::REF);
-            derivedPairs |= (1u << derived.IRegIdx());
+            ASSERT(derived.loc.Kind() == Cbc::Location::IREG);
+            derivedPairs |= (1u << derived.loc.IRegIdx());
             break;
         }
         case Image::MethodAbiKind::REF_RECEIVER:   abi.Consume(Cbc::CbcTypeKind::REF); break;
