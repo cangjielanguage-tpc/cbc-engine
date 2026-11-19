@@ -129,21 +129,18 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("{}.{} {}, {}", op, width, d, s);
     }
 
-    void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
-    {
-        stream.PrintLn(
-            "convert {}, {}, {}, {}",
-            Format::CastType::Name(cast.to),
-            Format::CastType::Name(cast.from),
-            Fmt(to, Format::CastType::IsFloatingPoint(cast.to)),
-            Fmt(from, Format::CastType::IsFloatingPoint(cast.from))
-        );
-    }
+    void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override { PrintCast("convert", cast, to, from); }
 
     void CheckedConvert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
+        PrintCast("checked.convert", cast, to, from);
+    }
+
+    void PrintCast(std::string_view mnemonic, Format::CastType::Pair cast, AnyReg to, AnyReg from)
+    {
         stream.PrintLn(
-            "checked.convert {}, {}, {}, {}",
+            "{} {}, {}, {}, {}",
+            mnemonic,
             Format::CastType::Name(cast.to),
             Format::CastType::Name(cast.from),
             Fmt(to, Format::CastType::IsFloatingPoint(cast.to)),

@@ -29,13 +29,11 @@ struct EmitterSnapshot {
 
 class Emitter {
 public:
-    using Reg           = Format::Reg;
-    using Width         = Format::Width;
-    using CC            = Format::CC;
-    using Common        = Format::Common;
-    using CastOp        = Format::CastOp;
-    using CheckedCastOp = Format::CheckedCastOp;
-    using Checked       = Format::Checked;
+    using Reg     = Format::Reg;
+    using Width   = Format::Width;
+    using CC      = Format::CC;
+    using Common  = Format::Common;
+    using Checked = Format::Checked;
 
     using FloatOperations = Format::FloatOperations;
     using FloatMathOp     = Format::FloatMathOp;
@@ -194,8 +192,8 @@ public:
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
     void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
 
-    void Convert(CastOp op, Reg to, Reg from);
-    void CheckedConvert(CheckedCastOp op, Reg to, Reg from);
+    /// Emits `convert` (`Format::CastOp`) or `checked.convert` (`Format::CheckedCastOp`).
+    template <typename Kind> void Convert(Format::CastInst<Kind> op, Reg to, Reg from);
 
     void BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size);
     void BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size);

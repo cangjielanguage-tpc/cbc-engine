@@ -1223,7 +1223,7 @@ LABEL(TYPE_ARG) {
     NEXT;
 }
 LABEL(CONVERT) {
-    auto args = ConvertOp::Decode(reader);
+    auto args = UncheckedConvertOp::Decode(reader);
     LOG_INSTR;
     interpreter.Convert(args.cast, args.rr.x, args.rr.y);
     NEXT;

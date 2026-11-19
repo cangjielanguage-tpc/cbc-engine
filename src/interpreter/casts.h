@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -124,7 +125,7 @@ template <CastType::Code From, CastType::Code To> inline Value::Primitive CastTy
     }
 }
 
-template <typename List> inline constexpr size_t CastPairCount = sizeof(List::pairs) / sizeof(List::pairs[0]);
+template <typename List> inline constexpr size_t CastPairCount = std::size(List::pairs);
 
 using CastFn = Value::Primitive (*)(Value::Primitive);
 

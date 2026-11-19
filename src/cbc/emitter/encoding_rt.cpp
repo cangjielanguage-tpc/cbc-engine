@@ -59,19 +59,15 @@ void Encode(ByteBuffer& buf, RT::B3xrrr command)
     Encode(buf, command.rr);
 }
 
-void Encode(ByteBuffer& buf, RT::ConvertOp command)
+template <typename Kind> void Encode(ByteBuffer& buf, RT::ConvertOp<Kind> command)
 {
     Encode(buf, command.opc);
     Encode(buf, Format::Imm8(command.cast.Raw()));
     Encode(buf, command.rr);
 }
 
-void Encode(ByteBuffer& buf, RT::CheckedConvertOp command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, Format::Imm8(command.cast.Raw()));
-    Encode(buf, command.rr);
-}
+template void Encode<Format::UncheckedCasts>(ByteBuffer& buf, RT::UncheckedConvertOp command);
+template void Encode<Format::CheckedCasts>(ByteBuffer& buf, RT::CheckedConvertOp command);
 
 void Encode(ByteBuffer& buf, RT::B3xi12 command)
 {

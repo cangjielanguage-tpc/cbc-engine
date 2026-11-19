@@ -565,23 +565,23 @@ struct IsaRewriter : public IsaParser {
 
     void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        UNWRAP_OPT(op, Format::CastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to)), [&]() {
-            FailCast("convert", cast);
-        });
-        emit.Convert(op, to, from);
+        EmitCast<Format::CastOp>(cast, to, from);
     }
 
     void CheckedConvert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        UNWRAP_OPT(
-            op,
-            Format::CheckedCastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to)),
-            [&]() { FailCast("checked.convert", cast); }
-        );
-        emit.CheckedConvert(op, to, from);
+        EmitCast<Format::CheckedCastOp>(cast, to, from);
     }
 
-    void FailCast(const char* opcode, Format::CastType::Pair cast)
+    template <typename Op> void EmitCast(Format::CastType::Pair cast, AnyReg to, AnyReg from)
+    {
+        UNWRAP_OPT(op, Op::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to)), [&]() {
+            FailCast(RT::CastKindInfo<typename Op::KindType>::MNEMONIC, cast);
+        });
+        emit.Convert(op, to, from);
+    }
+
+    void FailCast(std::string_view opcode, Format::CastType::Pair cast)
     {
         Fail(
             std::string(opcode) + ": unsupported cast " + std::string(Format::CastType::Name(cast.from)) + " -> " +

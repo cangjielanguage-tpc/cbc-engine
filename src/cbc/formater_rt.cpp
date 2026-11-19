@@ -135,9 +135,10 @@ private:
 
     void Write(Format::FloatMathOp v) { stream << v.ToStr(); }
 
-    void Write(Format::CastOp v) { stream << v.FromTypeStr() << "->" << v.ToTypeStr(); }
-
-    void Write(Format::CheckedCastOp v) { stream << v.FromTypeStr() << "->" << v.ToTypeStr(); }
+    template <typename Kind> void Write(Format::CastInst<Kind> v)
+    {
+        stream << v.FromTypeStr() << "->" << v.ToTypeStr();
+    }
 
     void FormatArg(size_t& cursor, size_t fmtSize)
     {
@@ -340,19 +341,15 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr arg
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConvertOp args)
+template <typename Kind> void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConvertOp<Kind> args)
 {
     Operand operands[] = { args.cast, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CheckedConvertOp args)
-{
-    Operand operands[] = { args.cast, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands);
-    formatter.Format();
-}
+template void Log<Format::UncheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, UncheckedConvertOp);
+template void Log<Format::CheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, CheckedConvertOp);
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr args)
 {

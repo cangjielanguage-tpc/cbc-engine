@@ -634,6 +634,9 @@ TEST(EmitTest, Simple_Convert)
         e.Ret();
 
         auto code = e.Build(heap);
+        ASSERT_EQ(4, code.bytecodeSize);
+        EXPECT_EQ(static_cast<uint8_t>(RT::Opcode::CONVERT), code.bytecode[0]);
+        EXPECT_EQ(CastOp::Make(CastType::U32, CastType::U8).Raw(), code.bytecode[1]);
         Cbc::RT::Log(code, Stream::Disasm::rt);
 
         auto res = Interpret(code, U32(32896), U32(0), F32(0), F32(0));
@@ -643,10 +646,13 @@ TEST(EmitTest, Simple_Convert)
     // Checked: separate opcode, in-range value passes through.
     {
         Emitter e;
-        e.CheckedConvert(CheckedCastOp::Make(CastType::U32, CastType::U8), IReg::IR1, IReg::IR1);
+        e.Convert(CheckedCastOp::Make(CastType::U32, CastType::U8), IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);
+        ASSERT_EQ(4, code.bytecodeSize);
+        EXPECT_EQ(static_cast<uint8_t>(RT::Opcode::CHECKED_CONVERT), code.bytecode[0]);
+        EXPECT_EQ(CheckedCastOp::Make(CastType::U32, CastType::U8).Raw(), code.bytecode[1]);
         Cbc::RT::Log(code, Stream::Disasm::rt);
 
         auto res = Interpret(code, U32(200), U32(0), F32(0), F32(0));

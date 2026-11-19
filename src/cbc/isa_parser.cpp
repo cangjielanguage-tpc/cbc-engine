@@ -416,16 +416,22 @@ struct IsaParserImpl {
         parser.CBinaryImm(op, width, dst, lhs, static_cast<uint64_t>(MergeLowHi(low4, hibits)));
     }
 
-    static void Convert(IsaParser& parser)
+    static auto ReadCastOperands(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.Convert(CastPair(fromType, toType), to, from);
+        return std::tuple { CastPair(fromType, toType), to, from };
+    }
+
+    static void Convert(IsaParser& parser)
+    {
+        auto [cast, to, from] = ReadCastOperands(parser);
+        parser.Convert(cast, to, from);
     }
 
     static void CheckedConvert(IsaParser& parser)
     {
-        auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.CheckedConvert(CastPair(fromType, toType), to, from);
+        auto [cast, to, from] = ReadCastOperands(parser);
+        parser.CheckedConvert(cast, to, from);
     }
 
     static CastType::Pair CastPair(Value fromType, Value toType)
