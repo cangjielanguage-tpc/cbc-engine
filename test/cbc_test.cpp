@@ -192,6 +192,19 @@ TEST_ASM(CbcTest, DirectCall)
     ASSERT_EQ(res.u32, 28);
 }
 
+// The trailing arguments do not fit the IReg head area, so the rewriter stores
+// them through st.stack.param relative to the caller's frame bot. The mock must
+// supply a real area for those stores.
+TEST_ASM(CbcTest, StackArgsCall)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    auto res = Interpret(OpenAndRewrite("main", "stack-args-call.asm")->code, U64(0), U64(0));
+    ASSERT_EQ(res.u64, 45);
+#else
+    GTEST_SKIP() << "TODO: arch-specific abi required in asm";
+#endif
+}
+
 TEST_ASM(CbcTest, ArithSpecialized1)
 {
     auto res = Interpret(OpenAndRewrite("test_1", "generated-asm/arith-specialized/1.asm")->code, U64(10), U64(0));
