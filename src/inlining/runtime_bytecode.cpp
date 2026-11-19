@@ -33,6 +33,8 @@ bool IsSupportedInstruction(RT::Opcode opcode)
         case Opcode::NOP:
         case Opcode::MOV:
         case Opcode::MOVI:
+        case Opcode::MOVI2F:
+        case Opcode::MOVF2I:
         case Opcode::BIN32:
         case Opcode::BIN64:
         case Opcode::BINI32I:
@@ -71,11 +73,32 @@ bool IsSupportedInstruction(RT::Opcode opcode)
         case Opcode::FUN16:
         case Opcode::FUN32:
         case Opcode::FUN64:
+        case Opcode::FMATHUN16:
+        case Opcode::FMATHUN32:
+        case Opcode::FMATHUN64:
+        case Opcode::FPOWI32:
+        case Opcode::FPOWI64:
+        case Opcode::SCC32:
+        case Opcode::SCC64:
+        case Opcode::FSCC16:
+        case Opcode::FSCC32:
+        case Opcode::FSCC64:
+        case Opcode::SCCI32I:
+        case Opcode::SCCI64I:
+        case Opcode::CONVERT:
+        case Opcode::CHECKED_CONVERT:
+        case Opcode::BFXS:
+        case Opcode::BFXZ:
+        case Opcode::NULLCHECK:
+        case Opcode::DIVCHECK:
+        case Opcode::ARRAY_INDEX_CHECK:
+        case Opcode::BCC16I:
         case Opcode::BCC32I:
         case Opcode::BCC64I:
         case Opcode::BCCI32I:
         case Opcode::BCCI64I:
-        case Opcode::JMP32: return true;
+        case Opcode::JMP32:
+        case Opcode::BRANCH_IS_REF: return true;
         default:              return false;
     }
 }
@@ -87,6 +110,7 @@ std::optional<int64_t> BranchTarget(const Interpretation::Code& code, const Runt
 
     int64_t delta;
     switch (instruction.opcode) {
+        case RT::Opcode::BCC16I:
         case RT::Opcode::BCC32I:
         case RT::Opcode::BCC64I: {
             const auto branch = RT::B4xi12rr::Decode(reader);
@@ -102,6 +126,11 @@ std::optional<int64_t> BranchTarget(const Interpretation::Code& code, const Runt
         case RT::Opcode::JMP32: {
             const auto branch = RT::B5i32::Decode(reader);
             delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(branch.imm32.imm, 32));
+            break;
+        }
+        case RT::Opcode::BRANCH_IS_REF: {
+            const auto branch = RT::B3xi12::Decode(reader);
+            delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(branch.xi12.imm12, 12));
             break;
         }
         default: return std::nullopt;
