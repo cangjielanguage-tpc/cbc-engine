@@ -19,6 +19,10 @@ namespace API {
 class Resolver;
 } // namespace API
 
+namespace Cbc {
+struct InlinePlan;
+}
+
 namespace Interpretation {
 
 struct FunctionHandle;
@@ -130,14 +134,9 @@ public:
 
     void FindAndPrepareHelpers(Engine::Session& session);
 
-    /// Rewrites the original CBC method and publishes a new behaviorally equivalent
-    /// bytecode version if the expected version is still current.
-    ExecBytecodeInfo* RebuildAndPublish(
-        Engine::Session& session,
-        DynamicFunctionHandle* fuh,
-        ExecBytecodeInfo* expectedBytecode,
-        uint64_t expectedVersion
-    );
+    /// Applies the runtime inline plan and publishes the resulting bytecode if the
+    /// expected caller version is still current.
+    ExecBytecodeInfo* RebuildAndPublish(Engine::Session& session, const Cbc::InlinePlan& plan);
 
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.

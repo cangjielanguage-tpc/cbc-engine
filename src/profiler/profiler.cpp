@@ -228,7 +228,7 @@ private:
 
         for (auto& plan : plans) {
             std::sort(plan.callSites.begin(), plan.callSites.end(), [](const auto& lhs, const auto& rhs) {
-                return lhs.cbcCallSiteOffset < rhs.cbcCallSiteOffset;
+                return lhs.runtimeCallSiteOffset < rhs.runtimeCallSiteOffset;
             });
         }
         return plans;
@@ -259,11 +259,10 @@ private:
         auto& manager = Interpretation::FunctionHandleManager::Of(session);
         for (const auto& plan : plans) {
             Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
-                out << "Rebuilding " << plan << Stream::endl;
+                out << "Inlining " << plan << Stream::endl;
             });
 
-            auto* published =
-                manager.RebuildAndPublish(session, plan.callerFuh, plan.expectedBytecode, plan.expectedVersion);
+            auto* published = manager.RebuildAndPublish(session, plan);
             Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
                 if (published != nullptr) {
                     out.PrintLn(
@@ -275,7 +274,7 @@ private:
                     );
                 } else {
                     out.PrintLn(
-                        "Rebuild failed: bytecode {} version {} is no longer current",
+                        "Rebuild failed: bytecode {} version {} was stale or the runtime transformation was rejected",
                         reinterpret_cast<const void*>(plan.expectedBytecode),
                         plan.expectedVersion
                     );

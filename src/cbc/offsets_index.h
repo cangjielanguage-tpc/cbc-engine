@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <variant>
+#include <vector>
 
 namespace Cbc {
 
@@ -20,6 +21,16 @@ enum InstructionType {
     CBC,
     REWRITTEN
 };
+
+struct RewrittenCodeEdit {
+    uint32_t oldBegin;
+    uint32_t oldEnd;
+    uint32_t newSize;
+};
+
+std::optional<uint32_t> RelocateRewrittenPosition(
+    uint32_t oldPosition, const std::vector<RewrittenCodeEdit>& edits
+);
 
 class InstructionOffsetsIndex {
     using Offset = uint32_t;
@@ -34,6 +45,8 @@ public:
     bool IsEmpty() { return Length() == 0; }
 
     std::optional<Offset> FindMappedOffset(InstructionType type, Offset srcOffset) const;
+
+    InstructionOffsetsIndex RelocateRewrittenOffsets(const std::vector<RewrittenCodeEdit>& edits) const;
 
 private:
     Utils::Vector<Offset> cbcOffsets = {};

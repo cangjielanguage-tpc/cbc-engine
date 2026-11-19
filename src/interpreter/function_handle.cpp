@@ -14,6 +14,8 @@
 #include "engine/image/flags.h"
 #include "engine/resolving_output.h"
 #include "function_handle.h"
+#include "inlining/inline_plan.h"
+#include "inlining/runtime_inliner.h"
 #include "interpreter/code.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
@@ -250,21 +252,19 @@ bool CodeRangesOverlap(const ExecBytecodeInfo& lhs, const ExecBytecodeInfo& rhs)
 
 } // namespace
 
-ExecBytecodeInfo* FunctionHandleManager::RebuildAndPublish(
-    Session& session,
-    DynamicFunctionHandle* fuh,
-    ExecBytecodeInfo* expectedBytecode,
-    uint64_t expectedVersion
-)
+ExecBytecodeInfo* FunctionHandleManager::RebuildAndPublish(Session& session, const Cbc::InlinePlan& plan)
 {
-    auto* snapshot = fuh->bytecode.load();
+    auto* fuh              = plan.callerFuh;
+    auto* expectedBytecode = plan.expectedBytecode;
+    auto expectedVersion   = plan.expectedVersion;
+    auto* snapshot         = fuh->bytecode.load();
     if (snapshot != expectedBytecode || snapshot->version != expectedVersion) {
         return nullptr;
     }
     ASSERT(expectedVersion != std::numeric_limits<uint64_t>::max());
 
     auto& heap = session.GetEngine().CodeHeap();
-    auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
+    auto bytecode = Cbc::Rebuild(plan, heap);
     if (!bytecode.has_value()) {
         return nullptr;
     }

@@ -3,6 +3,7 @@
 #include "emitter/emitter.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace Cbc {
 
@@ -59,6 +60,48 @@ std::optional<Offset> InstructionOffsetsIndex::FindMappedOffset(InstructionType 
     }
 
     return resultVec[std::distance(searchVec.begin(), it)];
+}
+
+std::optional<uint32_t> RelocateRewrittenPosition(uint32_t oldPosition, const std::vector<RewrittenCodeEdit>& edits)
+{
+    int64_t delta        = 0;
+    uint32_t previousEnd = 0;
+    for (const auto& edit : edits) {
+        ASSERT(edit.oldBegin <= edit.oldEnd);
+        ASSERT(previousEnd <= edit.oldBegin);
+        previousEnd = edit.oldEnd;
+
+        if (oldPosition < edit.oldBegin) {
+            break;
+        }
+        if (oldPosition == edit.oldBegin) {
+            const auto relocated = static_cast<int64_t>(oldPosition) + delta;
+            ASSERT(0 <= relocated && relocated <= std::numeric_limits<uint32_t>::max());
+            return static_cast<uint32_t>(relocated);
+        }
+        if (oldPosition < edit.oldEnd) {
+            return std::nullopt;
+        }
+
+        delta += static_cast<int64_t>(edit.newSize) - static_cast<int64_t>(edit.oldEnd - edit.oldBegin);
+    }
+
+    const auto relocated = static_cast<int64_t>(oldPosition) + delta;
+    ASSERT(0 <= relocated && relocated <= std::numeric_limits<uint32_t>::max());
+    return static_cast<uint32_t>(relocated);
+}
+
+InstructionOffsetsIndex InstructionOffsetsIndex::RelocateRewrittenOffsets(const std::vector<RewrittenCodeEdit>& edits
+) const
+{
+    auto relocated = *this;
+    for (auto& offset : relocated.rtOffsets) {
+        auto newOffset = RelocateRewrittenPosition(offset, edits);
+        ASSERTION(newOffset.has_value(), "Mapped runtime offset is inside a replaced instruction");
+        offset = *newOffset;
+    }
+    ASSERTION(relocated.OffsetsAreInAscendingOrder(relocated.rtOffsets), "Relocated offsets are not sorted");
+    return relocated;
 }
 
 bool InstructionOffsetsIndex::OffsetsAreInAscendingOrder(Utils::Vector<Offset> const& offsets)
