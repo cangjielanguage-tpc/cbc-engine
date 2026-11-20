@@ -211,8 +211,20 @@ protected:
             uint64_t v = reader.ReadULEB();
             if (v == 0)
                 break;
-            callArgs.PushBack(Location { static_cast<int>(v) - 1 });
+            callArgs.PushBack(DecodeCallArg(static_cast<int>(v) - 1));
         }
+    }
+
+    static Location DecodeCallArg(int idx)
+    {
+        if (idx < IReg::VIRT_COUNT) {
+            return Location::IReg(static_cast<IReg::Value>(idx));
+        }
+        idx -= IReg::VIRT_COUNT;
+        if (idx < FReg::COUNT) {
+            return Location::FReg(static_cast<FReg::Value>(idx));
+        }
+        return Location::Slot(idx - FReg::COUNT);
     }
 };
 
