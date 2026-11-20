@@ -110,12 +110,27 @@ CBC_EXPORT int interpreter_bridge_init(
     const char** options
 );
 
-/// The part of the runtime interface that has not yet become a part of the CJNativeInterface initialized above.
-typedef struct CangjieRuntimeStaging {
-    void* (*readWeakRef)(void* source, void* field);
-} CangjieRuntimeStaging;
+#define READ_WEAK_REF_TOKEN "ReadWeakRef:0"
 
-CBC_EXPORT CbcStatus engine_initialize_rt_staging(CangjieRuntimeStaging* runtime);
+typedef struct {
+    char const* token;
+    void* symbol;
+} CbcStagingSym;
+
+/// The part of the runtime interface that has not yet become a part of the CJNativeInterface initialized above.
+///
+/// This interface is chosen to make staging symbols initialization as stable as possible.
+/// If any breaking change would happen here, the old token would be removed and new unique token would be added.
+///
+/// Example:
+/// ```c
+/// CbcStagingSym symbols[] = {
+///   { READ_WEAK_REF_TOKEN, (void*) &CJ_MCC_ReadWeakRef },
+///   { "SomeOldToken", (void*) &CJ_MCC_NotNeededAnymore },
+/// };
+/// status = engine_initialize_rt_staging(symbols, sizeof(symbols) / sizeof(symbols[0]));
+/// ```
+CBC_EXPORT CbcStatus engine_initialize_rt_staging(CbcStagingSym* symbols, int count);
 
 ////////////////// Engine queries. //////////////////
 
@@ -141,32 +156,7 @@ CBC_EXPORT CbcStatus engine_query_main_function(CbcFunction* rloc);
 
 ////////////////// Library initialization stage. //////////////////
 
-enum {
-    BUILTIN_UNIT,
-    BUILTIN_BOOLEAN,
-    BUILTIN_U8,
-    BUILTIN_I8,
-    BUILTIN_U16,
-    BUILTIN_I16,
-    BUILTIN_U32,
-    BUILTIN_I32,
-    BUILTIN_U64,
-    BUILTIN_I64,
-    BUILTIN_UADDR,
-    BUILTIN_IADDR,
-    BUILTIN_F16,
-    BUILTIN_F32,
-    BUILTIN_F64,
-    BUILTIN_RUNE,
-    BUILTIN_NOTHING,
-    BUILTIN_CSTRING,
-    BUILTIN_COUNT
-};
-
-typedef uint8_t BuiltinType;
-
 typedef struct CjBuiltins {
-    void* builtinTypeInfos[BUILTIN_COUNT];
     CbcFunction implicitThrower;
     CbcFunction futureExecute;
     CbcFunction setRuntimeCJThreadHandle;
@@ -195,7 +185,7 @@ CBC_EXPORT CbcStatus engine_preset_in_executable_resolver(CbcDlsym* rloc);
 CBC_EXPORT CbcStatus engine_preset_in_library_resolver(CbcDlsym* rloc, void *handle);
 
 /// Preset resolver that performs symbol resolution in shared library that hosts provided symbol.
-CBC_EXPORT CbcStatus engine_preset_in_host_library_resolver(CbcDlsym* rloc, void *symbol_location);
+CBC_EXPORT CbcStatus engine_preset_in_host_library_resolver(CbcDlsym* rloc, void *symbolLocation);
 
 #ifdef __cplusplus
 } // extern "C"
