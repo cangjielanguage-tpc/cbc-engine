@@ -1,10 +1,12 @@
 #include "rt_syms.h"
 #include "runtimesupport/impl/asm_trampolines.h"
+#include "runtimesupport/runtime.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
 #include "utils/sharedobj.h"
 #include <dlfcn.h>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -43,6 +45,20 @@ bool Initialize(DYN_CJNativeInterface* interf)
     if (!handle.IsOpened()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << info.dli_fname << Stream::endl;
         return false;
+    }
+
+#if defined(__APPLE__)
+    std::string_view ffiLibName = "libstdFFI.dylib";
+#else
+    std::string_view ffiLibName = "libstdFFI.so";
+#endif
+    std::string_view rtLibPath(info.dli_fname);
+    std::string ffiLibPath(rtLibPath.substr(0, rtLibPath.find_last_of('/')));
+    ffiLibPath        += "/../../../lib/";
+    ffiLibPath        += ffiLibName;
+    g_stdFfiLibHandle  = Utils::SharedObject::Open(std::move(ffiLibPath));
+    if (!g_stdFfiLibHandle.IsOpened()) {
+        Log::init.Stream(Logging::Level::WARN) << "failed to open " << g_stdFfiLibHandle.Name() << Stream::endl;
     }
 
     // verify that we didn't opened new library (any other exported symbol can be used).

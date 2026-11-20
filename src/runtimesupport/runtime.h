@@ -7,9 +7,13 @@
 #include "interpreter/ectype.h"
 #include "interpreter/int_thunk.h"
 #include "utils/function.h"
+#include "utils/sharedobj.h"
 #include <cstdint>
 
 namespace RTSupport {
+
+/// Handle of the toolchain standard FFI library (libstdFFI).
+inline Utils::SharedObject g_stdFfiLibHandle;
 
 // TypeInfo flags
 static constexpr uint64_t GCTIB_SIGN_BIT = (1lu << 63);

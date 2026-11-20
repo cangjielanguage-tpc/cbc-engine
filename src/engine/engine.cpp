@@ -9,6 +9,7 @@
 #include "image/io/stream_file_reader.h"
 #include "image/reader.h"
 #include "interpreter/function_handle.h"
+#include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
 #include <cstdint>
@@ -286,6 +287,9 @@ Engine& Loader::Build()
     auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
     aotBase.EmplaceBack(executable);
 
+    if (RTSupport::g_stdFfiLibHandle.IsOpened()) {
+        foreignBase.EmplaceBack(std::make_shared<Utils::SharedObject>(std::move(RTSupport::g_stdFfiLibHandle)));
+    }
     auto libc = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenLibc());
     foreignBase.EmplaceBack(libc);
     foreignBase.EmplaceBack(executable);
