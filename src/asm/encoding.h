@@ -27,12 +27,19 @@ namespace Asm {
 //   immr  - bitfield: rotate the source right by immr
 //   imms  - bitfield: keep the low imms+1 bits after the rotation
 //   imm12 - unsigned 12-bit immediate
+//   imm9  - load/store byte offset, unscaled, signed
+//   imm7  - load/store pair offset in units of the access size, signed
 //   imm26/imm19/imm14 - branch offsets in instruction words, signed
 //   immhi/immlo - adr offset in bytes: bits [23:5] and bits [30:29] of the offset
 //                 divided by 4
 //   cond  - condition code
 //   b5/b40 - tested bit number: its bit 5 and its low 5 bits
+//   option - load/store register-offset extension: 2 = UXTW, 3 = LSL, 6 = SXTW,
+//            7 = SXTX
+//   S     - load/store register-offset scale: 1 = the index register is shifted
+//           left by log2(access size), so it counts elements instead of bytes
 //   Rt    - register operand of loads, stores and compare-and-branch
+//   Rt2   - second register operand of a load/store pair
 //   Rm    - register operand 2
 //   Rn    - register operand 1
 //   Rd    - destination register
@@ -49,21 +56,12 @@ constexpr uint32_t CodeOf(WzrReg) { return 31; }
 
 constexpr uint32_t CodeOf(SpReg) { return 31; }
 
-// The register field classes a shifted-register form reads as <Xn>/<Xd>/<Xm>:
-// a general-purpose register or the zero register, of one width. The traits
-// constrain the operand types so a 32-bit register cannot be mixed into a
-// 64-bit form and vice versa.
-template <typename R> struct IsXRegOperand : std::false_type {};
+// The operand-type traits live next to the operand types in operands.h; the
+// aliases below are the enable_if forms the encoders and assembler methods use
+// to constrain their operands.
+template <typename R> using EnableXReg = std::enable_if_t<IsXRegOperand<R>::value, int>;
 
-template <> struct IsXRegOperand<XReg> : std::true_type {};
-
-template <> struct IsXRegOperand<XzrReg> : std::true_type {};
-
-template <typename R> struct IsWRegOperand : std::false_type {};
-
-template <> struct IsWRegOperand<WReg> : std::true_type {};
-
-template <> struct IsWRegOperand<WzrReg> : std::true_type {};
+template <typename R> using EnableWReg = std::enable_if_t<IsWRegOperand<R>::value, int>;
 
 template <typename D, typename N, typename M>
 using EnableXOperands =
@@ -211,6 +209,62 @@ constexpr Insn Bitfield(uint32_t formBits, uint32_t rd, uint32_t rn, uint32_t im
     ASSERT(immr <= limit);
     ASSERT(imms <= limit);
     return (Op { formBits } | Field<16, 6> { immr } | Field<10, 6> { imms } | Field<5, 5> { rn } | Field<0, 5> { rd })
+        .Finish();
+}
+
+// LDR/STR (immediate, unsigned offset): size 111 V 01 opc imm12 Rn Rt. imm12
+// counts accessed elements, so the byte offset must be a multiple of the access
+// size and below 4096 elements.
+constexpr Insn LoadStoreUnsigned(uint32_t formBits, uint32_t rt, const MemImm& mem, uint32_t elementSize)
+{
+    const int32_t offset = mem.Offset();
+    ASSERT(offset >= 0);
+    ASSERT(offset % static_cast<int32_t>(elementSize) == 0);
+    ASSERT(static_cast<uint32_t>(offset) / elementSize <= 4095);
+    return (Op { formBits } | Field<10, 12> { static_cast<uint32_t>(offset) / elementSize } |
+            Field<5, 5> { mem.Base() } | Field<0, 5> { rt })
+        .Finish();
+}
+
+// LDUR/STUR (immediate, unscaled): size 111 V 00 opc 00 imm9 00 Rn Rt. The byte
+// offset is not scaled, so any value that fits its 9 signed bits is encodable.
+constexpr Insn LoadStoreUnscaled(uint32_t formBits, uint32_t rt, const MemImm& mem)
+{
+    const int32_t offset = mem.Offset();
+    ASSERT(offset >= -256 && offset <= 255);
+    return (Op { formBits } | Field<12, 9> { static_cast<uint32_t>(offset) & 0x1FF } | Field<5, 5> { mem.Base() } |
+            Field<0, 5> { rt })
+        .Finish();
+}
+
+// LDR/STR (register): size 111 V 00 opc 1 Rm option S 10 Rn Rt. The index is
+// either a byte offset or, with S set, shifted left by log2(access size); the
+// option field selects how the index register is read (a 64-bit one through LSL
+// or SXTX, a 32-bit one through UXTW or SXTW).
+constexpr Insn LoadStoreRegister(uint32_t formBits, uint32_t rt, const MemIndex& mem)
+{
+    return (Op { formBits } | Field<16, 5> { mem.Index() } | Field<13, 3> { static_cast<uint32_t>(mem.Extend()) } |
+            Field<12, 1> { mem.IsScaled() ? 1u : 0u } | Field<5, 5> { mem.Base() } | Field<0, 5> { rt })
+        .Finish();
+}
+
+// LDP/STP (immediate, signed offset): opc 101 V 000 L imm7 Rt2 Rn Rt. imm7
+// counts accessed elements, so the byte offset must be a multiple of the access
+// size (the size of one register of the pair) and within 64 elements. A loading
+// pair reads its two registers from one address, so its two registers must
+// differ or the result is unpredictable.
+constexpr Insn LoadStorePair(
+    uint32_t formBits, uint32_t rt, uint32_t rt2, const MemImm& mem, uint32_t elementSize, bool loading
+)
+{
+    const int32_t offset = mem.Offset();
+    ASSERT(offset % static_cast<int32_t>(elementSize) == 0);
+    ASSERT(offset / static_cast<int32_t>(elementSize) >= -64);
+    ASSERT(offset / static_cast<int32_t>(elementSize) <= 63);
+    ASSERT(!loading || rt != rt2);
+    const uint32_t imm7 = static_cast<uint32_t>(offset / static_cast<int32_t>(elementSize)) & 0x7F;
+    return (Op { formBits } | Field<15, 7> { imm7 } | Field<10, 5> { rt2 } | Field<5, 5> { mem.Base() } |
+            Field<0, 5> { rt })
         .Finish();
 }
 
@@ -791,6 +845,262 @@ template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn 
 {
     return Ubfm(dst, src, 0, 15);
 }
+
+// Loads and stores. The address operand is Mem(base, #offset) for the
+// immediate forms and Mem(base, index[, extend][, Scaled]) for the
+// register-offset ones; the mnemonic picks the access size and the signedness.
+// A mnemonic whose offset field is scaled takes a non-negative multiple of the
+// access size and one whose field is unscaled takes any value that fits it, so
+// the two address forms of one access are named separately (LDR against LDUR).
+
+// LDR (immediate): Rt = zero-extended memory[base + offset].
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldr(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0xF9400000, Detail::CodeOf(rt), mem, 8);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldr(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0xB9400000, Detail::CodeOf(rt), mem, 4);
+}
+
+// LDR (register).
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldr(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0xF8600800, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldr(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0xB8600800, Detail::CodeOf(rt), mem);
+}
+
+// STR (immediate): memory[base + offset] = the low half or all of Rt.
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Str(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0xF9000000, Detail::CodeOf(rt), mem, 8);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Str(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0xB9000000, Detail::CodeOf(rt), mem, 4);
+}
+
+// STR (register).
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Str(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0xF8200800, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Str(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0xB8200800, Detail::CodeOf(rt), mem);
+}
+
+// LDRB: Rt = zero-extended byte.
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x39400000, Detail::CodeOf(rt), mem, 1);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrb(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x38600800, Detail::CodeOf(rt), mem);
+}
+
+// STRB: memory[base + offset] = the low byte of Rt.
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Strb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x39000000, Detail::CodeOf(rt), mem, 1);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Strb(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x38200800, Detail::CodeOf(rt), mem);
+}
+
+// LDRH: Rt = zero-extended halfword.
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x79400000, Detail::CodeOf(rt), mem, 2);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrh(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x78600800, Detail::CodeOf(rt), mem);
+}
+
+// STRH: memory[base + offset] = the low halfword of Rt.
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Strh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x79000000, Detail::CodeOf(rt), mem, 2);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Strh(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x78200800, Detail::CodeOf(rt), mem);
+}
+
+// LDRSB: Rt = sign-extended byte, into a 64-bit or a 32-bit destination.
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldrsb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x39800000, Detail::CodeOf(rt), mem, 1);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrsb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x39C00000, Detail::CodeOf(rt), mem, 1);
+}
+
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldrsb(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x38A00800, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrsb(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x38E00800, Detail::CodeOf(rt), mem);
+}
+
+// LDRSH: Rt = sign-extended halfword, into a 64-bit or a 32-bit destination.
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldrsh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x79800000, Detail::CodeOf(rt), mem, 2);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrsh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0x79C00000, Detail::CodeOf(rt), mem, 2);
+}
+
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldrsh(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x78A00800, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldrsh(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0x78E00800, Detail::CodeOf(rt), mem);
+}
+
+// LDRSW: Rt = sign-extended word. Only a 64-bit destination exists.
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldrsw(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnsigned(0xB9800000, Detail::CodeOf(rt), mem, 4);
+}
+
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldrsw(Rt rt, const MemIndex& mem)
+{
+    return Detail::LoadStoreRegister(0xB8A00800, Detail::CodeOf(rt), mem);
+}
+
+// LDUR/STUR (unscaled): the same accesses as LDR/STR with an offset that is not
+// scaled by the access size, which is what makes an unaligned byte address
+// expressible.
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldur(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0xF8400000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldur(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0xB8400000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Stur(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0xF8000000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Stur(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0xB8000000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldurb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x38400000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Sturb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x38000000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldurh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x78400000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Sturh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x78000000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldursb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x38800000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldursb(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x38C00000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldursh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x78800000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableWReg<Rt> = 0> constexpr Insn Ldursh(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0x78C00000, Detail::CodeOf(rt), mem);
+}
+
+template <typename Rt, Detail::EnableXReg<Rt> = 0> constexpr Insn Ldursw(Rt rt, const MemImm& mem)
+{
+    return Detail::LoadStoreUnscaled(0xB8800000, Detail::CodeOf(rt), mem);
+}
+
+// LDP/STP (pair): two registers moved to or from one address. A loading pair
+// reads both registers from the same address, which the architecture leaves
+// unpredictable when they are the same register, so Ldp (and Ldpsw, which also
+// loads) rejects that; a storing pair may repeat one.
+template <typename Rt, typename Rt2, Detail::EnableXReg<Rt> = 0, Detail::EnableXReg<Rt2> = 0>
+constexpr Insn Ldp(Rt rt, Rt2 rt2, const MemImm& mem)
+{
+    ASSERT(Detail::RegCode(rt) != Detail::RegCode(rt2));
+    return Detail::LoadStorePair(0xA9400000, Detail::CodeOf(rt), Detail::CodeOf(rt2), mem, 8, true);
+}
+
+template <typename Rt, typename Rt2, Detail::EnableWReg<Rt> = 0, Detail::EnableWReg<Rt2> = 0>
+constexpr Insn Ldp(Rt rt, Rt2 rt2, const MemImm& mem)
+{
+    ASSERT(Detail::RegCode(rt) != Detail::RegCode(rt2));
+    return Detail::LoadStorePair(0x29400000, Detail::CodeOf(rt), Detail::CodeOf(rt2), mem, 4, true);
+}
+
+template <typename Rt, typename Rt2, Detail::EnableXReg<Rt> = 0, Detail::EnableXReg<Rt2> = 0>
+constexpr Insn Stp(Rt rt, Rt2 rt2, const MemImm& mem)
+{
+    return Detail::LoadStorePair(0xA9000000, Detail::CodeOf(rt), Detail::CodeOf(rt2), mem, 8, false);
+}
+
+template <typename Rt, typename Rt2, Detail::EnableWReg<Rt> = 0, Detail::EnableWReg<Rt2> = 0>
+constexpr Insn Stp(Rt rt, Rt2 rt2, const MemImm& mem)
+{
+    return Detail::LoadStorePair(0x29000000, Detail::CodeOf(rt), Detail::CodeOf(rt2), mem, 4, false);
+}
+
+// LDPSW: two sign-extended words from one address into two 64-bit registers.
+template <typename Rt, typename Rt2, Detail::EnableXReg<Rt> = 0, Detail::EnableXReg<Rt2> = 0>
+constexpr Insn Ldpsw(Rt rt, Rt2 rt2, const MemImm& mem)
+{
+    return Detail::LoadStorePair(0x69400000, Detail::CodeOf(rt), Detail::CodeOf(rt2), mem, 4, true);
+}
+
+// NOP: 1101010100 0 00 110 mmmmm 00000 nnnnn
+constexpr Insn Nop() { return Detail::Op { 0xD503201F }.Finish(); }
 
 // RET (register): 1101011 0 0 10 11111 000000 Rn 00000
 constexpr Insn Ret(XReg reg = X30) { return Detail::BranchReg(0xD65F0000, Detail::CodeOf(reg)); }

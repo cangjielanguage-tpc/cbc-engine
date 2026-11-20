@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 
 #include "utils/assertion.h"
 
@@ -44,6 +45,43 @@ inline constexpr XzrReg Xzr {};
 inline constexpr WzrReg Wzr {};
 inline constexpr SpReg Sp {};
 
+namespace Detail {
+
+// The register field classes a form reads as <Xn>/<Xd>/<Xm>: a general-purpose
+// register or the zero register, of one width. The traits constrain operand
+// types so a 32-bit register cannot be mixed into a 64-bit form and vice versa.
+template <typename R> struct IsXRegOperand : std::false_type {};
+
+template <> struct IsXRegOperand<XReg> : std::true_type {};
+
+template <> struct IsXRegOperand<XzrReg> : std::true_type {};
+
+template <typename R> struct IsWRegOperand : std::false_type {};
+
+template <> struct IsWRegOperand<WReg> : std::true_type {};
+
+template <> struct IsWRegOperand<WzrReg> : std::true_type {};
+
+// The base register of a memory address: field 31 means SP there, never the
+// zero register, so the zero register is not a base.
+template <typename R> struct IsBaseReg : std::false_type {};
+
+template <> struct IsBaseReg<XReg> : std::true_type {};
+
+template <> struct IsBaseReg<SpReg> : std::true_type {};
+
+constexpr uint8_t RegCode(XReg reg) { return reg.Code(); }
+
+constexpr uint8_t RegCode(XzrReg) { return 31; }
+
+constexpr uint8_t RegCode(WReg reg) { return reg.Code(); }
+
+constexpr uint8_t RegCode(WzrReg) { return 31; }
+
+constexpr uint8_t RegCode(SpReg) { return 31; }
+
+} // namespace Detail
+
 enum class Shift : uint8_t {
     Lsl,
     Lsr,
@@ -54,6 +92,132 @@ enum class Shift : uint8_t {
 struct Lsl12Tag {};
 
 inline constexpr Lsl12Tag Lsl12 {};
+
+// How a register-offset address extends its index register, in encoding order:
+// a code's value is the one the encoders put in the option field. LSL and SXTX
+// read a 64-bit index register, UXTW and SXTW a 32-bit one.
+enum class IndexExtend : uint8_t {
+    Uxtw = 2,
+    Lsl  = 3,
+    Sxtw = 6,
+    Sxtx = 7
+};
+
+// Tag selecting the scaled register-offset form, in which the index register is
+// shifted left by the base-2 logarithm of the access size so that it counts
+// accessed elements rather than bytes. Without the tag the index is a byte
+// offset.
+struct ScaledTag {};
+
+inline constexpr ScaledTag Scaled {};
+
+// An address of the form [base, #imm]: a byte offset from a base register, which
+// is a general register or SP. Whether the offset is scaled by the access size,
+// and which values it may take, depends on the form that reads the address, so
+// the form checks it.
+class MemImm {
+    uint8_t base_;
+    int32_t offset_;
+
+public:
+    template <typename B, std::enable_if_t<Detail::IsBaseReg<B>::value, int> = 0>
+    constexpr MemImm(B base, int32_t offset) : base_ { Detail::RegCode(base) },
+                                               offset_ { offset }
+    {}
+
+    constexpr uint8_t Base() const { return base_; }
+
+    constexpr int32_t Offset() const { return offset_; }
+};
+
+// An address of the form [base, index{, extend}{, scaled}]: a base register, a
+// general-purpose register holding a byte or element index, the extension that
+// reads that index (LSL/SXTX for a 64-bit index register, UXTW/SXTW for a
+// 32-bit one) and whether it is scaled by the access size.
+class MemIndex {
+    uint8_t base_;
+    uint8_t index_;
+    IndexExtend extend_;
+    bool scaled_;
+
+public:
+    template <typename B, typename I, std::enable_if_t<Detail::IsBaseReg<B>::value, int> = 0>
+    constexpr MemIndex(B base, I index, IndexExtend extend, bool scaled)
+        : base_ { Detail::RegCode(base) },
+          index_ { Detail::RegCode(index) },
+          extend_ { extend },
+          scaled_ { scaled }
+    {}
+
+    constexpr uint8_t Base() const { return base_; }
+
+    constexpr uint8_t Index() const { return index_; }
+
+    constexpr IndexExtend Extend() const { return extend_; }
+
+    constexpr bool IsScaled() const { return scaled_; }
+};
+
+// [base, #imm]
+template <typename B, std::enable_if_t<Detail::IsBaseReg<B>::value, int> = 0>
+constexpr MemImm Mem(B base, int32_t offset)
+{
+    return MemImm { base, offset };
+}
+
+// [base, index] and [base, index, <extend>]: the address of an unscaled
+// register-offset access with a 64-bit index, extended as LSL (the default) or
+// SXTX. The scaled forms take the same operands plus a trailing Scaled tag.
+template <
+    typename B,
+    typename I,
+    std::enable_if_t<Detail::IsBaseReg<B>::value && Detail::IsXRegOperand<I>::value, int> = 0>
+constexpr MemIndex Mem(B base, I index, IndexExtend extend = IndexExtend::Lsl)
+{
+    ASSERT(extend == IndexExtend::Lsl || extend == IndexExtend::Sxtx);
+    return MemIndex { base, index, extend, false };
+}
+
+template <
+    typename B,
+    typename I,
+    std::enable_if_t<Detail::IsBaseReg<B>::value && Detail::IsXRegOperand<I>::value, int> = 0>
+constexpr MemIndex Mem(B base, I index, ScaledTag)
+{
+    return MemIndex { base, index, IndexExtend::Lsl, true };
+}
+
+template <
+    typename B,
+    typename I,
+    std::enable_if_t<Detail::IsBaseReg<B>::value && Detail::IsXRegOperand<I>::value, int> = 0>
+constexpr MemIndex Mem(B base, I index, IndexExtend extend, ScaledTag)
+{
+    ASSERT(extend == IndexExtend::Lsl || extend == IndexExtend::Sxtx);
+    return MemIndex { base, index, extend, true };
+}
+
+// The same for a 32-bit index register, which is only readable through UXTW or
+// SXTW, so the extension is not optional.
+template <
+    typename B,
+    typename I,
+    std::enable_if_t<Detail::IsBaseReg<B>::value && Detail::IsWRegOperand<I>::value, int> = 0>
+constexpr MemIndex Mem(B base, I index, IndexExtend extend)
+{
+    ASSERT(extend == IndexExtend::Uxtw || extend == IndexExtend::Sxtw);
+    return MemIndex { base, index, extend, false };
+}
+
+template <
+    typename B,
+    typename I,
+    std::enable_if_t<Detail::IsBaseReg<B>::value && Detail::IsWRegOperand<I>::value, int> = 0>
+constexpr MemIndex Mem(B base, I index, IndexExtend extend, ScaledTag)
+{
+    ASSERT(extend == IndexExtend::Uxtw || extend == IndexExtend::Sxtw);
+    return MemIndex { base, index, extend, true };
+}
 
 // Condition codes, in encoding order: a code's value is the one the encoders put
 // in the cond field.

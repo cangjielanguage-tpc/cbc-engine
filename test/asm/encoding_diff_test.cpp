@@ -365,6 +365,14 @@ struct Pool {
     std::vector<Cc> conds;
     std::vector<uint32_t> bits;
     std::vector<int> branchRegs;
+    // (rt, base, index) of the address forms, the byte offsets the unscaled
+    // forms sweep, and the element-counted offsets of the pair forms.
+    std::vector<Triple> memTriples;
+    std::vector<Triple> sampleMemTriples;
+    std::vector<int32_t> offsets;
+    std::vector<int32_t> sampleOffsets;
+    std::vector<int32_t> pairImms;
+    std::vector<int32_t> samplePairImms;
 };
 
 std::vector<Triple> TriplesWithDistinctM(const std::vector<int>& regs)
@@ -392,6 +400,9 @@ Pool BoundedPool()
     pool.bits       = { 0, 1, 31, 32, 62, 63 };
     pool.immPairs   = { { 0, 0 }, { 0, 63 }, { 63, 63 }, { 1, 58 }, { 8, 15 } };
     pool.extracts   = { { 0, 1 }, { 0, 64 }, { 8, 8 }, { 63, 1 }, { 31, 32 } };
+    pool.memTriples = { { 0, 1, 2 }, { 30, 7, 15 } };
+    pool.offsets    = { -256, -255, -1, 0, 1, 8, 255 };
+    pool.pairImms   = { -64, -1, 0, 1, 63 };
 
     const std::vector<uint64_t> logical64 = EnumerateLogical(64);
     const std::vector<uint64_t> logical32 = EnumerateLogical(32);
@@ -438,6 +449,16 @@ Pool ExhaustivePool()
         }
     }
     pool.sampleExtracts = { { 0, 64 }, { 8, 8 }, { 63, 1 }, { 31, 32 } };
+    pool.memTriples     = { { 0, 1, 2 }, { 30, 0, 1 }, { 1, 7, 15 }, { 15, 30, 0 } };
+    pool.sampleMemTriples = { { 7, 2, 30 }, { 2, 15, 7 }, { 30, 15, 1 } };
+    for (int32_t offset = -256; offset <= 255; ++offset) {
+        pool.offsets.push_back(offset);
+    }
+    pool.sampleOffsets = { -256, -1, 0, 1, 255 };
+    for (int32_t imm7 = -64; imm7 <= 63; ++imm7) {
+        pool.pairImms.push_back(imm7);
+    }
+    pool.samplePairImms = { -64, 0, 63 };
     return pool;
 }
 
@@ -463,6 +484,9 @@ Pool RandomPool(std::mt19937& rng, const std::vector<uint64_t>& logical64, const
     pool.immPairs               = { { static_cast<uint32_t>(rng() % 64), static_cast<uint32_t>(rng() % 64) } };
     const uint32_t width        = 1 + static_cast<uint32_t>(rng() % 64);
     pool.extracts               = { { static_cast<uint32_t>(rng() % (65 - width)), width } };
+    pool.memTriples             = { { a, b, b } };
+    pool.offsets                = { static_cast<int32_t>(rng() % 512) - 256 };
+    pool.pairImms               = { static_cast<int32_t>(rng() % 128) - 64 };
     return pool;
 }
 
@@ -672,6 +696,269 @@ void EmitShiftBitfieldZeroRegisters(Corpus& corpus)
     corpus.Add("uxth wzr, w1", Encode::Uxth(Wzr, W1));
 }
 
+// ---------------------------------------------------------------------------
+// Loads and stores
+// ---------------------------------------------------------------------------
+
+// The immediate forms name the width of the register they move (a 32-bit form
+// reads and writes W registers) and their encoder. The scaled group scales its
+// offset field by the size of the accessed element; the unscaled group (LDUR)
+// takes the byte offset as it is, so it carries no element size.
+struct ScaledForm {
+    const char* mnemonic;
+    bool word;
+    uint32_t elementSize;
+    Insn (*encode)(int rt, int base, int32_t offset);
+};
+
+struct UnscaledForm {
+    const char* mnemonic;
+    bool word;
+    Insn (*encode)(int rt, int base, int32_t offset);
+};
+
+const ScaledForm kScaledForms[] = {
+    { "ldr", false, 8, [](int rt, int base, int32_t off) { return Encode::Ldr(X(rt), Mem(X(base), off)); } },
+    { "ldr", true, 4, [](int rt, int base, int32_t off) { return Encode::Ldr(W(rt), Mem(X(base), off)); } },
+    { "str", false, 8, [](int rt, int base, int32_t off) { return Encode::Str(X(rt), Mem(X(base), off)); } },
+    { "str", true, 4, [](int rt, int base, int32_t off) { return Encode::Str(W(rt), Mem(X(base), off)); } },
+    { "ldrb", true, 1, [](int rt, int base, int32_t off) { return Encode::Ldrb(W(rt), Mem(X(base), off)); } },
+    { "strb", true, 1, [](int rt, int base, int32_t off) { return Encode::Strb(W(rt), Mem(X(base), off)); } },
+    { "ldrh", true, 2, [](int rt, int base, int32_t off) { return Encode::Ldrh(W(rt), Mem(X(base), off)); } },
+    { "strh", true, 2, [](int rt, int base, int32_t off) { return Encode::Strh(W(rt), Mem(X(base), off)); } },
+    { "ldrsb", false, 1, [](int rt, int base, int32_t off) { return Encode::Ldrsb(X(rt), Mem(X(base), off)); } },
+    { "ldrsb", true, 1, [](int rt, int base, int32_t off) { return Encode::Ldrsb(W(rt), Mem(X(base), off)); } },
+    { "ldrsh", false, 2, [](int rt, int base, int32_t off) { return Encode::Ldrsh(X(rt), Mem(X(base), off)); } },
+    { "ldrsh", true, 2, [](int rt, int base, int32_t off) { return Encode::Ldrsh(W(rt), Mem(X(base), off)); } },
+    { "ldrsw", false, 4, [](int rt, int base, int32_t off) { return Encode::Ldrsw(X(rt), Mem(X(base), off)); } },
+};
+
+const UnscaledForm kUnscaledForms[] = {
+    { "ldur", false, [](int rt, int base, int32_t off) { return Encode::Ldur(X(rt), Mem(X(base), off)); } },
+    { "ldur", true, [](int rt, int base, int32_t off) { return Encode::Ldur(W(rt), Mem(X(base), off)); } },
+    { "stur", false, [](int rt, int base, int32_t off) { return Encode::Stur(X(rt), Mem(X(base), off)); } },
+    { "stur", true, [](int rt, int base, int32_t off) { return Encode::Stur(W(rt), Mem(X(base), off)); } },
+    { "ldurb", true, [](int rt, int base, int32_t off) { return Encode::Ldurb(W(rt), Mem(X(base), off)); } },
+    { "sturb", true, [](int rt, int base, int32_t off) { return Encode::Sturb(W(rt), Mem(X(base), off)); } },
+    { "ldurh", true, [](int rt, int base, int32_t off) { return Encode::Ldurh(W(rt), Mem(X(base), off)); } },
+    { "sturh", true, [](int rt, int base, int32_t off) { return Encode::Sturh(W(rt), Mem(X(base), off)); } },
+    { "ldursb", false, [](int rt, int base, int32_t off) { return Encode::Ldursb(X(rt), Mem(X(base), off)); } },
+    { "ldursb", true, [](int rt, int base, int32_t off) { return Encode::Ldursb(W(rt), Mem(X(base), off)); } },
+    { "ldursh", false, [](int rt, int base, int32_t off) { return Encode::Ldursh(X(rt), Mem(X(base), off)); } },
+    { "ldursh", true, [](int rt, int base, int32_t off) { return Encode::Ldursh(W(rt), Mem(X(base), off)); } },
+    { "ldursw", false, [](int rt, int base, int32_t off) { return Encode::Ldursw(X(rt), Mem(X(base), off)); } },
+};
+
+std::string LoadStoreText(const char* mnemonic, bool word, int rt, int base, int32_t offset)
+{
+    return std::string { mnemonic } + " " + (word ? Ws(rt) : Xs(rt)) + ", [" + Xs(base) + ", #" +
+           std::to_string(offset) + "]";
+}
+
+void EmitLoadStoreScaled(Corpus& corpus, const Triple& t, uint32_t imm12)
+{
+    for (const ScaledForm& form : kScaledForms) {
+        const int32_t offset = static_cast<int32_t>(imm12 * form.elementSize);
+        corpus.Add(LoadStoreText(form.mnemonic, form.word, t.d, t.n, offset), form.encode(t.d, t.n, offset));
+    }
+}
+
+void EmitLoadStoreUnscaled(Corpus& corpus, const Triple& t, int32_t offset)
+{
+    for (const UnscaledForm& form : kUnscaledForms) {
+        corpus.Add(LoadStoreText(form.mnemonic, form.word, t.d, t.n, offset), form.encode(t.d, t.n, offset));
+    }
+}
+
+// The pair forms read or write both registers from one address, so the second
+// register of the pair is the third register of the triple.
+struct PairForm {
+    const char* mnemonic;
+    bool word;
+    uint32_t elementSize;
+    Insn (*encode)(int rt, int rt2, int base, int32_t offset);
+};
+
+const PairForm kPairForms[] = {
+    { "ldp", false, 8,
+      [](int rt, int rt2, int base, int32_t off) { return Encode::Ldp(X(rt), X(rt2), Mem(X(base), off)); } },
+    { "ldp", true, 4,
+      [](int rt, int rt2, int base, int32_t off) { return Encode::Ldp(W(rt), W(rt2), Mem(X(base), off)); } },
+    { "stp", false, 8,
+      [](int rt, int rt2, int base, int32_t off) { return Encode::Stp(X(rt), X(rt2), Mem(X(base), off)); } },
+    { "stp", true, 4,
+      [](int rt, int rt2, int base, int32_t off) { return Encode::Stp(W(rt), W(rt2), Mem(X(base), off)); } },
+    { "ldpsw", false, 4,
+      [](int rt, int rt2, int base, int32_t off) { return Encode::Ldpsw(X(rt), X(rt2), Mem(X(base), off)); } },
+};
+
+void EmitLoadStorePair(Corpus& corpus, const Triple& t, int32_t imm7)
+{
+    for (const PairForm& form : kPairForms) {
+        const int32_t offset = static_cast<int32_t>(imm7 * form.elementSize);
+        corpus.Add(
+            std::string { form.mnemonic } + " " + (form.word ? Ws(t.d) : Xs(t.d)) + ", " +
+                (form.word ? Ws(t.m) : Xs(t.m)) + ", [" + Xs(t.n) + ", #" + std::to_string(offset) + "]",
+            form.encode(t.d, t.m, t.n, offset)
+        );
+    }
+}
+
+// The register-offset forms: the eight ways a 64-bit or a 32-bit index register
+// can be read, each in its unscaled and its scaled spelling.
+struct IndexShape {
+    IndexExtend extend;
+    bool scaled;
+};
+
+const IndexShape kIndexShapes[] = {
+    { IndexExtend::Lsl, false },  { IndexExtend::Lsl, true },  { IndexExtend::Sxtx, false }, { IndexExtend::Sxtx, true },
+    { IndexExtend::Uxtw, false }, { IndexExtend::Uxtw, true }, { IndexExtend::Sxtw, false }, { IndexExtend::Sxtw, true },
+};
+
+struct IndexForm {
+    const char* mnemonic;
+    bool word;
+    uint32_t elementSize;
+    Insn (*encode)(int rt, const MemIndex& mem);
+};
+
+const IndexForm kIndexForms[] = {
+    { "ldr", false, 8, [](int rt, const MemIndex& mem) { return Encode::Ldr(X(rt), mem); } },
+    { "ldr", true, 4, [](int rt, const MemIndex& mem) { return Encode::Ldr(W(rt), mem); } },
+    { "str", false, 8, [](int rt, const MemIndex& mem) { return Encode::Str(X(rt), mem); } },
+    { "str", true, 4, [](int rt, const MemIndex& mem) { return Encode::Str(W(rt), mem); } },
+    { "ldrb", true, 1, [](int rt, const MemIndex& mem) { return Encode::Ldrb(W(rt), mem); } },
+    { "strb", true, 1, [](int rt, const MemIndex& mem) { return Encode::Strb(W(rt), mem); } },
+    { "ldrh", true, 2, [](int rt, const MemIndex& mem) { return Encode::Ldrh(W(rt), mem); } },
+    { "strh", true, 2, [](int rt, const MemIndex& mem) { return Encode::Strh(W(rt), mem); } },
+    { "ldrsb", false, 1, [](int rt, const MemIndex& mem) { return Encode::Ldrsb(X(rt), mem); } },
+    { "ldrsb", true, 1, [](int rt, const MemIndex& mem) { return Encode::Ldrsb(W(rt), mem); } },
+    { "ldrsh", false, 2, [](int rt, const MemIndex& mem) { return Encode::Ldrsh(X(rt), mem); } },
+    { "ldrsh", true, 2, [](int rt, const MemIndex& mem) { return Encode::Ldrsh(W(rt), mem); } },
+    { "ldrsw", false, 4, [](int rt, const MemIndex& mem) { return Encode::Ldrsw(X(rt), mem); } },
+};
+
+// A scaled index is spelled with the shift its access size implies, which is 0
+// for a byte access and so is still written out.
+uint32_t AccessShift(uint32_t elementSize)
+{
+    uint32_t shift = 0;
+    while ((uint32_t { 1 } << shift) < elementSize) {
+        ++shift;
+    }
+    return shift;
+}
+
+std::string IndexText(IndexExtend extend, bool scaled, uint32_t elementSize)
+{
+    if (extend == IndexExtend::Lsl && !scaled) {
+        return {};
+    }
+    const char* name = extend == IndexExtend::Sxtx ? "sxtx" : (extend == IndexExtend::Lsl ? "lsl" : (extend == IndexExtend::Uxtw ? "uxtw" : "sxtw"));
+    return std::string { ", " } + name + (scaled ? " #" + std::to_string(AccessShift(elementSize)) : "");
+}
+
+bool IsWordIndex(IndexExtend extend)
+{
+    return extend == IndexExtend::Uxtw || extend == IndexExtend::Sxtw;
+}
+
+template <typename Base, typename Index> MemIndex MemFor(Base base, Index index, IndexExtend extend, bool scaled)
+{
+    return scaled ? Mem(base, index, extend, Scaled) : Mem(base, index, extend);
+}
+
+void EmitLoadStoreIndex(Corpus& corpus, const IndexForm& form, int rt, int base, int index)
+{
+    for (const IndexShape& shape : kIndexShapes) {
+        const bool wordIndex      = IsWordIndex(shape.extend);
+        const std::string address = "[" + Xs(base) + ", " + (wordIndex ? Ws(index) : Xs(index)) +
+                                    IndexText(shape.extend, shape.scaled, form.elementSize) + "]";
+        const MemIndex mem = wordIndex ? MemFor(X(base), W(index), shape.extend, shape.scaled)
+                                       : MemFor(X(base), X(index), shape.extend, shape.scaled);
+        corpus.Add(
+            std::string { form.mnemonic } + " " + (form.word ? Ws(rt) : Xs(rt)) + ", " + address, form.encode(rt, mem)
+        );
+    }
+}
+
+void EmitLoadStoreRegister(Corpus& corpus, const Triple& t)
+{
+    for (const IndexForm& form : kIndexForms) {
+        EmitLoadStoreIndex(corpus, form, t.d, t.n, t.m);
+    }
+}
+
+// SP as a base, the zero register where a form reads one, and the store-only
+// case of a pair naming the same register twice.
+void EmitLoadStoreEdgeCases(Corpus& corpus)
+{
+    corpus.Add("ldr x0, [sp, #8]", Encode::Ldr(X0, Mem(Sp, 8)));
+    corpus.Add("ldr x0, [sp, x1, lsl #3]", Encode::Ldr(X0, Mem(Sp, X1, Scaled)));
+    corpus.Add("ldr x0, [sp, x1]", Encode::Ldr(X0, Mem(Sp, X1)));
+    corpus.Add("ldrsw x0, [sp, xzr, lsl #2]", Encode::Ldrsw(X0, Mem(Sp, Xzr, Scaled)));
+    corpus.Add("str w0, [sp, w1, uxtw #2]", Encode::Str(W0, Mem(Sp, W1, IndexExtend::Uxtw, Scaled)));
+    corpus.Add("ldur x0, [sp, #-8]", Encode::Ldur(X0, Mem(Sp, -8)));
+    corpus.Add("ldp x0, x1, [sp, #-16]", Encode::Ldp(X0, X1, Mem(Sp, -16)));
+    corpus.Add("stp xzr, xzr, [sp, #-16]", Encode::Stp(Xzr, Xzr, Mem(Sp, -16)));
+    corpus.Add("stp x1, x1, [x2, #16]", Encode::Stp(X1, X1, Mem(X2, 16)));
+    corpus.Add("ldp xzr, x0, [sp, #-16]", Encode::Ldp(Xzr, X0, Mem(Sp, -16)));
+    corpus.Add("ldp x0, xzr, [sp]", Encode::Ldp(X0, Xzr, Mem(Sp, 0)));
+    corpus.Add("ldp w0, wzr, [x1, #8]", Encode::Ldp(W0, Wzr, Mem(X1, 8)));
+    corpus.Add("stp w0, wzr, [x1, #8]", Encode::Stp(W0, Wzr, Mem(X1, 8)));
+    corpus.Add("ldpsw xzr, x0, [x1, #4]", Encode::Ldpsw(Xzr, X0, Mem(X1, 4)));
+    corpus.Add("ldrb wzr, [sp, #3]", Encode::Ldrb(Wzr, Mem(Sp, 3)));
+    corpus.Add("strb wzr, [sp, #3]", Encode::Strb(Wzr, Mem(Sp, 3)));
+    corpus.Add("ldrh wzr, [sp, #2]", Encode::Ldrh(Wzr, Mem(Sp, 2)));
+    corpus.Add("ldrsb xzr, [sp, #1]", Encode::Ldrsb(Xzr, Mem(Sp, 1)));
+    corpus.Add("ldrsh wzr, [sp, #2]", Encode::Ldrsh(Wzr, Mem(Sp, 2)));
+    corpus.Add("ldrsw xzr, [sp, #4]", Encode::Ldrsw(Xzr, Mem(Sp, 4)));
+    corpus.Add("ldurb wzr, [sp, #-1]", Encode::Ldurb(Wzr, Mem(Sp, -1)));
+    corpus.Add("sturh wzr, [sp, #-2]", Encode::Sturh(Wzr, Mem(Sp, -2)));
+    corpus.Add("ldursb xzr, [sp, #-1]", Encode::Ldursb(Xzr, Mem(Sp, -1)));
+    corpus.Add("ldursh xzr, [sp, #-2]", Encode::Ldursh(Xzr, Mem(Sp, -2)));
+    corpus.Add("ldursw xzr, [sp, #-4]", Encode::Ldursw(Xzr, Mem(Sp, -4)));
+    // The zero register is a legal index register.
+    corpus.Add("ldr x0, [x1, xzr]", Encode::Ldr(X0, Mem(X1, Xzr)));
+    corpus.Add("ldr x0, [x1, xzr, lsl #3]", Encode::Ldr(X0, Mem(X1, Xzr, Scaled)));
+    corpus.Add("ldr x0, [x1, xzr, sxtx]", Encode::Ldr(X0, Mem(X1, Xzr, IndexExtend::Sxtx)));
+    corpus.Add("ldr x0, [x1, wzr, uxtw]", Encode::Ldr(X0, Mem(X1, Wzr, IndexExtend::Uxtw)));
+    corpus.Add("ldr x0, [x1, wzr, uxtw #3]", Encode::Ldr(X0, Mem(X1, Wzr, IndexExtend::Uxtw, Scaled)));
+    corpus.Add("str wzr, [x1, wzr, sxtw]", Encode::Str(Wzr, Mem(X1, Wzr, IndexExtend::Sxtw)));
+    corpus.Add("ldrsb x0, [x1, wzr, sxtw #0]", Encode::Ldrsb(X0, Mem(X1, Wzr, IndexExtend::Sxtw, Scaled)));
+    corpus.Add("ldr xzr, [x1, x2, sxtx #3]", Encode::Ldr(Xzr, Mem(X1, X2, IndexExtend::Sxtx, Scaled)));
+}
+
+void EmitLoadStore(Corpus& corpus, const Pool& pool)
+{
+    for (const Triple& t : pool.memTriples) {
+        for (uint32_t imm12 : pool.imms12) {
+            EmitLoadStoreScaled(corpus, t, imm12);
+        }
+        for (int32_t offset : pool.offsets) {
+            EmitLoadStoreUnscaled(corpus, t, offset);
+        }
+        for (int32_t imm7 : pool.pairImms) {
+            EmitLoadStorePair(corpus, t, imm7);
+        }
+        EmitLoadStoreRegister(corpus, t);
+    }
+    for (const Triple& t : pool.sampleMemTriples) {
+        for (uint32_t imm12 : pool.sampleImms12) {
+            EmitLoadStoreScaled(corpus, t, imm12);
+        }
+        for (int32_t offset : pool.sampleOffsets) {
+            EmitLoadStoreUnscaled(corpus, t, offset);
+        }
+        for (int32_t imm7 : pool.samplePairImms) {
+            EmitLoadStorePair(corpus, t, imm7);
+        }
+        EmitLoadStoreRegister(corpus, t);
+    }
+    EmitLoadStoreEdgeCases(corpus);
+}
+
 void EmitBranches(Corpus& corpus, const Pool& pool)
 {
     corpus.Add("ret", Encode::Ret());
@@ -839,6 +1126,7 @@ Corpus BuildCorpus(const std::vector<Pool>& pools)
         EmitAddSub(corpus, pool);
         EmitLogical(corpus, pool);
         EmitShiftBitfield(corpus, pool);
+        EmitLoadStore(corpus, pool);
         EmitBranches(corpus, pool);
     }
     return corpus;

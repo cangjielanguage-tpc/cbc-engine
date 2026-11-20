@@ -192,6 +192,10 @@ public:
 
     void Cmp(WReg src, uint32_t imm12) { Emit(Encode::Subs(Wzr, src, imm12)); }
 
+    // The stack pointer is the one register CMP/CMN compares through its
+    // stack-pointer operand form, which the zero-register destination cannot use.
+    void Cmp(SpReg src, uint32_t imm12) { Emit(Encode::Subs(Xzr, src, imm12)); }
+
     void Cmp(WReg src, WReg src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
     {
         Emit(Encode::Subs(Wzr, src, src2, shift, amount));
@@ -205,6 +209,8 @@ public:
     }
 
     void Cmn(WReg src, uint32_t imm12) { Emit(Encode::Adds(Wzr, src, imm12)); }
+
+    void Cmn(SpReg src, uint32_t imm12) { Emit(Encode::Adds(Xzr, src, imm12)); }
 
     void Cmn(WReg src, WReg src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
     {
@@ -455,6 +461,242 @@ public:
     {
         Emit(Encode::Uxth(dst, src));
     }
+
+    // Loads and stores. The address operand is Mem(base, #offset) for the
+    // immediate forms and Mem(base, index[, extend][, Scaled]) for the
+    // register-offset ones. The access size and the signedness come from the
+    // mnemonic and the destination register: Ldr moves 64 bits into an X
+    // register and 32 into a W one, Ldrb/Ldrh zero-extend into a W register,
+    // Ldrsb/Ldrsh/Ldrsw sign-extend, and the Ldur family is the same access with
+    // an offset that is not scaled by the access size. A loading pair reads both
+    // registers from one address, so they must differ.
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldr(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldr(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldr(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldr(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldr(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldr(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldr(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldr(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Str(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Str(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Str(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Str(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Str(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Str(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Str(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Str(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldrb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrb(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldrb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Strb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Strb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Strb(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Strb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldrh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrh(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldrh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Strh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Strh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Strh(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Strh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldrsb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldrsb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrsb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldrsb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldrsb(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldrsb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrsb(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldrsb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldrsh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldrsh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrsh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldrsh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldrsh(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldrsh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldrsh(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldrsh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldrsw(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldrsw(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldrsw(Rt rt, const MemIndex& mem)
+    {
+        Emit(Encode::Ldrsw(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldur(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldur(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldur(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldur(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Stur(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Stur(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Stur(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Stur(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldurb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldurb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Sturb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Sturb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldurh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldurh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Sturh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Sturh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldursb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldursb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldursb(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldursb(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldursh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldursh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableWReg<Rt> = 0> void Ldursh(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldursh(rt, mem));
+    }
+
+    template <typename Rt, Detail::EnableXReg<Rt> = 0> void Ldursw(Rt rt, const MemImm& mem)
+    {
+        Emit(Encode::Ldursw(rt, mem));
+    }
+
+    template <typename Rt, typename Rt2, Detail::EnableXReg<Rt> = 0, Detail::EnableXReg<Rt2> = 0>
+    void Ldp(Rt rt, Rt2 rt2, const MemImm& mem)
+    {
+        Emit(Encode::Ldp(rt, rt2, mem));
+    }
+
+    template <typename Rt, typename Rt2, Detail::EnableWReg<Rt> = 0, Detail::EnableWReg<Rt2> = 0>
+    void Ldp(Rt rt, Rt2 rt2, const MemImm& mem)
+    {
+        Emit(Encode::Ldp(rt, rt2, mem));
+    }
+
+    template <typename Rt, typename Rt2, Detail::EnableXReg<Rt> = 0, Detail::EnableXReg<Rt2> = 0>
+    void Stp(Rt rt, Rt2 rt2, const MemImm& mem)
+    {
+        Emit(Encode::Stp(rt, rt2, mem));
+    }
+
+    template <typename Rt, typename Rt2, Detail::EnableWReg<Rt> = 0, Detail::EnableWReg<Rt2> = 0>
+    void Stp(Rt rt, Rt2 rt2, const MemImm& mem)
+    {
+        Emit(Encode::Stp(rt, rt2, mem));
+    }
+
+    template <typename Rt, typename Rt2, Detail::EnableXReg<Rt> = 0, Detail::EnableXReg<Rt2> = 0>
+    void Ldpsw(Rt rt, Rt2 rt2, const MemImm& mem)
+    {
+        Emit(Encode::Ldpsw(rt, rt2, mem));
+    }
+
+    // NOP: does nothing, and is named here so the emitter never needs a raw word.
+    void Nop() { Emit(Encode::Nop()); }
 
     // Control flow. Methods that name a label record a fixup: the word is
     // emitted with an empty offset, and Finalize() fills in the distance once

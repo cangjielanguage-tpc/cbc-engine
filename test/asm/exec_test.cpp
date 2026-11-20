@@ -13,27 +13,36 @@
 
 namespace {
 
+// Shorthand for the encoder that each method forwards to.
+namespace Encode = Asm::Encode;
+
 using Asm::Assembler;
 using Asm::BasicLabelManager;
 using Asm::CodeSegment;
 using Asm::CodeStorage;
+using Asm::IndexExtend;
+using Asm::Insn;
 using Asm::Label;
-using Asm::X2;
-
-#if defined(__aarch64__)
-// Names used by the tests that call published code, which only compile where
-// that code can run.
+using Asm::Lsl12;
+using Asm::Mem;
+using Asm::Scaled;
+using Asm::Shift;
+using Asm::Sp;
 using Asm::W0;
 using Asm::W1;
 using Asm::W2;
+using Asm::W3;
+using Asm::W4;
 using Asm::Wzr;
 using Asm::X0;
 using Asm::X1;
 using Asm::X2;
 using Asm::X3;
 using Asm::X30;
+using Asm::X4;
 using Asm::Xzr;
 
+#if defined(__aarch64__)
 // The address of published code, called as a function of two integers.
 using BinaryFunction = int64_t (*)(int64_t, int64_t);
 
@@ -85,6 +94,135 @@ TEST(AssemblerFinalize, ResolvesBranchesBeforePublishing)
         segment.Words()[2], Asm::Encode::ApplyFixup(Asm::Encode::Cbnz(X2), Asm::FixupKind::CmpBranch19, -8).Bits()
     );
     ASSERT_NE(segment.Words()[1], segment.Words()[2]);
+}
+
+// The assembler methods are the API the callers use; each must emit exactly the
+// word of the encoder it forwards to. The zero register and SP are separate
+// operand types, so which overload a call resolves to is worth pinning down
+// here, next to the entry points, rather than only through the encoders.
+TEST(AssemblerMethods, EmitTheEncodersWords)
+{
+    struct Sample {
+        const char* text;
+        Insn encoded;
+        void (*emit)(Assembler<CodeStorage>&);
+    };
+
+    const Sample samples[] = {
+        { "add x0, x1, #9", Encode::Add(X0, X1, 9), [](Assembler<CodeStorage>& a) { a.Add(X0, X1, 9); } },
+        { "add x0, sp, #9", Encode::Add(X0, Sp, 9), [](Assembler<CodeStorage>& a) { a.Add(X0, Sp, 9); } },
+        { "add sp, x1, #9", Encode::Add(Sp, X1, 9), [](Assembler<CodeStorage>& a) { a.Add(Sp, X1, 9); } },
+        { "add sp, sp, #9", Encode::Add(Sp, Sp, 9), [](Assembler<CodeStorage>& a) { a.Add(Sp, Sp, 9); } },
+        { "add w0, w1, #9, lsl #12",
+          Encode::Add(W0, W1, 9, Lsl12),
+          [](Assembler<CodeStorage>& a) { a.Add(W0, W1, 9, Lsl12); } },
+        { "add x0, x1, x2, asr #8",
+          Encode::Add(X0, X1, X2, Shift::Asr, 8),
+          [](Assembler<CodeStorage>& a) { a.Add(X0, X1, X2, Shift::Asr, 8); } },
+        { "add x0, xzr, x2", Encode::Add(X0, Xzr, X2), [](Assembler<CodeStorage>& a) { a.Add(X0, Xzr, X2); } },
+        { "add x0, x1, xzr", Encode::Add(X0, X1, Xzr), [](Assembler<CodeStorage>& a) { a.Add(X0, X1, Xzr); } },
+        { "subs xzr, x1, #9", Encode::Subs(Xzr, X1, 9), [](Assembler<CodeStorage>& a) { a.Subs(Xzr, X1, 9); } },
+        { "subs xzr, sp, #9", Encode::Subs(Xzr, Sp, 9), [](Assembler<CodeStorage>& a) { a.Subs(Xzr, Sp, 9); } },
+        { "adds xzr, sp, #9, lsl #12",
+          Encode::Adds(Xzr, Sp, 9, Lsl12),
+          [](Assembler<CodeStorage>& a) { a.Adds(Xzr, Sp, 9, Lsl12); } },
+        { "adds x0, xzr, xzr", Encode::Adds(X0, Xzr, Xzr), [](Assembler<CodeStorage>& a) { a.Adds(X0, Xzr, Xzr); } },
+        { "subs wzr, w1, #9, lsl #12",
+          Encode::Subs(Wzr, W1, 9, Lsl12),
+          [](Assembler<CodeStorage>& a) { a.Subs(Wzr, W1, 9, Lsl12); } },
+        { "cmp x1, x2, lsr #4",
+          Encode::Subs(Xzr, X1, X2, Shift::Lsr, 4),
+          [](Assembler<CodeStorage>& a) { a.Cmp(X1, X2, Shift::Lsr, 4); } },
+        { "cmp sp, #9", Encode::Subs(Xzr, Sp, 9), [](Assembler<CodeStorage>& a) { a.Cmp(Sp, 9); } },
+        { "cmn w1, #9", Encode::Adds(Wzr, W1, 9), [](Assembler<CodeStorage>& a) { a.Cmn(W1, 9); } },
+        { "and x0, x1, #0xff", Encode::And(X0, X1, 0xFF), [](Assembler<CodeStorage>& a) { a.And(X0, X1, 0xFF); } },
+        { "orr sp, x1, #0x100", Encode::Orr(Sp, X1, 0x100), [](Assembler<CodeStorage>& a) { a.Orr(Sp, X1, 0x100); } },
+        { "eor w0, w1, #0xff", Encode::Eor(W0, W1, 0xFF), [](Assembler<CodeStorage>& a) { a.Eor(W0, W1, 0xFF); } },
+        { "ands xzr, x1, #0xff",
+          Encode::Ands(Xzr, X1, 0xFF),
+          [](Assembler<CodeStorage>& a) { a.Ands(Xzr, X1, 0xFF); } },
+        { "tst x1, #0xff", Encode::Ands(Xzr, X1, 0xFF), [](Assembler<CodeStorage>& a) { a.Tst(X1, 0xFF); } },
+        { "tst w1, #0xff", Encode::Ands(Wzr, W1, 0xFF), [](Assembler<CodeStorage>& a) { a.Tst(W1, 0xFF); } },
+        { "and xzr, x1, x2, lsl #3",
+          Encode::And(Xzr, X1, X2, Shift::Lsl, 3),
+          [](Assembler<CodeStorage>& a) { a.And(Xzr, X1, X2, Shift::Lsl, 3); } },
+        { "lsl x0, x1, x2", Encode::Lsl(X0, X1, X2), [](Assembler<CodeStorage>& a) { a.Lsl(X0, X1, X2); } },
+        { "lsr w0, wzr, #4", Encode::Lsr(W0, Wzr, 4), [](Assembler<CodeStorage>& a) { a.Lsr(W0, Wzr, 4); } },
+        { "ubfm xzr, x1, #0, #7",
+          Encode::Ubfm(Xzr, X1, 0, 7),
+          [](Assembler<CodeStorage>& a) { a.Ubfm(Xzr, X1, 0, 7); } },
+        { "sbfx w0, w1, #4, #4", Encode::Sbfx(W0, W1, 4, 4), [](Assembler<CodeStorage>& a) { a.Sbfx(W0, W1, 4, 4); } },
+        { "sxtb x0, w1", Encode::Sxtb(X0, W1), [](Assembler<CodeStorage>& a) { a.Sxtb(X0, W1); } },
+        { "uxtb wzr, w1", Encode::Uxtb(Wzr, W1), [](Assembler<CodeStorage>& a) { a.Uxtb(Wzr, W1); } },
+        { "ldr x0, [x1, #8]", Encode::Ldr(X0, Mem(X1, 8)), [](Assembler<CodeStorage>& a) { a.Ldr(X0, Mem(X1, 8)); } },
+        { "ldr w0, [sp, #4]", Encode::Ldr(W0, Mem(Sp, 4)), [](Assembler<CodeStorage>& a) { a.Ldr(W0, Mem(Sp, 4)); } },
+        { "str xzr, [x1, #24]",
+          Encode::Str(Xzr, Mem(X1, 24)),
+          [](Assembler<CodeStorage>& a) { a.Str(Xzr, Mem(X1, 24)); } },
+        { "ldr x0, [x1, x2]", Encode::Ldr(X0, Mem(X1, X2)), [](Assembler<CodeStorage>& a) { a.Ldr(X0, Mem(X1, X2)); } },
+        { "str xzr, [sp, x2, lsl #3]",
+          Encode::Str(Xzr, Mem(Sp, X2, Scaled)),
+          [](Assembler<CodeStorage>& a) { a.Str(Xzr, Mem(Sp, X2, Scaled)); } },
+        { "ldr x0, [x1, x2, lsl #3]",
+          Encode::Ldr(X0, Mem(X1, X2, Scaled)),
+          [](Assembler<CodeStorage>& a) { a.Ldr(X0, Mem(X1, X2, Scaled)); } },
+        { "ldr w0, [x1, w2, uxtw #2]",
+          Encode::Ldr(W0, Mem(X1, W2, IndexExtend::Uxtw, Scaled)),
+          [](Assembler<CodeStorage>& a) { a.Ldr(W0, Mem(X1, W2, IndexExtend::Uxtw, Scaled)); } },
+        { "str wzr, [x1, wzr, sxtw]",
+          Encode::Str(Wzr, Mem(X1, Wzr, IndexExtend::Sxtw)),
+          [](Assembler<CodeStorage>& a) { a.Str(Wzr, Mem(X1, Wzr, IndexExtend::Sxtw)); } },
+        { "ldr xzr, [x1, x2, sxtx #3]",
+          Encode::Ldr(Xzr, Mem(X1, X2, IndexExtend::Sxtx, Scaled)),
+          [](Assembler<CodeStorage>& a) { a.Ldr(Xzr, Mem(X1, X2, IndexExtend::Sxtx, Scaled)); } },
+        { "ldrb w0, [x1, x2]",
+          Encode::Ldrb(W0, Mem(X1, X2)),
+          [](Assembler<CodeStorage>& a) { a.Ldrb(W0, Mem(X1, X2)); } },
+        { "strh wzr, [sp, #2]",
+          Encode::Strh(Wzr, Mem(Sp, 2)),
+          [](Assembler<CodeStorage>& a) { a.Strh(Wzr, Mem(Sp, 2)); } },
+        { "ldrsb x0, [x1, wzr, sxtw]",
+          Encode::Ldrsb(X0, Mem(X1, Wzr, IndexExtend::Sxtw)),
+          [](Assembler<CodeStorage>& a) { a.Ldrsb(X0, Mem(X1, Wzr, IndexExtend::Sxtw)); } },
+        { "ldrsh w0, [x1, xzr, lsl #1]",
+          Encode::Ldrsh(W0, Mem(X1, Xzr, Scaled)),
+          [](Assembler<CodeStorage>& a) { a.Ldrsh(W0, Mem(X1, Xzr, Scaled)); } },
+        { "ldrsw x0, [sp, xzr, lsl #2]",
+          Encode::Ldrsw(X0, Mem(Sp, Xzr, Scaled)),
+          [](Assembler<CodeStorage>& a) { a.Ldrsw(X0, Mem(Sp, Xzr, Scaled)); } },
+        { "ldur x0, [x1, #-8]",
+          Encode::Ldur(X0, Mem(X1, -8)),
+          [](Assembler<CodeStorage>& a) { a.Ldur(X0, Mem(X1, -8)); } },
+        { "stur wzr, [x1, #12]",
+          Encode::Stur(Wzr, Mem(X1, 12)),
+          [](Assembler<CodeStorage>& a) { a.Stur(Wzr, Mem(X1, 12)); } },
+        { "ldurb wzr, [sp, #-1]",
+          Encode::Ldurb(Wzr, Mem(Sp, -1)),
+          [](Assembler<CodeStorage>& a) { a.Ldurb(Wzr, Mem(Sp, -1)); } },
+        { "ldursw x0, [x1, #255]",
+          Encode::Ldursw(X0, Mem(X1, 255)),
+          [](Assembler<CodeStorage>& a) { a.Ldursw(X0, Mem(X1, 255)); } },
+        { "stp xzr, xzr, [sp, #-16]",
+          Encode::Stp(Xzr, Xzr, Mem(Sp, -16)),
+          [](Assembler<CodeStorage>& a) { a.Stp(Xzr, Xzr, Mem(Sp, -16)); } },
+        { "ldp w0, wzr, [x1, #4]",
+          Encode::Ldp(W0, Wzr, Mem(X1, 4)),
+          [](Assembler<CodeStorage>& a) { a.Ldp(W0, Wzr, Mem(X1, 4)); } },
+        { "ldpsw x0, xzr, [x1, #4]",
+          Encode::Ldpsw(X0, Xzr, Mem(X1, 4)),
+          [](Assembler<CodeStorage>& a) { a.Ldpsw(X0, Xzr, Mem(X1, 4)); } },
+        { "br x1", Encode::Br(X1), [](Assembler<CodeStorage>& a) { a.Br(X1); } },
+        { "blr x30", Encode::Blr(X30), [](Assembler<CodeStorage>& a) { a.Blr(X30); } },
+        { "ret x1", Encode::Ret(X1), [](Assembler<CodeStorage>& a) { a.Ret(X1); } },
+        { "nop", Encode::Nop(), [](Assembler<CodeStorage>& a) { a.Nop(); } },
+    };
+
+    for (const Sample& sample : samples) {
+        Assembler<CodeStorage> assembler;
+        sample.emit(assembler);
+        ASSERT_EQ(assembler.Words().Size(), 1u) << sample.text;
+        ASSERT_EQ(assembler.Words()[0], sample.encoded.Bits()) << sample.text;
+    }
 }
 
 TEST(EmittedCode, ExecutesEmittedArithmetic)
@@ -439,5 +577,297 @@ TEST(EmittedCode, ExecutesZeroExtensionAndWordSignExtension)
     ASSERT_EQ(combine(0x1FFFF, 0x89), 0xFFFF0 - 499122176);
     // 0xFF000000 is -16777216 as a 32-bit value, shifted right by two.
     ASSERT_EQ(combine(-1, 0xFF), 0xFFFF0 - 4194304);
+#endif
+}
+
+// The load and store family: the widths, the address forms and the operand
+// registers that separate its encodings, each exercised by a short program.
+TEST(EmittedCode, StoresAndLoadsWords)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+
+    assembler.Str(X1, Mem(X0, 0)); // the second argument into the address in the first
+    assembler.Ldr(X0, Mem(X0, 0)); // and back out as the result
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto storeAndLoad         = reinterpret_cast<BinaryFunction>(segment.Code());
+
+    uint64_t slot = 0;
+    ASSERT_EQ(storeAndLoad(reinterpret_cast<int64_t>(&slot), 0x0123456789ABCDEF), 0x0123456789ABCDEF);
+    ASSERT_EQ(slot, 0x0123456789ABCDEFull);
+
+    ASSERT_EQ(storeAndLoad(reinterpret_cast<int64_t>(&slot), -1), -1);
+    ASSERT_EQ(slot, ~uint64_t { 0 });
+#endif
+}
+
+TEST(EmittedCode, StoresNarrowValuesWithoutClobberingTheirNeighbours)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+
+    assembler.Strb(W1, Mem(X0, 0)); // one byte of the second argument
+    assembler.Strh(W1, Mem(X0, 2)); // a halfword, two bytes above it
+    assembler.Str(W1, Mem(X0, 4));  // and a whole word, four bytes above that
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto store                = reinterpret_cast<BinaryFunction>(segment.Code());
+
+    // -1 makes every bit of the argument one, so bytes a store writes past its
+    // own width would show up in the check below.
+    uint8_t slot[8] = { 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA };
+    (void)store(reinterpret_cast<int64_t>(slot), -1);
+    const uint8_t expected[8] = { 0xFF, 0xAA, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+    for (size_t i = 0; i < sizeof(expected); ++i) {
+        ASSERT_EQ(slot[i], expected[i]) << "byte " << i;
+    }
+#endif
+}
+
+TEST(EmittedCode, LoadsSignExtendedValues)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    // The byte at offset 0 is 0x80, the halfword at offset 2 is 0x8001 and the
+    // word at offset 4 is 0x80000001: each value has its sign bit set.
+    uint64_t slot    = 0;
+    uint8_t* bytes   = reinterpret_cast<uint8_t*>(&slot);
+    bytes[0]         = 0x80;
+    bytes[1]         = 0xAA;
+    bytes[2]         = 0x01;
+    bytes[3]         = 0x80;
+    bytes[4]         = 0x01;
+    bytes[5]         = 0x00;
+    bytes[6]         = 0x00;
+    bytes[7]         = 0x80;
+    const int64_t at = reinterpret_cast<int64_t>(&slot);
+
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Ldrsb(X0, Mem(X0, 0));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto loadSignedByte       = reinterpret_cast<BinaryFunction>(segment.Code());
+        ASSERT_EQ(loadSignedByte(at, 0), -128);
+    }
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Ldrb(W0, Mem(X0, 0));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto loadByte             = reinterpret_cast<BinaryFunction>(segment.Code());
+        ASSERT_EQ(loadByte(at, 0), 0x80);
+    }
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Ldrsh(X0, Mem(X0, 2));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto loadSignedHalfword   = reinterpret_cast<BinaryFunction>(segment.Code());
+        ASSERT_EQ(loadSignedHalfword(at, 0), -32767);
+    }
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Ldrh(W0, Mem(X0, 2));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto loadHalfword         = reinterpret_cast<BinaryFunction>(segment.Code());
+        ASSERT_EQ(loadHalfword(at, 0), 0x8001);
+    }
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Ldrsw(X0, Mem(X0, 4));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto loadSignedWord       = reinterpret_cast<BinaryFunction>(segment.Code());
+        ASSERT_EQ(loadSignedWord(at, 0), -2147483647);
+    }
+    {
+        // The pair form reads two words and extends both.
+        uint32_t pair[2] = { 0xFFFFFFFF, 2 };
+        Assembler<CodeStorage> assembler;
+        assembler.Ldpsw(X2, X3, Mem(X0, 0));
+        assembler.Add(X0, X2, X3);
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto loadSignedPair       = reinterpret_cast<BinaryFunction>(segment.Code());
+        ASSERT_EQ(loadSignedPair(reinterpret_cast<int64_t>(pair), 0), 1);
+    }
+#endif
+}
+
+TEST(EmittedCode, IndexesMemoryThroughTheScaledAndUnscaledOffset)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    const auto fill = [](uint64_t(&buffer)[4]) {
+        for (uint64_t& word : buffer) {
+            word = 0xAAAAAAAAAAAAAAAAull;
+        }
+    };
+
+    // The scaled form takes the index in 8-byte elements: element 1 is byte 8.
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Str(X1, Mem(X0, X2, Scaled));
+        assembler.Ldr(X0, Mem(X0, X2, Scaled));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto storeScaled          = reinterpret_cast<TernaryFunction>(segment.Code());
+
+        uint64_t buffer[4];
+        fill(buffer);
+        ASSERT_EQ(storeScaled(reinterpret_cast<int64_t>(buffer), 0x1111, 1), 0x1111);
+        ASSERT_EQ(buffer[0], 0xAAAAAAAAAAAAAAAAull);
+        ASSERT_EQ(buffer[1], 0x1111ull);
+        ASSERT_EQ(buffer[2], 0xAAAAAAAAAAAAAAAAull);
+    }
+
+    // The unscaled form takes the same index in bytes, so 8 reaches that byte.
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Str(X1, Mem(X0, X2));
+        assembler.Ldr(X0, Mem(X0, X2));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto storeByteOffset      = reinterpret_cast<TernaryFunction>(segment.Code());
+
+        uint64_t buffer[4];
+        fill(buffer);
+        ASSERT_EQ(storeByteOffset(reinterpret_cast<int64_t>(buffer), 0x2222, 8), 0x2222);
+        ASSERT_EQ(buffer[1], 0x2222ull);
+    }
+
+    // The same form at byte 1 stores the whole register there, crossing into the
+    // second word: the bytes the store does not reach keep their value.
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Str(X1, Mem(X0, X2));
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto storeByteOffset      = reinterpret_cast<TernaryFunction>(segment.Code());
+
+        uint64_t buffer[4];
+        fill(buffer);
+        (void)storeByteOffset(reinterpret_cast<int64_t>(buffer), 0x33, 1);
+        ASSERT_EQ(buffer[0], 0x33AAull);
+        ASSERT_EQ(buffer[1], 0xAAAAAAAAAAAAAA00ull);
+    }
+#endif
+}
+
+TEST(EmittedCode, IndexesMemoryThroughAWordIndex)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+
+    // The index is read as a 32-bit value and scaled by the width read: a word.
+    assembler.Ldr(W0, Mem(X0, W1, IndexExtend::Uxtw, Scaled));
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto loadWord             = reinterpret_cast<BinaryFunction>(segment.Code());
+
+    const uint32_t words[4] = { 10, 20, 30, 40 };
+    const int64_t at        = reinterpret_cast<int64_t>(words);
+    ASSERT_EQ(loadWord(at, 0), 10);
+    ASSERT_EQ(loadWord(at, 1), 20);
+    ASSERT_EQ(loadWord(at, 2), 30);
+    // Only the low 32 bits of the index take part: as a 64-bit value this index
+    // is far past the end, as a 32-bit one it is 1.
+    ASSERT_EQ(loadWord(at, 0x100000001), 20);
+#endif
+}
+
+TEST(EmittedCode, StoresAndLoadsPairs)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    {
+        Assembler<CodeStorage> assembler;
+        assembler.Stp(X1, X2, Mem(X0, 0));
+        assembler.Ldp(X3, X4, Mem(X0, 0));
+        assembler.Sub(X0, X3, X4); // the difference proves both pair slots reloaded
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto storePair            = reinterpret_cast<TernaryFunction>(segment.Code());
+
+        uint64_t pair[2] = { 0, 0 };
+        ASSERT_EQ(storePair(reinterpret_cast<int64_t>(pair), 0x1234, 0x111), 0x1234 - 0x111);
+        ASSERT_EQ(pair[0], 0x1234ull);
+        ASSERT_EQ(pair[1], 0x111ull);
+    }
+    {
+        // The 32-bit form stores half as much per slot.
+        Assembler<CodeStorage> assembler;
+        assembler.Stp(W1, W2, Mem(X0, 0));
+        assembler.Ldp(W3, W4, Mem(X0, 0));
+        assembler.Sub(W0, W3, W4);
+        assembler.Ret();
+        const CodeSegment segment = assembler.Finalize();
+        auto storePair            = reinterpret_cast<TernaryFunction>(segment.Code());
+
+        uint32_t pair[2] = { 0, 0 };
+        ASSERT_EQ(storePair(reinterpret_cast<int64_t>(pair), 0x100000003, 1), 2);
+        ASSERT_EQ(pair[0], 3u);
+        ASSERT_EQ(pair[1], 1u);
+    }
+#endif
+}
+
+TEST(EmittedCode, KeepsTheStackPointerAndTheZeroRegister)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+
+    assembler.Sub(Sp, Sp, 32);      // room for two words on the stack
+    assembler.Str(X1, Mem(Sp, 16)); // the second argument in one
+    assembler.Str(Xzr, Mem(Sp, 8)); // and the zero register in the other
+    assembler.Ldr(X0, Mem(Sp, 16));
+    assembler.Ldr(X2, Mem(Sp, 8));
+    assembler.Add(X0, X0, X2); // adding zero changes nothing
+    assembler.Add(Sp, Sp, 32); // give the room back
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto loadFromStack        = reinterpret_cast<BinaryFunction>(segment.Code());
+
+    // The first argument is unused: the program works through the stack pointer.
+    ASSERT_EQ(loadFromStack(0, 0x1234), 0x1234);
+    ASSERT_EQ(loadFromStack(0, -1), -1);
+#endif
+}
+
+TEST(EmittedCode, StoresAndLoadsWithUnscaledOffsets)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+
+    assembler.Stur(X1, Mem(X0, 8));   // one word above the address in the first argument
+    assembler.Stur(Xzr, Mem(X0, -8)); // and zero one word below it
+    assembler.Ldur(X2, Mem(X0, 8));
+    assembler.Ldur(X3, Mem(X0, -8));
+    assembler.Add(X0, X2, X3); // the zero comes back in unchanged
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto storeUnscaled        = reinterpret_cast<BinaryFunction>(segment.Code());
+
+    uint64_t words[3] = { 0xAAAAAAAAAAAAAAAAull, 0xAAAAAAAAAAAAAAAAull, 0xAAAAAAAAAAAAAAAAull };
+    ASSERT_EQ(storeUnscaled(reinterpret_cast<int64_t>(&words[1]), 0x5678), 0x5678);
+    ASSERT_EQ(words[0], 0ull);
+    ASSERT_EQ(words[1], 0xAAAAAAAAAAAAAAAAull);
+    ASSERT_EQ(words[2], 0x5678ull);
 #endif
 }
