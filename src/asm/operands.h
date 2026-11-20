@@ -6,31 +6,41 @@
 
 namespace Asm {
 
-// Integer register operand, width-agnostic view is chosen by the instruction.
-// Code 31 denotes the zero register.
+// General-purpose integer register, x0..x30. Register field 31 is not part of
+// this type: it means the zero register in some operand positions and SP in
+// others, and those are the distinct operand types XzrReg and SpReg. A form
+// that accepts the zero register therefore takes it as XzrReg and only then.
 class XReg {
     uint8_t code_;
 
 public:
-    constexpr explicit XReg(uint8_t code) : code_ { code } { ASSERT(code <= 31); }
+    constexpr explicit XReg(uint8_t code) : code_ { code } { ASSERT(code <= 30); }
 
     constexpr uint8_t Code() const { return code_; }
 };
 
-// 32-bit view of an integer register. Code 31 denotes the zero register.
+// 32-bit view of a general-purpose integer register, w0..w30.
 class WReg {
     uint8_t code_;
 
 public:
-    constexpr explicit WReg(uint8_t code) : code_ { code } { ASSERT(code <= 31); }
+    constexpr explicit WReg(uint8_t code) : code_ { code } { ASSERT(code <= 30); }
 
     constexpr uint8_t Code() const { return code_; }
 };
+
+// The zero register (xzr/wzr), read as register field 31. A distinct type
+// because field 31 also means SP (SpReg); the zero register is legal only in
+// operand positions whose form accepts it, so those take XzrReg/WzrReg.
+struct XzrReg {};
+struct WzrReg {};
 
 // Stack pointer. A distinct type because code 31 means SP only in operand
 // positions that accept it.
 class SpReg {};
 
+inline constexpr XzrReg Xzr {};
+inline constexpr WzrReg Wzr {};
 inline constexpr SpReg Sp {};
 
 enum class Shift : uint8_t {
@@ -96,7 +106,6 @@ inline constexpr XReg X27 { 27 };
 inline constexpr XReg X28 { 28 };
 inline constexpr XReg X29 { 29 };
 inline constexpr XReg X30 { 30 };
-inline constexpr XReg Xzr { 31 };
 
 inline constexpr WReg W0 { 0 };
 inline constexpr WReg W1 { 1 };
@@ -129,6 +138,5 @@ inline constexpr WReg W27 { 27 };
 inline constexpr WReg W28 { 28 };
 inline constexpr WReg W29 { 29 };
 inline constexpr WReg W30 { 30 };
-inline constexpr WReg Wzr { 31 };
 
 } // namespace Asm

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 
 #include "asm/insn.h"
 #include "asm/labels.h"
@@ -38,16 +39,44 @@ constexpr uint32_t CodeOf(XReg reg) { return reg.Code(); }
 
 constexpr uint32_t CodeOf(WReg reg) { return reg.Code(); }
 
+constexpr uint32_t CodeOf(XzrReg) { return 31; }
+
+constexpr uint32_t CodeOf(WzrReg) { return 31; }
+
 constexpr uint32_t CodeOf(SpReg) { return 31; }
 
+// The register field classes a shifted-register form reads as <Xn>/<Xd>/<Xm>:
+// a general-purpose register or the zero register, of one width. The traits
+// constrain the operand types so a 32-bit register cannot be mixed into a
+// 64-bit form and vice versa.
+template <typename R> struct IsXRegOperand : std::false_type {};
+
+template <> struct IsXRegOperand<XReg> : std::true_type {};
+
+template <> struct IsXRegOperand<XzrReg> : std::true_type {};
+
+template <typename R> struct IsWRegOperand : std::false_type {};
+
+template <> struct IsWRegOperand<WReg> : std::true_type {};
+
+template <> struct IsWRegOperand<WzrReg> : std::true_type {};
+
+template <typename D, typename N, typename M>
+using EnableXOperands =
+    std::enable_if_t<IsXRegOperand<D>::value && IsXRegOperand<N>::value && IsXRegOperand<M>::value, int>;
+
+template <typename D, typename N, typename M>
+using EnableWOperands =
+    std::enable_if_t<IsWRegOperand<D>::value && IsWRegOperand<N>::value && IsWRegOperand<M>::value, int>;
+
 // The helpers take the form's fixed bits: the template literals plus the
-// selectors that pick this form (sf, op, S).
+// selectors that pick this form (sf, op, S), and the register numbers, so the
+// caller decides what each register field means.
 
 // ADD/SUB (immediate): sf op S 100010 sh imm12 Rn Rd
-template <typename D, typename N> constexpr Insn AddSubImm(uint32_t formBits, D rd, N rn, uint32_t imm12, uint32_t sh)
+constexpr Insn AddSubImm(uint32_t formBits, uint32_t rd, uint32_t rn, uint32_t imm12, uint32_t sh)
 {
-    return (Op { formBits } | Field<22, 1> { sh } | Field<10, 12> { imm12 } | Field<5, 5> { CodeOf(rn) } |
-            Field<0, 5> { CodeOf(rd) })
+    return (Op { formBits } | Field<22, 1> { sh } | Field<10, 12> { imm12 } | Field<5, 5> { rn } | Field<0, 5> { rd })
         .Finish();
 }
 
@@ -58,6 +87,95 @@ constexpr Insn AddSubShifted(uint32_t formBits, D rd, N rn, M rm, Shift shift, u
     ASSERT(imm6 <= imm6Limit);
     return (Op { formBits } | Field<22, 2> { static_cast<uint32_t>(shift) } | Field<16, 5> { CodeOf(rm) } |
             Field<10, 6> { imm6 } | Field<5, 5> { CodeOf(rn) } | Field<0, 5> { CodeOf(rd) })
+        .Finish();
+}
+
+// AND/ORR/EOR/ANDS (shifted register): sf opc 01010 shift 0 imm6 Rm Rn Rd
+template <typename D, typename N, typename M>
+constexpr Insn LogicalShifted(uint32_t formBits, D rd, N rn, M rm, Shift shift, uint32_t imm6, uint32_t imm6Limit)
+{
+    ASSERT(imm6 <= imm6Limit);
+    return (Op { formBits } | Field<22, 2> { static_cast<uint32_t>(shift) } | Field<16, 5> { CodeOf(rm) } |
+            Field<10, 6> { imm6 } | Field<5, 5> { CodeOf(rn) } | Field<0, 5> { CodeOf(rd) })
+        .Finish();
+}
+
+// Number of set bits of value: the length of the run of ones in a bitmask
+// immediate's element.
+constexpr unsigned PopCount(uint64_t value)
+{
+    unsigned count = 0;
+    while (value != 0) {
+        count  += static_cast<unsigned>(value & 1);
+        value >>= 1;
+    }
+    return count;
+}
+
+// Encodes `imm` as a bitmask immediate for a `width`-bit form and produces the
+// N, immr and imms fields. Such an immediate is a single run of ones replicated
+// at some power-of-two period: the element of `esize = 2^len` bits is one
+// rotation of `Ones(ones)`, and the value repeats it every esize bits. Returns
+// false when no encoding exists (the value is 0, all-ones, or not such a
+// repetition). `imm` is only read to `width` bits.
+constexpr bool EncodeLogicalImm(uint64_t imm, uint32_t width, uint32_t& n, uint32_t& immr, uint32_t& imms)
+{
+    const uint64_t value   = (width == 32) ? (imm & 0xFFFFFFFFull) : imm;
+    const uint64_t allOnes = (width == 64) ? ~UINT64_C(0) : UINT64_C(0xFFFFFFFF);
+    if (value == 0 || value == allOnes) {
+        return false;
+    }
+    const unsigned maxLen = (width == 64) ? 6 : 5;
+    for (unsigned len = 1; len <= maxLen; ++len) {
+        const unsigned esize    = 1u << len;
+        const uint64_t elemMask = (esize == 64) ? allOnes : ((UINT64_C(1) << esize) - 1);
+        const uint64_t element  = value & elemMask;
+        uint64_t replica        = 0;
+        for (unsigned i = 0; i < width; i += esize) {
+            replica |= element << i;
+        }
+        if (replica != value) {
+            continue;
+        }
+        const unsigned ones = PopCount(element);
+        if (ones == 0 || ones == esize) {
+            continue;
+        }
+        // The element must be a rotation of Ones(ones), that is, its ones must
+        // form exactly one contiguous run. Such a run has exactly one start: the
+        // 1 whose predecessor is 0.
+        unsigned runs  = 0;
+        unsigned start = 0;
+        for (unsigned i = 0; i < esize; ++i) {
+            const unsigned prev = (i + esize - 1) % esize;
+            if (((element >> i) & 1u) != 0 && ((element >> prev) & 1u) == 0) {
+                start = i;
+                ++runs;
+            }
+        }
+        if (runs != 1) {
+            continue;
+        }
+        // element == ROR(Ones(ones), rotate), so immr is the rotation that moves
+        // the run's start to bit 0.
+        n    = (len == 6) ? 1u : 0u;
+        immr = (esize - start) % esize;
+        imms = (len == 6) ? (ones - 1) : ((64u - (2u << len)) | (ones - 1));
+        return true;
+    }
+    return false;
+}
+
+// AND/ORR/EOR/ANDS (immediate): sf opc 100100 N immr imms Rn Rd
+constexpr Insn LogicalImm(uint32_t formBits, uint32_t rd, uint32_t rn, uint64_t imm, uint32_t width)
+{
+    uint32_t n           = 0;
+    uint32_t immr        = 0;
+    uint32_t imms        = 0;
+    const bool encodable = EncodeLogicalImm(imm, width, n, immr, imms);
+    ASSERT(encodable);
+    return (Op { formBits } | Field<22, 1> { n } | Field<16, 6> { immr } | Field<10, 6> { imms } | Field<5, 5> { rn } |
+            Field<0, 5> { rd })
         .Finish();
 }
 
@@ -91,74 +209,377 @@ template <uint32_t Shift, uint32_t Width, uint32_t Scale> constexpr Insn BranchF
 
 namespace Encode {
 
-constexpr Insn Add(XReg dst, XReg src, uint32_t imm12) { return Detail::AddSubImm(0x91000000, dst, src, imm12, 0); }
+constexpr Insn Add(XReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x91000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
 constexpr Insn Add(XReg dst, XReg src, uint32_t imm12, Lsl12Tag)
 {
-    return Detail::AddSubImm(0x91000000, dst, src, imm12, 1);
+    return Detail::AddSubImm(0x91000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
 }
 
-constexpr Insn Add(XReg dst, SpReg src, uint32_t imm12) { return Detail::AddSubImm(0x91000000, dst, src, imm12, 0); }
+constexpr Insn Add(XReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x91000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
 constexpr Insn Add(XReg dst, SpReg src, uint32_t imm12, Lsl12Tag)
 {
-    return Detail::AddSubImm(0x91000000, dst, src, imm12, 1);
+    return Detail::AddSubImm(0x91000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
 }
 
-constexpr Insn Add(SpReg dst, XReg src, uint32_t imm12) { return Detail::AddSubImm(0x91000000, dst, src, imm12, 0); }
+constexpr Insn Add(SpReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x91000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
-constexpr Insn Add(SpReg dst, SpReg src, uint32_t imm12) { return Detail::AddSubImm(0x91000000, dst, src, imm12, 0); }
+constexpr Insn Add(SpReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x91000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
-constexpr Insn Add(WReg dst, WReg src, uint32_t imm12) { return Detail::AddSubImm(0x11000000, dst, src, imm12, 0); }
+constexpr Insn Add(WReg dst, WReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x11000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
 constexpr Insn Add(WReg dst, WReg src, uint32_t imm12, Lsl12Tag)
 {
-    return Detail::AddSubImm(0x11000000, dst, src, imm12, 1);
+    return Detail::AddSubImm(0x11000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
 }
 
-constexpr Insn Add(XReg dst, XReg src, XReg src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+// ADD (shifted register): sf op S 01011 shift 0 imm6 Rm Rn Rd. The register
+// fields are <Xd>/<Xn>/<Xm>, so any of them may be the zero register.
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Add(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
 {
     return Detail::AddSubShifted(0x8B000000, dst, src, src2, shift, amount, 63);
 }
 
-constexpr Insn Add(WReg dst, WReg src, WReg src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Add(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
 {
     return Detail::AddSubShifted(0x0B000000, dst, src, src2, shift, amount, 31);
 }
 
-constexpr Insn Sub(XReg dst, XReg src, uint32_t imm12) { return Detail::AddSubImm(0xD1000000, dst, src, imm12, 0); }
+constexpr Insn Sub(XReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xD1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
 constexpr Insn Sub(XReg dst, XReg src, uint32_t imm12, Lsl12Tag)
 {
-    return Detail::AddSubImm(0xD1000000, dst, src, imm12, 1);
+    return Detail::AddSubImm(0xD1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
 }
 
-constexpr Insn Sub(XReg dst, SpReg src, uint32_t imm12) { return Detail::AddSubImm(0xD1000000, dst, src, imm12, 0); }
+constexpr Insn Sub(XReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xD1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
 constexpr Insn Sub(XReg dst, SpReg src, uint32_t imm12, Lsl12Tag)
 {
-    return Detail::AddSubImm(0xD1000000, dst, src, imm12, 1);
+    return Detail::AddSubImm(0xD1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
 }
 
-constexpr Insn Sub(SpReg dst, XReg src, uint32_t imm12) { return Detail::AddSubImm(0xD1000000, dst, src, imm12, 0); }
+constexpr Insn Sub(SpReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xD1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
-constexpr Insn Sub(SpReg dst, SpReg src, uint32_t imm12) { return Detail::AddSubImm(0xD1000000, dst, src, imm12, 0); }
+constexpr Insn Sub(SpReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xD1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
-constexpr Insn Sub(WReg dst, WReg src, uint32_t imm12) { return Detail::AddSubImm(0x51000000, dst, src, imm12, 0); }
+constexpr Insn Sub(WReg dst, WReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x51000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
 
 constexpr Insn Sub(WReg dst, WReg src, uint32_t imm12, Lsl12Tag)
 {
-    return Detail::AddSubImm(0x51000000, dst, src, imm12, 1);
+    return Detail::AddSubImm(0x51000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
 }
 
-constexpr Insn Sub(XReg dst, XReg src, XReg src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Sub(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
 {
     return Detail::AddSubShifted(0xCB000000, dst, src, src2, shift, amount, 63);
 }
 
-constexpr Insn Sub(WReg dst, WReg src, WReg src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Sub(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
 {
     return Detail::AddSubShifted(0x4B000000, dst, src, src2, shift, amount, 31);
+}
+
+// ADDS/SUBS (immediate): sf op S 100010 sh imm12 Rn Rd, with op/S selecting
+// adds (0/1) and subs (1/1). The destination is <Xd>, which accepts the zero
+// register (cmp/cmn use it), while the source is <Xn|SP>, which accepts SP.
+constexpr Insn Adds(XReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Adds(XReg dst, XReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Adds(XzrReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Adds(XzrReg dst, XReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Adds(XReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Adds(XReg dst, SpReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Adds(XzrReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Adds(XzrReg dst, SpReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xB1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Adds(WReg dst, WReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x31000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Adds(WReg dst, WReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0x31000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Adds(WzrReg dst, WReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x31000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Adds(WzrReg dst, WReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0x31000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+// ADDS/SUBS (shifted register): sf op S 01011 shift 0 imm6 Rm Rn Rd.
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Adds(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::AddSubShifted(0xAB000000, dst, src, src2, shift, amount, 63);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Adds(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::AddSubShifted(0x2B000000, dst, src, src2, shift, amount, 31);
+}
+
+constexpr Insn Subs(XReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Subs(XReg dst, XReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Subs(XzrReg dst, XReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Subs(XzrReg dst, XReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Subs(XReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Subs(XReg dst, SpReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Subs(XzrReg dst, SpReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Subs(XzrReg dst, SpReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0xF1000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Subs(WReg dst, WReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x71000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Subs(WReg dst, WReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0x71000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+constexpr Insn Subs(WzrReg dst, WReg src, uint32_t imm12)
+{
+    return Detail::AddSubImm(0x71000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 0);
+}
+
+constexpr Insn Subs(WzrReg dst, WReg src, uint32_t imm12, Lsl12Tag)
+{
+    return Detail::AddSubImm(0x71000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm12, 1);
+}
+
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Subs(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::AddSubShifted(0xEB000000, dst, src, src2, shift, amount, 63);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Subs(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::AddSubShifted(0x6B000000, dst, src, src2, shift, amount, 31);
+}
+
+// AND/ORR/EOR/ANDS (immediate). The immediate is a bitmask immediate (a run of
+// ones replicated at a power-of-two period). The destination is <Xd|SP> for
+// and/orr/eor and <Xd> (accepting the zero register) for ands; the source is
+// <Xn>. A 32-bit form checks the immediate against the 32-bit width.
+constexpr Insn And(XReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0x92000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn And(SpReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0x92000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn And(WReg dst, WReg src, uint32_t imm)
+{
+    return Detail::LogicalImm(0x12000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 32);
+}
+
+constexpr Insn Orr(XReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0xB2000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn Orr(SpReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0xB2000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn Orr(WReg dst, WReg src, uint32_t imm)
+{
+    return Detail::LogicalImm(0x32000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 32);
+}
+
+constexpr Insn Eor(XReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0xD2000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn Eor(SpReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0xD2000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn Eor(WReg dst, WReg src, uint32_t imm)
+{
+    return Detail::LogicalImm(0x52000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 32);
+}
+
+constexpr Insn Ands(XReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0xF2000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn Ands(XzrReg dst, XReg src, uint64_t imm)
+{
+    return Detail::LogicalImm(0xF2000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 64);
+}
+
+constexpr Insn Ands(WReg dst, WReg src, uint32_t imm)
+{
+    return Detail::LogicalImm(0x72000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 32);
+}
+
+constexpr Insn Ands(WzrReg dst, WReg src, uint32_t imm)
+{
+    return Detail::LogicalImm(0x72000000, Detail::CodeOf(dst), Detail::CodeOf(src), imm, 32);
+}
+
+// AND/ORR/EOR/ANDS (shifted register): sf opc 01010 shift 0 imm6 Rm Rn Rd. As
+// in the shifted add/sub forms, the register fields accept the zero register.
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn And(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0x8A000000, dst, src, src2, shift, amount, 63);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn And(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0x0A000000, dst, src, src2, shift, amount, 31);
+}
+
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Orr(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0xAA000000, dst, src, src2, shift, amount, 63);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Orr(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0x2A000000, dst, src, src2, shift, amount, 31);
+}
+
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Eor(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0xCA000000, dst, src, src2, shift, amount, 63);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Eor(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0x4A000000, dst, src, src2, shift, amount, 31);
+}
+
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Ands(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0xEA000000, dst, src, src2, shift, amount, 63);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Ands(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amount = 0)
+{
+    return Detail::LogicalShifted(0x6A000000, dst, src, src2, shift, amount, 31);
 }
 
 // RET (register): 1101011 0 0 10 11111 000000 Rn 00000

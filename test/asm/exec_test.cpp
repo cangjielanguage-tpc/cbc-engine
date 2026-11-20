@@ -245,3 +245,97 @@ TEST(EmittedCode, BranchesWhenATestedBitIsSet)
     ASSERT_EQ(add(5, 0), 6);
 #endif
 }
+
+TEST(EmittedCode, CmpSetsFlagsForAConditionalBranch)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+    const Label ne = assembler.NewLabel();
+    const Label done = assembler.NewLabel();
+
+    assembler.Cmp(X0, X1);
+    assembler.B(Asm::Cc::Ne, ne);
+    assembler.Add(X0, X0, X0); // equal: double the first operand
+    assembler.B(done);
+    assembler.Bind(ne);
+    assembler.Sub(X0, X0, X0); // not equal: zero
+    assembler.Bind(done);
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto isEqual = reinterpret_cast<BinaryFunction>(segment.Code());
+    ASSERT_EQ(isEqual(21, 21), 42);
+    ASSERT_EQ(isEqual(5, 6), 0);
+    ASSERT_EQ(isEqual(-1, -1), -2);
+#endif
+}
+
+TEST(EmittedCode, CmnSetsFlagsForAConditionalBranch)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+    const Label zero = assembler.NewLabel();
+    const Label done = assembler.NewLabel();
+
+    assembler.Cmn(X0, X1);
+    assembler.B(Asm::Cc::Eq, zero);
+    assembler.Sub(X0, X0, X0); // sum is not zero: zero
+    assembler.B(done);
+    assembler.Bind(zero);
+    assembler.Add(X0, X0, 1); // sum is zero: the first operand, plus one
+    assembler.Bind(done);
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto isZeroSum = reinterpret_cast<BinaryFunction>(segment.Code());
+    ASSERT_EQ(isZeroSum(5, 5), 0);
+    ASSERT_EQ(isZeroSum(5, -5), 6);
+    ASSERT_EQ(isZeroSum(int64_t { 1 } << 62, -(int64_t { 1 } << 62)), (int64_t { 1 } << 62) + 1);
+#endif
+}
+
+TEST(EmittedCode, LogicalImmediatesMaskAndCombine)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+
+    assembler.And(X0, X0, 0xFF);                   // keep the low byte
+    assembler.Orr(X0, X0, 0x100);                  // and set bit 8
+    assembler.Eor(X0, X0, X1, Asm::Shift::Lsl, 8); // toggle bits taken from the second operand
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto combine              = reinterpret_cast<BinaryFunction>(segment.Code());
+    ASSERT_EQ(combine(0x1234, 0), 0x134);
+    ASSERT_EQ(combine(0x1234, 1), 0x34);
+    ASSERT_EQ(combine(0xFF, 0), 0x1FF);
+#endif
+}
+
+TEST(EmittedCode, TstSetsFlagsForAConditionalBranch)
+{
+#if !defined(__aarch64__)
+    GTEST_SKIP() << "Running emitted code requires an aarch64 host";
+#else
+    Assembler<CodeStorage> assembler;
+    const Label negative = assembler.NewLabel();
+    const Label done     = assembler.NewLabel();
+
+    assembler.Tst(X0, 0x8000000000000000); // the sign bit: a rotated bitmask immediate
+    assembler.B(Asm::Cc::Ne, negative);
+    assembler.Add(X0, X0, 1);
+    assembler.B(done);
+    assembler.Bind(negative);
+    assembler.Add(X0, X0, 100);
+    assembler.Bind(done);
+    assembler.Ret();
+    const CodeSegment segment = assembler.Finalize();
+    auto add                  = reinterpret_cast<BinaryFunction>(segment.Code());
+    ASSERT_EQ(add(-1, 0), 99);
+    ASSERT_EQ(add(0, 0), 1);
+    ASSERT_EQ(add(int64_t { 1 } << 63, 0), (int64_t { 1 } << 63) + 100);
+#endif
+}
