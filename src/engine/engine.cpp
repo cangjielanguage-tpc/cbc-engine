@@ -214,10 +214,10 @@ static std::string UpdateSharedObjName(std::string_view name)
 static Utils::Vector<Dependencies> ReadDependencies(
     Loader::Impl* loader,
     std::optional<Offset<String>> (CbcFile::*offsetOf)() const,
-    Utils::Vector<std::shared_ptr<Utils::SharedObject>>& base
+    Utils::Vector<std::shared_ptr<Utils::SharedObject>>& base,
+    char delim
 )
 {
-    static constexpr char delim = ':';
     Utils::Vector<std::shared_ptr<Utils::SharedObject>> objects;
 
     auto addObject = [&objects](std::string_view name) {
@@ -294,8 +294,8 @@ Engine& Loader::Build()
     foreignBase.EmplaceBack(libc);
     foreignBase.EmplaceBack(executable);
 
-    auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
-    auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);
+    auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase, ':');
+    auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase, ',');
 
     auto engineInstance = new Engine(std::make_unique<Engine::Impl>(
         std::move(loader->files), std::move(loader->rafs), std::move(deps), std::move(foreignLibs)
