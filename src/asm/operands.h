@@ -33,6 +33,7 @@ public:
 // because field 31 also means SP (SpReg); the zero register is legal only in
 // operand positions whose form accepts it, so those take XzrReg/WzrReg.
 struct XzrReg {};
+
 struct WzrReg {};
 
 // Stack pointer. A distinct type because code 31 means SP only in operand

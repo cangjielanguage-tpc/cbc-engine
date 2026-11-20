@@ -22,6 +22,10 @@ namespace Asm {
 //   sh    - immediate shift: 1 = imm12 is shifted left by 12
 //   shift - shift type applied to Rm: 0 = LSL, 1 = LSR, 2 = ASR (3 = ROR, not modeled)
 //   imm6  - shift amount: 0..63 for sf=1, 0..31 for sf=0
+//   op2   - data-processing (2 source) selector: 0 = LSL, 1 = LSR, 2 = ASR
+//           (3 = ROR, not modeled)
+//   immr  - bitfield: rotate the source right by immr
+//   imms  - bitfield: keep the low imms+1 bits after the rotation
 //   imm12 - unsigned 12-bit immediate
 //   imm26/imm19/imm14 - branch offsets in instruction words, signed
 //   immhi/immlo - adr offset in bytes: bits [23:5] and bits [30:29] of the offset
@@ -68,6 +72,18 @@ using EnableXOperands =
 template <typename D, typename N, typename M>
 using EnableWOperands =
     std::enable_if_t<IsWRegOperand<D>::value && IsWRegOperand<N>::value && IsWRegOperand<M>::value, int>;
+
+// The register field classes a two-register form reads as <Xd>/<Xn>, and a form
+// that reads its second register as a 32-bit one while writing a 64-bit one
+// (the sign-extending forms).
+template <typename D, typename N>
+using EnableXPair = std::enable_if_t<IsXRegOperand<D>::value && IsXRegOperand<N>::value, int>;
+
+template <typename D, typename N>
+using EnableWPair = std::enable_if_t<IsWRegOperand<D>::value && IsWRegOperand<N>::value, int>;
+
+template <typename D, typename N>
+using EnableXFromW = std::enable_if_t<IsXRegOperand<D>::value && IsWRegOperand<N>::value, int>;
 
 // The helpers take the form's fixed bits: the template literals plus the
 // selectors that pick this form (sf, op, S), and the register numbers, so the
@@ -179,11 +195,27 @@ constexpr Insn LogicalImm(uint32_t formBits, uint32_t rd, uint32_t rn, uint64_t 
         .Finish();
 }
 
-// BR/BLR/RET (register): 1101011 0 0 op 11111 000000 Rn 00000
-constexpr Insn BranchReg(uint32_t formBits, uint32_t rn)
+// LSLV/LSRV/ASRV (data-processing, 2 source):
+// sf 0 0 11010110 Rm 0010 00 op2 Rn Rd
+constexpr Insn DataProc2Source(uint32_t formBits, uint32_t rd, uint32_t rn, uint32_t rm, uint32_t op2)
 {
-    return (Op { formBits } | Field<5, 5> { rn }).Finish();
+    return (Op { formBits } | Field<16, 5> { rm } | Field<10, 2> { op2 } | Field<5, 5> { rn } | Field<0, 5> { rd })
+        .Finish();
 }
+
+// SBFM/BFM/UBFM (bitfield): sf opc 100110 N immr imms Rn Rd. immr and imms are
+// 6-bit fields, but in a 32-bit form only their low 5 bits are meaningful, so
+// the limit is the width-dependent one rather than the field width.
+constexpr Insn Bitfield(uint32_t formBits, uint32_t rd, uint32_t rn, uint32_t immr, uint32_t imms, uint32_t limit)
+{
+    ASSERT(immr <= limit);
+    ASSERT(imms <= limit);
+    return (Op { formBits } | Field<16, 6> { immr } | Field<10, 6> { imms } | Field<5, 5> { rn } | Field<0, 5> { rd })
+        .Finish();
+}
+
+// BR/BLR/RET (register): 1101011 0 0 op 11111 000000 Rn 00000
+constexpr Insn BranchReg(uint32_t formBits, uint32_t rn) { return (Op { formBits } | Field<5, 5> { rn }).Finish(); }
 
 // TBZ/TBNZ: b5 011011 op 0 b40 imm14 Rt
 constexpr Insn TestBranch(uint32_t formBits, uint32_t rt, uint32_t bit, uint32_t bitLimit)
@@ -201,7 +233,8 @@ template <uint32_t Shift, uint32_t Width, uint32_t Scale> constexpr Insn BranchF
     constexpr int64_t Limit = int64_t { 1 } << (Width - 1);
     ASSERT(delta % Scale == 0);
     ASSERT(delta >= -Limit * Scale && delta < Limit * Scale);
-    return (Op { word.Bits() } | Field<Shift, Width> { static_cast<uint32_t>(delta / Scale) & Field<Shift, Width>::Mask })
+    return (Op { word.Bits() } |
+            Field<Shift, Width> { static_cast<uint32_t>(delta / Scale) & Field<Shift, Width>::Mask })
         .Finish();
 }
 
@@ -582,6 +615,183 @@ constexpr Insn Ands(D dst, N src, M src2, Shift shift = Shift::Lsl, uint32_t amo
     return Detail::LogicalShifted(0x6A000000, dst, src, src2, shift, amount, 31);
 }
 
+// LSLV/LSRV/ASRV (data-processing, 2 source): dst = src shifted by the low bits
+// of `amount`. Every register field accepts the zero register, so the three
+// operands are templates constrained to one width. The shift is the amount
+// taken modulo the width, so an amount at or above the width shifts everything
+// out (LSL/LSR) or fills with the sign bit (ASR); no amount is rejected.
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Lsl(D dst, N src, M amount)
+{
+    return Detail::DataProc2Source(0x9AC02000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(amount), 0);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Lsl(D dst, N src, M amount)
+{
+    return Detail::DataProc2Source(0x1AC02000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(amount), 0);
+}
+
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Lsr(D dst, N src, M amount)
+{
+    return Detail::DataProc2Source(0x9AC02000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(amount), 1);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Lsr(D dst, N src, M amount)
+{
+    return Detail::DataProc2Source(0x1AC02000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(amount), 1);
+}
+
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Asr(D dst, N src, M amount)
+{
+    return Detail::DataProc2Source(0x9AC02000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(amount), 2);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Asr(D dst, N src, M amount)
+{
+    return Detail::DataProc2Source(0x1AC02000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(amount), 2);
+}
+
+// LSL/LSR/ASR (immediate): aliases of the bitfield forms, so they keep the same
+// register rules (zero register allowed) and the same immediate rules (the
+// shift is below the operand width):
+//   LSL #s = UBFM #(-s MOD width), #(width-1-s)
+//   LSR #s = UBFM #s, #(width-1)
+//   ASR #s = SBFM #s, #(width-1)
+template <typename D, typename N, Detail::EnableXPair<D, N> = 0> constexpr Insn Lsl(D dst, N src, uint32_t shift)
+{
+    ASSERT(shift <= 63);
+    return Detail::Bitfield(0xD3400000, Detail::CodeOf(dst), Detail::CodeOf(src), (64u - shift) % 64u, 63u - shift, 63);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn Lsl(D dst, N src, uint32_t shift)
+{
+    ASSERT(shift <= 31);
+    return Detail::Bitfield(0x53000000, Detail::CodeOf(dst), Detail::CodeOf(src), (32u - shift) % 32u, 31u - shift, 31);
+}
+
+template <typename D, typename N, Detail::EnableXPair<D, N> = 0> constexpr Insn Lsr(D dst, N src, uint32_t shift)
+{
+    ASSERT(shift <= 63);
+    return Detail::Bitfield(0xD3400000, Detail::CodeOf(dst), Detail::CodeOf(src), shift, 63, 63);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn Lsr(D dst, N src, uint32_t shift)
+{
+    ASSERT(shift <= 31);
+    return Detail::Bitfield(0x53000000, Detail::CodeOf(dst), Detail::CodeOf(src), shift, 31, 31);
+}
+
+template <typename D, typename N, Detail::EnableXPair<D, N> = 0> constexpr Insn Asr(D dst, N src, uint32_t shift)
+{
+    ASSERT(shift <= 63);
+    return Detail::Bitfield(0x93400000, Detail::CodeOf(dst), Detail::CodeOf(src), shift, 63, 63);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn Asr(D dst, N src, uint32_t shift)
+{
+    ASSERT(shift <= 31);
+    return Detail::Bitfield(0x13000000, Detail::CodeOf(dst), Detail::CodeOf(src), shift, 31, 31);
+}
+
+// SBFM/UBFM (bitfield): the general form the LSR/ASR/Ubfx/Sbfx aliases below
+// stand for. immr rotates the source right, imms keeps the low imms+1 bits of
+// the result; a 32-bit form takes both below 32. BFM (the insert form) is not
+// modeled, so the opc field is only 00 (SBFM) and 10 (UBFM) here.
+template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+constexpr Insn Ubfm(D dst, N src, uint32_t immr, uint32_t imms)
+{
+    return Detail::Bitfield(0xD3400000, Detail::CodeOf(dst), Detail::CodeOf(src), immr, imms, 63);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+constexpr Insn Ubfm(D dst, N src, uint32_t immr, uint32_t imms)
+{
+    return Detail::Bitfield(0x53000000, Detail::CodeOf(dst), Detail::CodeOf(src), immr, imms, 31);
+}
+
+template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+constexpr Insn Sbfm(D dst, N src, uint32_t immr, uint32_t imms)
+{
+    return Detail::Bitfield(0x93400000, Detail::CodeOf(dst), Detail::CodeOf(src), immr, imms, 63);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+constexpr Insn Sbfm(D dst, N src, uint32_t immr, uint32_t imms)
+{
+    return Detail::Bitfield(0x13000000, Detail::CodeOf(dst), Detail::CodeOf(src), immr, imms, 31);
+}
+
+// UBFX/SBFX: extract `width` bits starting at `lsb` (so SBFX sign-extends what
+// UBFX zero-extends). The field is UBFM/SBFM with imms = lsb + width - 1; the
+// extraction must stay inside the operand width.
+template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+constexpr Insn Ubfx(D dst, N src, uint32_t lsb, uint32_t width)
+{
+    ASSERT(width >= 1);
+    ASSERT(lsb + width <= 64);
+    return Ubfm(dst, src, lsb, lsb + width - 1);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+constexpr Insn Ubfx(D dst, N src, uint32_t lsb, uint32_t width)
+{
+    ASSERT(width >= 1);
+    ASSERT(lsb + width <= 32);
+    return Ubfm(dst, src, lsb, lsb + width - 1);
+}
+
+template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+constexpr Insn Sbfx(D dst, N src, uint32_t lsb, uint32_t width)
+{
+    ASSERT(width >= 1);
+    ASSERT(lsb + width <= 64);
+    return Sbfm(dst, src, lsb, lsb + width - 1);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+constexpr Insn Sbfx(D dst, N src, uint32_t lsb, uint32_t width)
+{
+    ASSERT(width >= 1);
+    ASSERT(lsb + width <= 32);
+    return Sbfm(dst, src, lsb, lsb + width - 1);
+}
+
+// SXTB/SXTH/SXTW: sign-extend the low byte/halfword/word of a 32-bit source
+// into a 64-bit destination. The source is a W register in an otherwise 64-bit
+// form (SBFM #0, #7/#15/#31), so these do not fit the Ubfm/Sbfm overloads and
+// build their word directly.
+template <typename D, typename N, Detail::EnableXFromW<D, N> = 0> constexpr Insn Sxtb(D dst, N src)
+{
+    return Detail::Bitfield(0x93400000, Detail::CodeOf(dst), Detail::CodeOf(src), 0, 7, 63);
+}
+
+template <typename D, typename N, Detail::EnableXFromW<D, N> = 0> constexpr Insn Sxth(D dst, N src)
+{
+    return Detail::Bitfield(0x93400000, Detail::CodeOf(dst), Detail::CodeOf(src), 0, 15, 63);
+}
+
+template <typename D, typename N, Detail::EnableXFromW<D, N> = 0> constexpr Insn Sxtw(D dst, N src)
+{
+    return Detail::Bitfield(0x93400000, Detail::CodeOf(dst), Detail::CodeOf(src), 0, 31, 63);
+}
+
+// UXTB/UXTH: zero-extend into a 32-bit destination (there is no 64-bit form of
+// these two; the 64-bit zero extension is Ubfx or Uxtw, the latter not modeled).
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn Uxtb(D dst, N src)
+{
+    return Ubfm(dst, src, 0, 7);
+}
+
+template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn Uxth(D dst, N src)
+{
+    return Ubfm(dst, src, 0, 15);
+}
+
 // RET (register): 1101011 0 0 10 11111 000000 Rn 00000
 constexpr Insn Ret(XReg reg = X30) { return Detail::BranchReg(0xD65F0000, Detail::CodeOf(reg)); }
 
@@ -631,20 +841,18 @@ constexpr Insn Adr(XReg rd) { return (Detail::Op { 0x10000000 } | Detail::Field<
 constexpr Insn ApplyFixup(Insn word, FixupKind kind, int64_t delta)
 {
     switch (kind) {
-    case FixupKind::Branch26:
-        return Detail::BranchFixup<0, 26, 4>(word, delta);
-    case FixupKind::CondBranch19:
-    case FixupKind::CmpBranch19:
-        return Detail::BranchFixup<5, 19, 4>(word, delta);
-    case FixupKind::TestBranch14:
-        return Detail::BranchFixup<5, 14, 4>(word, delta);
-    case FixupKind::Adr21: {
-        ASSERT(delta % 4 == 0);
-        ASSERT(delta >= -(int64_t { 1 } << 20) && delta < (int64_t { 1 } << 20));
-        const uint32_t offset = static_cast<uint32_t>(delta) & 0x1FFFFF;
-        return (Detail::Op { word.Bits() } | Detail::Field<5, 19> { offset >> 2 } | Detail::Field<29, 2> { offset & 0x3 })
-            .Finish();
-    }
+        case FixupKind::Branch26:     return Detail::BranchFixup<0, 26, 4>(word, delta);
+        case FixupKind::CondBranch19:
+        case FixupKind::CmpBranch19:  return Detail::BranchFixup<5, 19, 4>(word, delta);
+        case FixupKind::TestBranch14: return Detail::BranchFixup<5, 14, 4>(word, delta);
+        case FixupKind::Adr21:        {
+            ASSERT(delta % 4 == 0);
+            ASSERT(delta >= -(int64_t { 1 } << 20) && delta < (int64_t { 1 } << 20));
+            const uint32_t offset = static_cast<uint32_t>(delta) & 0x1FFFFF;
+            return (Detail::Op { word.Bits() } | Detail::Field<5, 19> { offset >> 2 } |
+                    Detail::Field<29, 2> { offset & 0x3 })
+                .Finish();
+        }
     }
     return word;
 }

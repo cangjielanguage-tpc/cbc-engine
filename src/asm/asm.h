@@ -306,6 +306,156 @@ public:
         Emit(Encode::Ands(Wzr, src, src2, shift, amount));
     }
 
+    // LSL/LSR/ASR (register): dst = src shifted by the low bits of `amount`.
+    // Every register field accepts the zero register, so the operands are
+    // templates constrained to one operand width. The hardware takes the amount
+    // modulo the width, so any value is encodable and none is rejected.
+    template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0> void Lsl(D dst, N src, M amount)
+    {
+        Emit(Encode::Lsl(dst, src, amount));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0> void Lsl(D dst, N src, M amount)
+    {
+        Emit(Encode::Lsl(dst, src, amount));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0> void Lsr(D dst, N src, M amount)
+    {
+        Emit(Encode::Lsr(dst, src, amount));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0> void Lsr(D dst, N src, M amount)
+    {
+        Emit(Encode::Lsr(dst, src, amount));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0> void Asr(D dst, N src, M amount)
+    {
+        Emit(Encode::Asr(dst, src, amount));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0> void Asr(D dst, N src, M amount)
+    {
+        Emit(Encode::Asr(dst, src, amount));
+    }
+
+    // LSL/LSR/ASR (immediate): the shift must be below the operand width, which
+    // the encoder asserts. Same register rules as the register form.
+    template <typename D, typename N, Detail::EnableXPair<D, N> = 0> void Lsl(D dst, N src, uint32_t shift)
+    {
+        Emit(Encode::Lsl(dst, src, shift));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0> void Lsl(D dst, N src, uint32_t shift)
+    {
+        Emit(Encode::Lsl(dst, src, shift));
+    }
+
+    template <typename D, typename N, Detail::EnableXPair<D, N> = 0> void Lsr(D dst, N src, uint32_t shift)
+    {
+        Emit(Encode::Lsr(dst, src, shift));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0> void Lsr(D dst, N src, uint32_t shift)
+    {
+        Emit(Encode::Lsr(dst, src, shift));
+    }
+
+    template <typename D, typename N, Detail::EnableXPair<D, N> = 0> void Asr(D dst, N src, uint32_t shift)
+    {
+        Emit(Encode::Asr(dst, src, shift));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0> void Asr(D dst, N src, uint32_t shift)
+    {
+        Emit(Encode::Asr(dst, src, shift));
+    }
+
+    // SBFM/UBFM: rotate the source right by immr, then keep the low imms+1 bits
+    // of the rotated value (sign- or zero-extending them to the destination
+    // width). The aliases above are the readable spellings of the usual cases;
+    // these are the escape hatch for the rest. immr and imms are below the
+    // operand width, which the encoder asserts. BFM is not modeled.
+    template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+    void Sbfm(D dst, N src, uint32_t immr, uint32_t imms)
+    {
+        Emit(Encode::Sbfm(dst, src, immr, imms));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+    void Sbfm(D dst, N src, uint32_t immr, uint32_t imms)
+    {
+        Emit(Encode::Sbfm(dst, src, immr, imms));
+    }
+
+    template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+    void Ubfm(D dst, N src, uint32_t immr, uint32_t imms)
+    {
+        Emit(Encode::Ubfm(dst, src, immr, imms));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+    void Ubfm(D dst, N src, uint32_t immr, uint32_t imms)
+    {
+        Emit(Encode::Ubfm(dst, src, immr, imms));
+    }
+
+    // SBFX/UBFX: extract `width` bits starting at `lsb`, sign- or zero-extending
+    // the result to the destination width; the extraction must stay inside the
+    // operand width, which the encoder asserts.
+    template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+    void Sbfx(D dst, N src, uint32_t lsb, uint32_t width)
+    {
+        Emit(Encode::Sbfx(dst, src, lsb, width));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+    void Sbfx(D dst, N src, uint32_t lsb, uint32_t width)
+    {
+        Emit(Encode::Sbfx(dst, src, lsb, width));
+    }
+
+    template <typename D, typename N, Detail::EnableXPair<D, N> = 0>
+    void Ubfx(D dst, N src, uint32_t lsb, uint32_t width)
+    {
+        Emit(Encode::Ubfx(dst, src, lsb, width));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0>
+    void Ubfx(D dst, N src, uint32_t lsb, uint32_t width)
+    {
+        Emit(Encode::Ubfx(dst, src, lsb, width));
+    }
+
+    // SXTB/SXTH/SXTW: sign-extend the low byte/halfword/word of a W source into
+    // an X destination.
+    template <typename D, typename N, Detail::EnableXFromW<D, N> = 0> void Sxtb(D dst, N src)
+    {
+        Emit(Encode::Sxtb(dst, src));
+    }
+
+    template <typename D, typename N, Detail::EnableXFromW<D, N> = 0> void Sxth(D dst, N src)
+    {
+        Emit(Encode::Sxth(dst, src));
+    }
+
+    template <typename D, typename N, Detail::EnableXFromW<D, N> = 0> void Sxtw(D dst, N src)
+    {
+        Emit(Encode::Sxtw(dst, src));
+    }
+
+    // UXTB/UXTH: zero-extend the low byte/halfword into a W destination.
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0> void Uxtb(D dst, N src)
+    {
+        Emit(Encode::Uxtb(dst, src));
+    }
+
+    template <typename D, typename N, Detail::EnableWPair<D, N> = 0> void Uxth(D dst, N src)
+    {
+        Emit(Encode::Uxth(dst, src));
+    }
+
     // Control flow. Methods that name a label record a fixup: the word is
     // emitted with an empty offset, and Finalize() fills in the distance once
     // every label has a position.

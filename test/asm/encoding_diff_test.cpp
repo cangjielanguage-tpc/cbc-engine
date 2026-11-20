@@ -355,6 +355,12 @@ struct Pool {
     std::vector<uint64_t> logicalImms32;
     std::vector<uint64_t> sampleLogical;
     std::vector<uint64_t> sampleLogical32;
+    // (immr, imms) pairs for the bitfield forms, and (lsb, width) pairs for the
+    // extract aliases of them.
+    std::vector<std::pair<uint32_t, uint32_t>> immPairs;
+    std::vector<std::pair<uint32_t, uint32_t>> sampleImmPairs;
+    std::vector<std::pair<uint32_t, uint32_t>> extracts;
+    std::vector<std::pair<uint32_t, uint32_t>> sampleExtracts;
     std::vector<int64_t> deltas;
     std::vector<Cc> conds;
     std::vector<uint32_t> bits;
@@ -384,6 +390,8 @@ Pool BoundedPool()
     pool.deltas     = { 0, 4, -4, 8, -8 };
     pool.conds      = AllConds();
     pool.bits       = { 0, 1, 31, 32, 62, 63 };
+    pool.immPairs   = { { 0, 0 }, { 0, 63 }, { 63, 63 }, { 1, 58 }, { 8, 15 } };
+    pool.extracts   = { { 0, 1 }, { 0, 64 }, { 8, 8 }, { 63, 1 }, { 31, 32 } };
 
     const std::vector<uint64_t> logical64 = EnumerateLogical(64);
     const std::vector<uint64_t> logical32 = EnumerateLogical(32);
@@ -417,6 +425,19 @@ Pool ExhaustivePool()
     pool.logicalImms32   = EnumerateLogical(32);
     pool.sampleLogical   = Sample(pool.logicalImms, 4);
     pool.sampleLogical32 = Sample(pool.logicalImms32, 3);
+    for (uint32_t immr = 0; immr <= 63; ++immr) {
+        for (uint32_t imms = 0; imms <= 63; ++imms) {
+            pool.immPairs.push_back({ immr, imms });
+        }
+    }
+    pool.sampleImmPairs = { { 0, 63 }, { 63, 63 }, { 1, 58 }, { 8, 15 } };
+    // Every width at a handful of offsets, so each imms value is swept.
+    for (uint32_t lsb : { 0u, 1u, 8u, 31u, 63u }) {
+        for (uint32_t width = 1; lsb + width <= 64; ++width) {
+            pool.extracts.push_back({ lsb, width });
+        }
+    }
+    pool.sampleExtracts = { { 0, 64 }, { 8, 8 }, { 63, 1 }, { 31, 32 } };
     return pool;
 }
 
@@ -439,6 +460,9 @@ Pool RandomPool(std::mt19937& rng, const std::vector<uint64_t>& logical64, const
     pool.bits                   = { static_cast<uint32_t>(rng() % 64) };
     pool.logicalImms            = { logical64[rng() % logical64.size()] };
     pool.logicalImms32          = { logical32[rng() % logical32.size()] };
+    pool.immPairs               = { { static_cast<uint32_t>(rng() % 64), static_cast<uint32_t>(rng() % 64) } };
+    const uint32_t width        = 1 + static_cast<uint32_t>(rng() % 64);
+    pool.extracts               = { { static_cast<uint32_t>(rng() % (65 - width)), width } };
     return pool;
 }
 
@@ -541,6 +565,111 @@ void EmitLogicalShifted(Corpus& corpus, const Triple& t, Shift shift, const char
         corpus.Add("ands " + wd + ", " + wn + ", " + wm + off, Encode::Ands(W(t.d), W(t.n), W(t.m), shift, amount));
         corpus.Add("tst " + wn + ", " + wm + off, Encode::Ands(Wzr, W(t.n), W(t.m), shift, amount));
     }
+}
+
+// LSLV/LSRV/ASRV: the register form of the shifts, at both widths. The Triple
+// already guarantees m differs from d, so a swapped Rd/Rm field cannot survive.
+void EmitShiftRegister(Corpus& corpus, const Triple& t)
+{
+    const std::string xd = Xs(t.d), xn = Xs(t.n), xm = Xs(t.m);
+    const std::string wd = Ws(t.d), wn = Ws(t.n), wm = Ws(t.m);
+    corpus.Add("lsl " + xd + ", " + xn + ", " + xm, Encode::Lsl(X(t.d), X(t.n), X(t.m)));
+    corpus.Add("lsr " + xd + ", " + xn + ", " + xm, Encode::Lsr(X(t.d), X(t.n), X(t.m)));
+    corpus.Add("asr " + xd + ", " + xn + ", " + xm, Encode::Asr(X(t.d), X(t.n), X(t.m)));
+    corpus.Add("lsl " + wd + ", " + wn + ", " + wm, Encode::Lsl(W(t.d), W(t.n), W(t.m)));
+    corpus.Add("lsr " + wd + ", " + wn + ", " + wm, Encode::Lsr(W(t.d), W(t.n), W(t.m)));
+    corpus.Add("asr " + wd + ", " + wn + ", " + wm, Encode::Asr(W(t.d), W(t.n), W(t.m)));
+}
+
+// LSL/LSR/ASR (immediate): the aliases of UBFM/SBFM. A 32-bit form only has the
+// shifts its width holds, so the wider amounts are skipped there rather than
+// clamped.
+void EmitShiftImmediate(Corpus& corpus, const Triple& t, uint32_t shift)
+{
+    const std::string xd = Xs(t.d), xn = Xs(t.n);
+    const std::string wd = Ws(t.d), wn = Ws(t.n);
+    const std::string s = std::to_string(shift);
+    corpus.Add("lsl " + xd + ", " + xn + ", #" + s, Encode::Lsl(X(t.d), X(t.n), shift));
+    corpus.Add("lsr " + xd + ", " + xn + ", #" + s, Encode::Lsr(X(t.d), X(t.n), shift));
+    corpus.Add("asr " + xd + ", " + xn + ", #" + s, Encode::Asr(X(t.d), X(t.n), shift));
+    if (shift <= 31) {
+        corpus.Add("lsl " + wd + ", " + wn + ", #" + s, Encode::Lsl(W(t.d), W(t.n), shift));
+        corpus.Add("lsr " + wd + ", " + wn + ", #" + s, Encode::Lsr(W(t.d), W(t.n), shift));
+        corpus.Add("asr " + wd + ", " + wn + ", #" + s, Encode::Asr(W(t.d), W(t.n), shift));
+    }
+}
+
+// SBFM/UBFM, spelled with the immediates rather than through an alias, so the
+// immr/imms fields themselves are what the oracle checks. Again a 32-bit form
+// only takes the pairs its width holds.
+void EmitBitfield(Corpus& corpus, const Triple& t, uint32_t immr, uint32_t imms)
+{
+    const std::string xd = Xs(t.d), xn = Xs(t.n);
+    const std::string wd = Ws(t.d), wn = Ws(t.n);
+    const std::string i = std::to_string(immr), j = std::to_string(imms);
+    corpus.Add("ubfm " + xd + ", " + xn + ", #" + i + ", #" + j, Encode::Ubfm(X(t.d), X(t.n), immr, imms));
+    corpus.Add("sbfm " + xd + ", " + xn + ", #" + i + ", #" + j, Encode::Sbfm(X(t.d), X(t.n), immr, imms));
+    if (immr <= 31 && imms <= 31) {
+        corpus.Add("ubfm " + wd + ", " + wn + ", #" + i + ", #" + j, Encode::Ubfm(W(t.d), W(t.n), immr, imms));
+        corpus.Add("sbfm " + wd + ", " + wn + ", #" + i + ", #" + j, Encode::Sbfm(W(t.d), W(t.n), immr, imms));
+    }
+}
+
+// UBFX/SBFX: the same fields as UBFM/SBFM with imms = lsb + width - 1, written
+// as the extraction they mean. An extraction that does not fit the width of the
+// 32-bit form is skipped there.
+void EmitBitExtract(Corpus& corpus, const Triple& t, uint32_t lsb, uint32_t width)
+{
+    const std::string xd = Xs(t.d), xn = Xs(t.n);
+    const std::string wd = Ws(t.d), wn = Ws(t.n);
+    const std::string l = std::to_string(lsb), w = std::to_string(width);
+    corpus.Add("ubfx " + xd + ", " + xn + ", #" + l + ", #" + w, Encode::Ubfx(X(t.d), X(t.n), lsb, width));
+    corpus.Add("sbfx " + xd + ", " + xn + ", #" + l + ", #" + w, Encode::Sbfx(X(t.d), X(t.n), lsb, width));
+    if (lsb + width <= 32) {
+        corpus.Add("ubfx " + wd + ", " + wn + ", #" + l + ", #" + w, Encode::Ubfx(W(t.d), W(t.n), lsb, width));
+        corpus.Add("sbfx " + wd + ", " + wn + ", #" + l + ", #" + w, Encode::Sbfx(W(t.d), W(t.n), lsb, width));
+    }
+}
+
+// SXTB/SXTH/SXTW (a 64-bit destination from a 32-bit source) and UXTB/UXTH (a
+// 32-bit pair).
+void EmitExtend(Corpus& corpus, const Triple& t)
+{
+    const std::string xd = Xs(t.d), wn = Ws(t.n), wd = Ws(t.d);
+    corpus.Add("sxtb " + xd + ", " + wn, Encode::Sxtb(X(t.d), W(t.n)));
+    corpus.Add("sxth " + xd + ", " + wn, Encode::Sxth(X(t.d), W(t.n)));
+    corpus.Add("sxtw " + xd + ", " + wn, Encode::Sxtw(X(t.d), W(t.n)));
+    corpus.Add("uxtb " + wd + ", " + wn, Encode::Uxtb(W(t.d), W(t.n)));
+    corpus.Add("uxth " + wd + ", " + wn, Encode::Uxth(W(t.d), W(t.n)));
+}
+
+// The register fields of every form above accept the zero register, so each
+// position gets a case spelled with it: the pool of real registers cannot reach
+// code 31, whose meaning differs between these forms and SP.
+void EmitShiftBitfieldZeroRegisters(Corpus& corpus)
+{
+    corpus.Add("lsl xzr, x1, x2", Encode::Lsl(Xzr, X1, X2));
+    corpus.Add("lsl x0, xzr, x2", Encode::Lsl(X0, Xzr, X2));
+    corpus.Add("lsl x0, x1, xzr", Encode::Lsl(X0, X1, Xzr));
+    corpus.Add("lsr wzr, w1, w2", Encode::Lsr(Wzr, W1, W2));
+    corpus.Add("asr w0, wzr, w2", Encode::Asr(W0, Wzr, W2));
+    corpus.Add("asr w0, w1, wzr", Encode::Asr(W0, W1, Wzr));
+    corpus.Add("lsl xzr, x1, #4", Encode::Lsl(Xzr, X1, 4));
+    corpus.Add("lsr x0, xzr, #4", Encode::Lsr(X0, Xzr, 4));
+    corpus.Add("lsr w0, wzr, #31", Encode::Lsr(W0, Wzr, 31));
+    corpus.Add("ubfm xzr, x1, #0, #7", Encode::Ubfm(Xzr, X1, 0, 7));
+    corpus.Add("ubfm x0, xzr, #8, #15", Encode::Ubfm(X0, Xzr, 8, 15));
+    corpus.Add("sbfm xzr, xzr, #0, #0", Encode::Sbfm(Xzr, Xzr, 0, 0));
+    corpus.Add("ubfm wzr, w1, #0, #7", Encode::Ubfm(Wzr, W1, 0, 7));
+    corpus.Add("sbfm w0, wzr, #0, #31", Encode::Sbfm(W0, Wzr, 0, 31));
+    corpus.Add("ubfx xzr, x1, #0, #8", Encode::Ubfx(Xzr, X1, 0, 8));
+    corpus.Add("ubfx x0, xzr, #8, #8", Encode::Ubfx(X0, Xzr, 8, 8));
+    corpus.Add("sbfx w0, wzr, #4, #4", Encode::Sbfx(W0, Wzr, 4, 4));
+    corpus.Add("sxtb xzr, w1", Encode::Sxtb(Xzr, W1));
+    corpus.Add("sxth x0, wzr", Encode::Sxth(X0, Wzr));
+    corpus.Add("sxtw xzr, wzr", Encode::Sxtw(Xzr, Wzr));
+    corpus.Add("uxtb w0, wzr", Encode::Uxtb(W0, Wzr));
+    corpus.Add("uxth wzr, w1", Encode::Uxth(Wzr, W1));
 }
 
 void EmitBranches(Corpus& corpus, const Pool& pool)
@@ -672,12 +801,44 @@ void EmitLogical(Corpus& corpus, const Pool& pool)
     }
 }
 
+void EmitShiftBitfield(Corpus& corpus, const Pool& pool)
+{
+    for (const Triple& t : pool.triples) {
+        EmitShiftRegister(corpus, t);
+        EmitExtend(corpus, t);
+        for (uint32_t shift : pool.amounts) {
+            EmitShiftImmediate(corpus, t, shift);
+        }
+        for (auto [immr, imms] : pool.immPairs) {
+            EmitBitfield(corpus, t, immr, imms);
+        }
+        for (auto [lsb, width] : pool.extracts) {
+            EmitBitExtract(corpus, t, lsb, width);
+        }
+    }
+    for (const Triple& t : pool.sampleTriples) {
+        EmitShiftRegister(corpus, t);
+        EmitExtend(corpus, t);
+        for (uint32_t shift : pool.sampleAmounts) {
+            EmitShiftImmediate(corpus, t, shift);
+        }
+        for (auto [immr, imms] : pool.sampleImmPairs) {
+            EmitBitfield(corpus, t, immr, imms);
+        }
+        for (auto [lsb, width] : pool.sampleExtracts) {
+            EmitBitExtract(corpus, t, lsb, width);
+        }
+    }
+    EmitShiftBitfieldZeroRegisters(corpus);
+}
+
 Corpus BuildCorpus(const std::vector<Pool>& pools)
 {
     Corpus corpus;
     for (const Pool& pool : pools) {
         EmitAddSub(corpus, pool);
         EmitLogical(corpus, pool);
+        EmitShiftBitfield(corpus, pool);
         EmitBranches(corpus, pool);
     }
     return corpus;
