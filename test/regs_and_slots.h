@@ -54,7 +54,7 @@ inline std::ostream& operator<<(std::ostream& os, const Cell& cell)
 struct RegsAndSlots : public MoveEmitter {
     static constexpr int stackSlotCount = kAddend;
 
-    Cell iregs[IReg::VIRT_COUNT];
+    Cell iregs[IReg::COUNT];
     Cell fregs[FReg::COUNT];
     Cell untyped[stackSlotCount];
 
@@ -67,7 +67,7 @@ struct RegsAndSlots : public MoveEmitter {
 
     RegsAndSlots()
     {
-        for (int i = 0; i < IReg::VIRT_COUNT; i++)
+        for (int i = 0; i < IReg::COUNT; i++)
             iregs[i] = Cell::None(IrValue(i));
         for (int i = 0; i < FReg::COUNT; i++)
             fregs[i] = Cell::None(FrValue(i));

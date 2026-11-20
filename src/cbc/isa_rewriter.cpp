@@ -1427,9 +1427,9 @@ struct IsaRewriter : public IsaParser {
             argnum = Interpretation::StaticCallTypeInfoArgs::NONE;
         } else if (loc.Kind() == Location::IREG) {
             argnum = loc.IRegIdx();
-            ASSERT(argnum < IReg::VIRT_COUNT);
+            ASSERT(argnum < IReg::COUNT);
         } else if (loc.Kind() == Location::SLOT) {
-            argnum = loc.SlotIdx() + IReg::VIRT_COUNT;
+            argnum = loc.SlotIdx() + IReg::COUNT;
         } else {
             ASSERTION(false, "outerti loc can not be freg");
         }

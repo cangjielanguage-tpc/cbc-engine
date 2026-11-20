@@ -28,8 +28,8 @@ using namespace RTSupport;
 [[gnu::always_inline]]
 static inline uintptr_t ParamSlotPosition(uintptr_t frameBot, uint16_t arg)
 {
-    ASSERT(arg >= IReg::VIRT_COUNT);
-    return frameBot + (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
+    ASSERT(arg >= IReg::COUNT);
+    return frameBot + (arg - IReg::COUNT) * Cbc::STACK_SLOT_SIZE;
 }
 
 [[gnu::always_inline]]
@@ -59,7 +59,7 @@ static inline void CopyParamBytes(uintptr_t dst, uintptr_t src, Format::StoreAcc
 static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
-    if (arg < IReg::VIRT_COUNT) {
+    if (arg < IReg::COUNT) {
         return TypeInfo(ectype->GetPrimitive(IReg::From(arg)).u64);
     }
     return *reinterpret_cast<TypeInfo*>(ParamSlotPosition(frameBot, arg));
@@ -69,7 +69,7 @@ static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint
 static inline void WriteCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg, TypeInfo ti)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
-    if (arg < IReg::VIRT_COUNT) {
+    if (arg < IReg::COUNT) {
         ectype->Put(IReg::From(arg), Value::Primitive { ti.UInt() });
     } else {
         *reinterpret_cast<TypeInfo*>(ParamSlotPosition(frameBot, arg)) = ti;

@@ -104,7 +104,7 @@ struct NonVolatileRegs {
     bool IsEmpty() { return value == 0; }
 };
 
-// Call arguments use register indices, or IReg::VIRT_COUNT + outgoing stack-slot index.
+// Call arguments use register indices, or IReg::COUNT + outgoing stack-slot index.
 // Outgoing arguments occupy the first untyped slots of the caller's frame.
 struct StaticCallTypeInfoArgs {
     static constexpr uint16_t NONE = UINT16_MAX;
