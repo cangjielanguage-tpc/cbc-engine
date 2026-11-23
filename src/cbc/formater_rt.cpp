@@ -133,7 +133,7 @@ private:
 
     void Write(Format::FloatMathOp v) { stream << v.ToStr(); }
 
-    template <typename Kind> void Write(Format::CastInst<Kind> v)
+    template <typename Kind> void Write(Format::CastCode<Kind> v)
     {
         stream << v.FromTypeStr() << "->" << v.ToTypeStr();
     }
@@ -331,7 +331,8 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr arg
     formatter.Format();
 }
 
-template <typename Kind> void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CastInstruction<Kind> args)
+template <typename Kind>
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CastInstruction<Kind> args)
 {
     Operand operands[] = { args.cast, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands);

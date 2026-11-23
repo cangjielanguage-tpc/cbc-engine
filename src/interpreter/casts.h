@@ -73,7 +73,8 @@ template <CastType::Code Code> struct CppType {
         std::conditional_t<Code == CastType::I64, int64_t,
         std::conditional_t<Code == CastType::U64, uint64_t,
         std::conditional_t<Code == CastType::F16, Utils::Float16,
-        std::conditional_t<Code == CastType::F32, float, double>>>>>>>>>>;
+        std::conditional_t<Code == CastType::F32, float,
+        std::conditional_t<Code == CastType::F64, double, void>>>>>>>>>>>;
     // clang-format on
 };
 
@@ -117,8 +118,6 @@ template <CastType::Code From, CastType::Code To> inline Value::Primitive CastTy
     }
 }
 
-template <typename List> inline constexpr size_t CastPairCount = std::size(List::pairs);
-
 using CastFn = Value::Primitive (*)(Value::Primitive);
 
 template <typename List, size_t... Indices>
@@ -128,14 +127,19 @@ constexpr std::array<CastFn, sizeof...(Indices)> MakeCastFns(std::index_sequence
 }
 
 template <typename List>
-inline constexpr auto CastFns = MakeCastFns<List>(std::make_index_sequence<CastPairCount<List>> {});
+inline constexpr auto CastFns = MakeCastFns<List>(std::make_index_sequence<Format::CastCode<List>::COUNT> {});
 
-inline Value::Primitive CastPrim(CastOp op, Value::Primitive val)
+template <typename Op, auto& Fns> inline auto CastByOp(Op op, Value::Primitive val)
 {
     if (!op.IsValid()) {
         FATAL("invalid cast op: %u", op.Raw());
     }
-    return CastFns<UncheckedCasts>[op.Raw()](val);
+    return Fns[op.Raw()](val);
+}
+
+inline Value::Primitive CastPrim(CastOp op, Value::Primitive val)
+{
+    return CastByOp<CastOp, CastFns<UncheckedCasts>>(op, val);
 }
 
 struct CheckedCastResult {
@@ -310,14 +314,12 @@ constexpr std::array<CheckedCastFn, sizeof...(Indices)> MakeCheckedCastFns(std::
 }
 
 template <typename List>
-inline constexpr auto CheckedCastFns = MakeCheckedCastFns<List>(std::make_index_sequence<CastPairCount<List>> {});
+inline constexpr auto CheckedCastFns =
+    MakeCheckedCastFns<List>(std::make_index_sequence<Format::CastCode<List>::COUNT> {});
 
 inline CheckedCastResult CheckedCastPrim(CheckedCastOp op, Value::Primitive val)
 {
-    if (!op.IsValid()) {
-        FATAL("invalid cast op: %u", op.Raw());
-    }
-    return CheckedCastFns<CheckedCasts>[op.Raw()](val);
+    return CastByOp<CheckedCastOp, CheckedCastFns<CheckedCasts>>(op, val);
 }
 
 } // namespace Interpretation

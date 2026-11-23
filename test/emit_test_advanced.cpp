@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <limits>
 #include <string_view>
 
 #include "emit_test_common.h"
@@ -176,11 +175,7 @@ TEST(EmitTest, ArrayIndexCheck)
     e.ArrayIndexCheck(IReg::IR2, IReg::IR1); // length, index
     e.Ret();
     auto code = e.Build(heap);
-    CHECK_DISASM(
-        code,
-        "0x000: arr.ic IR2 IR1",
-        "0x002: ret"
-    );
+    CHECK_DISASM(code, "0x000: arr.ic IR2 IR1", "0x002: ret");
     // IR1 carries the index, IR2 the length (cf. arr.ic idx, len in the ISA).
     EXPECT_EQ(Interpret(code, U64(5), U64(10), U64(0)).u64, 5);
     EXPECT_EQ(InterpretThrows(code, U64(10), U64(3), U64(0)), Interpretation::Type::IndexOutOfBoundsException);
@@ -904,8 +899,18 @@ TEST(EmitTest, BFXZ) { testBFX(false); }
 // Casts
 // ---------------------------------------------------------------------------
 
+namespace {
+
+std::string CastPairName(CastType::Code from, CastType::Code to)
+{
+    return std::string(CastType::Name(from)) + "->" + std::string(CastType::Name(to));
+}
+
+} // namespace
+
 TEST(EmitTest, Cast_IntToInt)
 {
+    heap.Reset();
     struct Case {
         CastType::Code from;
         CastType::Code to;
@@ -938,6 +943,7 @@ TEST(EmitTest, Cast_IntToInt)
 
 TEST(EmitTest, Cast_IntToFloat)
 {
+    heap.Reset();
     struct Case {
         CastType::Code from;
         CastType::Code to;
@@ -953,6 +959,7 @@ TEST(EmitTest, Cast_IntToFloat)
     };
 
     for (const auto& test : cases) {
+        SCOPED_TRACE(CastPairName(test.from, test.to));
         Emitter e;
         e.Cast(CastOp::Make(test.from, test.to), FReg::FR0, IReg::IR1);
         e.Ret();
@@ -960,14 +967,17 @@ TEST(EmitTest, Cast_IntToFloat)
         auto res  = InterpretFPRes(code, U64(test.in), U64(0), F32(0), F32(0));
         if (test.to == CastType::F64) {
             EXPECT_DOUBLE_EQ(res.f64, test.expected);
-        } else {
+        } else if (test.to == CastType::F32) {
             EXPECT_FLOAT_EQ(res.f32, static_cast<float>(test.expected));
+        } else {
+            FAIL() << "unexpected destination type";
         }
     }
 }
 
 TEST(EmitTest, Cast_FloatToInt)
 {
+    heap.Reset();
     struct Case {
         CastType::Code from;
         CastType::Code to;
@@ -983,17 +993,20 @@ TEST(EmitTest, Cast_FloatToInt)
         { CastType::F32, CastType::I64, {}, 42.5f, 0.0, 42 },
         { CastType::F32, CastType::U8, {}, 200.5f, 0.0, 200 },
         { CastType::F32, CastType::U8, {}, 300.5f, 0.0, 255 },
-        { CastType::F16, CastType::I32, Utils::Float16FromBits(0xc500), 0.0f, 0.0, uint64_t(int64_t(-5)) },
+        { CastType::F16, CastType::I32, Utils::Float16FromBits(0xc500 /* -5.0 */), 0.0f, 0.0, uint64_t(int64_t(-5)) },
     };
 
     for (const auto& test : cases) {
+        SCOPED_TRACE(CastPairName(test.from, test.to));
         Emitter e;
         if (test.from == CastType::F16) {
             e.FMovI16(FReg::FR0, test.f16);
         } else if (test.from == CastType::F32) {
             e.FMovI32(FReg::FR0, test.f32);
-        } else {
+        } else if (test.from == CastType::F64) {
             e.FMovI64(FReg::FR0, test.f64);
+        } else {
+            FAIL() << "unexpected source type";
         }
         e.Cast(CastOp::Make(test.from, test.to), IReg::IR1, FReg::FR0);
         e.Ret();
@@ -1004,6 +1017,7 @@ TEST(EmitTest, Cast_FloatToInt)
 
 TEST(EmitTest, Cast_FloatToFloat)
 {
+    heap.Reset();
     struct Case {
         CastType::Code from;
         CastType::Code to;
@@ -1015,19 +1029,23 @@ TEST(EmitTest, Cast_FloatToFloat)
     } cases[] = {
         { CastType::F64, CastType::F32, {}, 0.0f, 1.5, 0, 1.5 },
         { CastType::F32, CastType::F64, {}, 0.1f, 0.0, 0, 0.1f },
-        { CastType::F64, CastType::F16, {}, 0.0f, 1.5, 0x3e00, 0.0 },
-        { CastType::F32, CastType::F16, {}, 1.5f, 0.0, 0x3e00, 0.0 },
-        { CastType::F16, CastType::F64, Utils::Float16FromBits(0x3e00), 0.0f, 0.0, 0, 1.5 },
+        { CastType::F64, CastType::F16, {}, 0.0f, 1.5, 0x3e00 /* 1.5 */, 0.0 },
+        { CastType::F32, CastType::F16, {}, 1.5f, 0.0, 0x3e00 /* 1.5 */, 0.0 },
+        { CastType::F16, CastType::F64, Utils::Float16FromBits(0x3e00 /* 1.5 */), 0.0f, 0.0, 0, 1.5 },
+        { CastType::F16, CastType::F32, Utils::Float16FromBits(0x3e00 /* 1.5 */), 0.0f, 0.0, 0, 1.5 },
     };
 
     for (const auto& test : cases) {
+        SCOPED_TRACE(CastPairName(test.from, test.to));
         Emitter e;
         if (test.from == CastType::F16) {
             e.FMovI16(FReg::FR0, test.f16);
         } else if (test.from == CastType::F32) {
             e.FMovI32(FReg::FR0, test.f32);
-        } else {
+        } else if (test.from == CastType::F64) {
             e.FMovI64(FReg::FR0, test.f64);
+        } else {
+            FAIL() << "unexpected source type";
         }
         e.Cast(CastOp::Make(test.from, test.to), FReg::FR0, FReg::FR0);
         e.Ret();
@@ -1037,13 +1055,14 @@ TEST(EmitTest, Cast_FloatToFloat)
             case CastType::F16: EXPECT_EQ(Interpretation::Value::F16Bits(res), test.expectedF16); break;
             case CastType::F32: EXPECT_FLOAT_EQ(res.f32, static_cast<float>(test.expected)); break;
             case CastType::F64: EXPECT_DOUBLE_EQ(res.f64, test.expected); break;
-            default: FAIL() << "unexpected destination type"; break;
+            default:            FAIL() << "unexpected destination type"; break;
         }
     }
 }
 
 TEST(EmitTest, CheckedCast_IntToInt)
 {
+    heap.Reset();
     struct Case {
         CastType::Code from;
         CastType::Code to;
@@ -1065,18 +1084,43 @@ TEST(EmitTest, CheckedCast_IntToInt)
         { CastType::I32, CastType::U16, "I32->U16", 65535, 65535, Interpretation::Type::Successful },
         { CastType::I32, CastType::U16, "I32->U16", 65536, 0, Interpretation::Type::CastOverflowU16Max },
         { CastType::I32, CastType::U32, "I32->U32", 0x7fffffff, 0x7fffffff, Interpretation::Type::Successful },
-        { CastType::I32, CastType::U32, "I32->U32", uint64_t(int64_t(-1)), 0, Interpretation::Type::CastOverflowU32Min },
+        { CastType::I32,
+          CastType::U32,
+          "I32->U32",
+          uint64_t(int64_t(-1)),
+          0,
+          Interpretation::Type::CastOverflowU32Min },
         { CastType::U32, CastType::U8, "U32->U8", 255, 255, Interpretation::Type::Successful },
         { CastType::U32, CastType::U8, "U32->U8", 256, 0, Interpretation::Type::CastOverflowU8Max },
         { CastType::U32, CastType::I32, "U32->I32", 0x7fffffff, 0x7fffffff, Interpretation::Type::Successful },
         { CastType::U32, CastType::I32, "U32->I32", 0x80000000, 0, Interpretation::Type::CastOverflowI32Max },
         { CastType::I64, CastType::U32, "I64->U32", 0x100000000ull, 0, Interpretation::Type::CastOverflowU32Max },
-        { CastType::I64, CastType::U32, "I64->U32", uint64_t(int64_t(-1)), 0, Interpretation::Type::CastOverflowU32Min },
+        { CastType::I64,
+          CastType::U32,
+          "I64->U32",
+          uint64_t(int64_t(-1)),
+          0,
+          Interpretation::Type::CastOverflowU32Min },
         { CastType::I64, CastType::U64, "I64->U64", 0, 0, Interpretation::Type::Successful },
-        { CastType::I64, CastType::U64, "I64->U64", uint64_t(int64_t(-1)), 0, Interpretation::Type::CastOverflowU64Min },
+        { CastType::I64,
+          CastType::U64,
+          "I64->U64",
+          uint64_t(int64_t(-1)),
+          0,
+          Interpretation::Type::CastOverflowU64Min },
         { CastType::U64, CastType::U32, "U64->U32", 0x100000000ull, 0, Interpretation::Type::CastOverflowU32Max },
-        { CastType::U64, CastType::I64, "U64->I64", 0x7fffffffffffffffull, 0x7fffffffffffffffull, Interpretation::Type::Successful },
-        { CastType::U64, CastType::I64, "U64->I64", 0x8000000000000000ull, 0, Interpretation::Type::CastOverflowI64Max },
+        { CastType::U64,
+          CastType::I64,
+          "U64->I64",
+          0x7fffffffffffffffull,
+          0x7fffffffffffffffull,
+          Interpretation::Type::Successful },
+        { CastType::U64,
+          CastType::I64,
+          "U64->I64",
+          0x8000000000000000ull,
+          0,
+          Interpretation::Type::CastOverflowI64Max },
     };
 
     for (const auto& test : cases) {
@@ -1096,6 +1140,7 @@ TEST(EmitTest, CheckedCast_IntToInt)
 
 TEST(EmitTest, CheckedCast_FloatToInt)
 {
+    heap.Reset();
     struct Case {
         CastType::Code from;
         CastType::Code to;
@@ -1105,9 +1150,27 @@ TEST(EmitTest, CheckedCast_FloatToInt)
         uint64_t expected;
         Interpretation::Type exception;
     } cases[] = {
-        { CastType::F16, CastType::I32, Utils::Float16FromBits(0x3e00), 0, 0, 1, Interpretation::Type::Successful },
-        { CastType::F16, CastType::I8, Utils::Float16FromBits(0x5b00), 0, 0, 0, Interpretation::Type::CastOverflowI8Max },
-        { CastType::F16, CastType::I32, Utils::Float16FromBits(0x7e00), 0, 0, 0, Interpretation::Type::CastOverflowInfOrNaN },
+        { CastType::F16,
+          CastType::I32,
+          Utils::Float16FromBits(0x3e00 /* 1.5 */),
+          0,
+          0,
+          1,
+          Interpretation::Type::Successful },
+        { CastType::F16,
+          CastType::I8,
+          Utils::Float16FromBits(0x5b00 /* 128.0 */),
+          0,
+          0,
+          0,
+          Interpretation::Type::CastOverflowI8Max },
+        { CastType::F16,
+          CastType::I32,
+          Utils::Float16FromBits(0x7e00 /* NaN */),
+          0,
+          0,
+          0,
+          Interpretation::Type::CastOverflowInfOrNaN },
         { CastType::F32, CastType::I32, {}, 42.9f, 0, 42, Interpretation::Type::Successful },
         { CastType::F32, CastType::U8, {}, -1.0f, 0, 0, Interpretation::Type::CastOverflowU8Min },
         { CastType::F32, CastType::I64, {}, 1e30f, 0, 0, Interpretation::Type::CastOverflowI64Max },
@@ -1118,13 +1181,16 @@ TEST(EmitTest, CheckedCast_FloatToInt)
     };
 
     for (const auto& test : cases) {
+        SCOPED_TRACE(CastPairName(test.from, test.to));
         Emitter e;
         if (test.from == CastType::F16) {
             e.FMovI16(FReg::FR0, test.f16);
         } else if (test.from == CastType::F32) {
             e.FMovI32(FReg::FR0, test.f32);
-        } else {
+        } else if (test.from == CastType::F64) {
             e.FMovI64(FReg::FR0, test.f64);
+        } else {
+            FAIL() << "unexpected source type";
         }
         e.Cast(CheckedCastOp::Make(test.from, test.to), IReg::IR1, FReg::FR0);
         e.Ret();

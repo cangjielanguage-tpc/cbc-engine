@@ -34,14 +34,14 @@ struct UncheckedCasts {
         { CastType::U32, CastType::F32 },
         { CastType::U32, CastType::F64 },
         // from I64
-        { CastType::I64, CastType::F16 },
         { CastType::I64, CastType::I32 },
+        { CastType::I64, CastType::F16 },
         { CastType::I64, CastType::F32 },
         { CastType::I64, CastType::F64 },
         // from U64
-        { CastType::U64, CastType::F16 },
         { CastType::U64, CastType::I32 },
         { CastType::U64, CastType::U32 },
+        { CastType::U64, CastType::F16 },
         { CastType::U64, CastType::F32 },
         { CastType::U64, CastType::F64 },
         // from F16
@@ -152,27 +152,25 @@ struct CheckedCasts {
     };
 };
 
-template <typename Kind> class CastInst {
+template <typename Kind> class CastCode {
 public:
-    using KindType = Kind;
-
     using TypeCode = CastType::Code;
 
     static constexpr size_t COUNT = std::size(Kind::pairs);
 
     /// Encodes the pair, or returns `std::nullopt` if the pair has no opcode of this kind.
-    constexpr static std::optional<CastInst> FromPair(TypeCode from, TypeCode to)
+    constexpr static std::optional<CastCode> FromPair(TypeCode from, TypeCode to)
     {
         for (size_t i = 0; i < COUNT; i++) {
             if (Kind::pairs[i].from == from && Kind::pairs[i].to == to) {
-                return CastInst(static_cast<uint8_t>(i));
+                return CastCode(static_cast<uint8_t>(i));
             }
         }
         return std::nullopt;
     }
 
-    /// Compile-time pair constructor: an unsupported pair is a compile error.
-    constexpr static CastInst Make(TypeCode from, TypeCode to)
+    /// Pair constructor for compile-time-known pairs; an unsupported pair `FATAL`s at runtime.
+    constexpr static CastCode Make(TypeCode from, TypeCode to)
     {
         auto op = FromPair(from, to);
         if (!op.has_value()) {
@@ -189,7 +187,7 @@ public:
         return *op;
     }
 
-    constexpr CastInst(uint8_t raw) : _raw(raw) { ASSERT(IsValid()); }
+    constexpr CastCode(uint8_t raw) : _raw(raw) { ASSERT(IsValid()); }
 
     constexpr operator uint8_t() const { return _raw; }
 
@@ -236,8 +234,8 @@ private:
     uint8_t _raw;
 };
 
-using CastOp        = CastInst<UncheckedCasts>;
-using CheckedCastOp = CastInst<CheckedCasts>;
+using CastOp        = CastCode<UncheckedCasts>;
+using CheckedCastOp = CastCode<CheckedCasts>;
 
 } // namespace Format
 } // namespace Cbc
@@ -608,13 +606,13 @@ template <typename Kind> struct CastInstruction {
     static constexpr int SIZE = 3;
 
     Opcode opc;
-    Format::CastInst<Kind> cast;
+    Format::CastCode<Kind> cast;
     Format::RR rr;
 
     static CastInstruction Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
-        auto cast = Format::CastInst<Kind>(reader.Read8());
+        auto cast = Format::CastCode<Kind>(reader.Read8());
         auto rr   = Format::RR::Decode(reader);
         return CastInstruction { opc, cast, rr };
     }
