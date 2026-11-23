@@ -11,6 +11,11 @@ namespace Emitter {
 
 struct Test;
 
+static Interpretation::Value::Primitive Ptr(void* p)
+{
+    return Interpretation::Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(p) };
+}
+
 using namespace Cbc::Format;
 
 // ---------------------------------------------------------------------------
@@ -1088,6 +1093,47 @@ TEST(EmitTest, GenericAddressing)
         "0x003: st.g0 IR1 IR2 IR3 IR4",
         "0x006: lea.g IR1 IR4 [IR3 ord=0x5]"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Size/Align
+// ---------------------------------------------------------------------------
+TEST(EmitTest, TypeSize)
+{
+    auto ti = RTSupport::TypeInfo(heap.New<TestTypeInfo>(24, 8));
+    Emitter e;
+    e.TypeSize(IReg::IR1, IReg::IR2);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: size.g IR1 IR2",
+        "0x002: ret"
+    );
+
+    auto res = Interpret(code, U64(0), Ptr(ti.Raw()));
+    EXPECT_EQ(res.u64, RTSupport::MetaInfo::GetTypeSize(ti));
+    EXPECT_EQ(res.u64, 24);
+}
+
+TEST(EmitTest, TypeAlign)
+{
+    auto ti = RTSupport::TypeInfo(heap.New<TestTypeInfo>(24, 8));
+    Emitter e;
+    e.TypeAlign(IReg::IR1, IReg::IR2);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    CHECK_DISASM(
+        code,
+        "0x000: align.g IR1 IR2",
+        "0x002: ret"
+    );
+
+    auto res = Interpret(code, U64(0), Ptr(ti.Raw()));
+    EXPECT_EQ(res.u64, RTSupport::MetaInfo::GetAlign(ti));
+    EXPECT_EQ(res.u64, 8);
 }
 
 TEST(EmitTest, StoreGeneric_OffsetWidths)

@@ -179,14 +179,16 @@
     X(Bcc16, BranchGeneric<Width::W16>[w])                                                                             \
     X(Scc16, Scc<Width::W16>)                                                                                          \
     X(FMathUnary16, FMathUnary16)                                                                                      \
+    X(TypeSize, TypeSize)                                                                                              \
+    X(TypeAlign, TypeAlign)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
     X(LoadTypeInfoGeneric)                                                                                             \
     X(NewObj)                                                                                                          \
-    X(Unused0)                                                                                                         \
-    X(Unused1)                                                                                                         \
+    X(TypeSize)                                                                                                        \
+    X(TypeAlign)                                                                                                       \
     X(Unused2)                                                                                                         \
     X(Spawn)                                                                                                           \
     X(SpawnFuture)                                                                                                     \
