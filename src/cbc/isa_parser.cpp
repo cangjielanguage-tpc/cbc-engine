@@ -715,6 +715,18 @@ struct IsaParserImpl {
         parser.StoreRawMemory(src, base, MergeLowHi(low4, hibits), stk);
     }
 
+    static void TypeSize(IsaParser& parser)
+    {
+        auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.TypeSize(dst, ti);
+    }
+
+    static void TypeAlign(IsaParser& parser)
+    {
+        auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.TypeAlign(dst, ti);
+    }
+
     static void LoadStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadULEB().Get();
@@ -854,6 +866,8 @@ struct IsaParserImpl {
         switch (opc) {
             case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(reg, id); break;
             case Cbc::RegSymGroup::NewObj:          parser.NewObj(reg, id); break;
+            case Cbc::RegSymGroup::TypeSize:        parser.TypeSizeSig(reg, id); break;
+            case Cbc::RegSymGroup::TypeAlign:       parser.TypeAlignSig(reg, id); break;
             case Cbc::RegSymGroup::Spawn:           parser.Spawn(reg, id); break;
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(reg, id); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(reg, id); break;

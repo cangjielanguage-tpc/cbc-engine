@@ -791,6 +791,18 @@ public:
         MemoryLocation(obj.value, offset).Lea(dst, ectype);
     }
 
+    inline void TypeSize(IReg dst, IReg ti)
+    {
+        auto type = RTSupport::TypeInfo(ectype->GetPrimitive(ti).u64);
+        ectype->Put(dst, Value::Primitive { .u64 = RTSupport::MetaInfo::GetTypeSize(type) });
+    }
+
+    inline void TypeAlign(IReg dst, IReg ti)
+    {
+        auto type = RTSupport::TypeInfo(ectype->GetPrimitive(ti).u64);
+        ectype->Put(dst, Value::Primitive { .u64 = RTSupport::MetaInfo::GetAlign(type) });
+    }
+
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 

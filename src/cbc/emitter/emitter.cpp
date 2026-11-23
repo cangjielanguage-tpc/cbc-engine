@@ -1020,6 +1020,28 @@ void Emitter::StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx)
     });
 }
 
+void Emitter::TypeSize(IReg dst, IReg ti)
+{
+    Encode(segment, RT::B2rr {
+        .opc = RT::Opcode::TYPESIZE,
+        .rr = {
+            .x = dst,
+            .y = ti,
+        }
+    });
+}
+
+void Emitter::TypeAlign(IReg dst, IReg ti)
+{
+    Encode(segment, RT::B2rr {
+        .opc = RT::Opcode::TYPEALIGN,
+        .rr = {
+            .x = dst,
+            .y = ti,
+        }
+    });
+}
+
 void Emitter::TypeArg(IReg dst, IReg typeInfo, int idx)
 {
     RT::B4xi12rr command = {
