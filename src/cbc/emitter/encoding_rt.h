@@ -22,7 +22,7 @@ void Encode(ByteBuffer& buf, RT::B2rr command);
 void Encode(ByteBuffer& buf, RT::B2xr command);
 void Encode(ByteBuffer& buf, RT::B3xri8 command);
 void Encode(ByteBuffer& buf, RT::B3xrrr command);
-template <typename Kind> void Encode(ByteBuffer& buf, RT::ConvertOp<Kind> command);
+template <typename Kind> void Encode(ByteBuffer& buf, RT::CastInstruction<Kind> command);
 void Encode(ByteBuffer& buf, RT::B3xi12 command);
 void Encode(ByteBuffer& buf, RT::B3rrrr command);
 void Encode(ByteBuffer& buf, RT::InitOption command);

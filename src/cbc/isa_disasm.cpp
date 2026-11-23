@@ -134,11 +134,11 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("{}.{} {}, {}", op, width, d, s);
     }
 
-    void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override { PrintCast("convert", cast, to, from); }
+    void Cast(Format::CastType::Pair cast, AnyReg to, AnyReg from) override { PrintCast("cast", cast, to, from); }
 
-    void CheckedConvert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
+    void CheckedCast(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        PrintCast("checked.convert", cast, to, from);
+        PrintCast("checked.cast", cast, to, from);
     }
 
     void PrintCast(std::string_view mnemonic, Format::CastType::Pair cast, AnyReg to, AnyReg from)

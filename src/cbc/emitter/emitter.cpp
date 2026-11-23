@@ -1191,9 +1191,9 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
-template <typename Kind> void Emitter::Convert(Format::CastInst<Kind> op, Reg to, Reg from)
+template <typename Kind> void Emitter::Cast(Format::CastInst<Kind> op, Reg to, Reg from)
 {
-    RT::ConvertOp<Kind> command {
+    RT::CastInstruction<Kind> command {
         .opc  = RT::CastKindInfo<Kind>::OPC,
         .cast = op,
         .rr   = { .x = to, .y = from },
@@ -1201,8 +1201,8 @@ template <typename Kind> void Emitter::Convert(Format::CastInst<Kind> op, Reg to
     Encode(segment, command);
 }
 
-template void Emitter::Convert<Format::UncheckedCasts>(Format::CastOp op, Reg to, Reg from);
-template void Emitter::Convert<Format::CheckedCasts>(Format::CheckedCastOp op, Reg to, Reg from);
+template void Emitter::Cast<Format::UncheckedCasts>(Format::CastOp op, Reg to, Reg from);
+template void Emitter::Cast<Format::CheckedCasts>(Format::CheckedCastOp op, Reg to, Reg from);
 
 void Emitter::BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size) { BFX(RT::Opcode::BFXS, dst, src, offset, size); }
 

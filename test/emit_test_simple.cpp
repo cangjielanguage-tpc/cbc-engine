@@ -648,16 +648,16 @@ INSTANTIATE_TEST_SUITE_P(EmitTest, EmitFPowi, ::testing::ValuesIn(fpowiCases), F
 // Conversions
 // ---------------------------------------------------------------------------
 
-TEST(EmitTest, Simple_Convert)
+TEST(EmitTest, Simple_Cast)
 {
     Emitter e;
-    e.Convert(CastOp::Make(CastType::U32, CastType::U8), IReg::IR1, IReg::IR1);
+    e.Cast(CastOp::Make(CastType::U32, CastType::U8), IReg::IR1, IReg::IR1);
     e.Ret();
 
     auto code = e.Build(heap);
     CHECK_DISASM(
         code,
-        "0x000: convert U32->U8 IR1 IR1",
+        "0x000: cast U32->U8 IR1 IR1",
         "0x003: ret"
     );
 

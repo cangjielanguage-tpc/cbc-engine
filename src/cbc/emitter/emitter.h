@@ -138,8 +138,8 @@ public:
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
     void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
 
-    /// Emits `convert` (`Format::CastOp`) or `checked.convert` (`Format::CheckedCastOp`).
-    template <typename Kind> void Convert(Format::CastInst<Kind> op, Reg to, Reg from);
+    /// Emits `cast` (`Format::CastOp`) or `checked.cast` (`Format::CheckedCastOp`).
+    template <typename Kind> void Cast(Format::CastInst<Kind> op, Reg to, Reg from);
 
     void BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size);
     void BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size);

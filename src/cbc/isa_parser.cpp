@@ -424,16 +424,16 @@ struct IsaParserImpl {
         return std::tuple { CastPair(fromType, toType), to, from };
     }
 
-    static void Convert(IsaParser& parser)
+    static void Cast(IsaParser& parser)
     {
         auto [cast, to, from] = ReadCastOperands(parser);
-        parser.Convert(cast, to, from);
+        parser.Cast(cast, to, from);
     }
 
-    static void CheckedConvert(IsaParser& parser)
+    static void CheckedCast(IsaParser& parser)
     {
         auto [cast, to, from] = ReadCastOperands(parser);
-        parser.CheckedConvert(cast, to, from);
+        parser.CheckedCast(cast, to, from);
     }
 
     static CastType::Pair CastPair(Value fromType, Value toType)

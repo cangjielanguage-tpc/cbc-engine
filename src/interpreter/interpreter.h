@@ -581,11 +581,11 @@ public:
         ectype->Put(d, Value::Primitive { .u64 = res });
     }
 
-    void Convert(CastOp op, Reg to, Reg from) { PutCastResult(op, to, CastPrim(op, GetCastOperand(op, from))); }
+    void Cast(CastOp op, Reg to, Reg from) { PutCastResult(op, to, CastPrim(op, GetCastOperand(op, from))); }
 
-    // Returns `Type::Successful` when the converted value is stored into the
+    // Returns `Type::Successful` when the cast value is stored into the
     // destination. Otherwise returns the exception to throw.
-    Type CheckedConvert(CheckedCastOp op, Reg to, Reg from)
+    Type CheckedCast(CheckedCastOp op, Reg to, Reg from)
     {
         auto res = CheckedCastPrim(op, GetCastOperand(op, from));
         if (res.exception != Type::Successful) {

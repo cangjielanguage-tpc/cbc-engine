@@ -52,15 +52,15 @@ void Encode(ByteBuffer& buf, RT::B3xrrr command)
     Encode(buf, command.rr);
 }
 
-template <typename Kind> void Encode(ByteBuffer& buf, RT::ConvertOp<Kind> command)
+template <typename Kind> void Encode(ByteBuffer& buf, RT::CastInstruction<Kind> command)
 {
     Encode(buf, command.opc);
     Encode(buf, Format::Imm8(command.cast.Raw()));
     Encode(buf, command.rr);
 }
 
-template void Encode<Format::UncheckedCasts>(ByteBuffer& buf, RT::UncheckedConvertOp command);
-template void Encode<Format::CheckedCasts>(ByteBuffer& buf, RT::CheckedConvertOp command);
+template void Encode<Format::UncheckedCasts>(ByteBuffer& buf, RT::UncheckedCastInstruction command);
+template void Encode<Format::CheckedCasts>(ByteBuffer& buf, RT::CheckedCastInstruction command);
 
 void Encode(ByteBuffer& buf, RT::B3xi12 command)
 {
