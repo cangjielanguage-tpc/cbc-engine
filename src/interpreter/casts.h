@@ -157,11 +157,8 @@ template <typename To> static inline CheckedCastResult CheckedCastFromUnsigned(u
 {
     // Currently only checked casts to integral types are supported
     static_assert(std::is_integral_v<To>, "integral target is expected");
-    if constexpr (std::is_signed_v<To>) {
-        if (value > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
-            return { MakeIntPrim<To>(0), true };
-        }
-    } else if constexpr (sizeof(To) < sizeof(uint64_t)) {
+
+    if constexpr (std::is_signed_v<To> || sizeof(To) < sizeof(uint64_t)) {
         if (value > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
             return { MakeIntPrim<To>(0), true };
         }
