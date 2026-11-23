@@ -1083,6 +1083,7 @@ inline Format::LoadAccessKind Ldk(CbcTypeKind kind)
         case CbcTypeKind::I32: return LDK::LD_32;
         case CbcTypeKind::U64:
         case CbcTypeKind::I64: return LDK::LD_64;
+        case CbcTypeKind::F16: return LDK::LD_F16;
         case CbcTypeKind::F32: return LDK::LD_F32;
         case CbcTypeKind::F64: return LDK::LD_F64;
 
@@ -1109,6 +1110,7 @@ inline Format::StoreAccessKind Stk(CbcTypeKind kind)
         case CbcTypeKind::I32: return STK::ST_32;
         case CbcTypeKind::U64:
         case CbcTypeKind::I64: return STK::ST_64;
+        case CbcTypeKind::F16: return STK::ST_F16;
         case CbcTypeKind::F32: return STK::ST_F32;
         case CbcTypeKind::F64: return STK::ST_F64;
 
@@ -1119,6 +1121,36 @@ inline Format::StoreAccessKind Stk(CbcTypeKind kind)
             FATAL("Not supported type kind %d", static_cast<int>(kind));
             return STK::ST_8;
         }
+    }
+}
+
+/// Store width matching a load width.
+inline Format::StoreAccessKind StkOfLdk(Format::LoadAccessKind ldk)
+{
+    switch (ldk) {
+        case Format::LoadAccessKind::LD_U8:
+        case Format::LoadAccessKind::LD_S8:  return Format::StoreAccessKind::ST_8;
+        case Format::LoadAccessKind::LD_U16:
+        case Format::LoadAccessKind::LD_S16: return Format::StoreAccessKind::ST_16;
+        case Format::LoadAccessKind::LD_32:  return Format::StoreAccessKind::ST_32;
+        case Format::LoadAccessKind::LD_REF: return Format::StoreAccessKind::ST_REF;
+        case Format::LoadAccessKind::LD_F32: return Format::StoreAccessKind::ST_F32;
+        case Format::LoadAccessKind::LD_F64: return Format::StoreAccessKind::ST_F64;
+        default:                             return Format::StoreAccessKind::ST_64;
+    }
+}
+
+/// Load width matching a store width.
+inline Format::LoadAccessKind LdkOfStk(Format::StoreAccessKind stk)
+{
+    switch (stk) {
+        case Format::StoreAccessKind::ST_8:   return Format::LoadAccessKind::LD_U8;
+        case Format::StoreAccessKind::ST_16:  return Format::LoadAccessKind::LD_U16;
+        case Format::StoreAccessKind::ST_32:  return Format::LoadAccessKind::LD_32;
+        case Format::StoreAccessKind::ST_REF: return Format::LoadAccessKind::LD_REF;
+        case Format::StoreAccessKind::ST_F32: return Format::LoadAccessKind::LD_F32;
+        case Format::StoreAccessKind::ST_F64: return Format::LoadAccessKind::LD_F64;
+        default:                              return Format::LoadAccessKind::LD_64;
     }
 }
 

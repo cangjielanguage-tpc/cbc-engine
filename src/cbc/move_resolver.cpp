@@ -11,32 +11,37 @@ static constexpr int REG_COUNT  = Location::REG_COUNT;
 
 void MoveResolver::Clear() { assignments.Clear(); }
 
-void MoveResolver::AddMove(Location dst, Location src)
+void MoveResolver::AddMove(ArgTarget dst, Location src)
 {
     ASSERT(src.Kind() != Location::NIL);
-    ASSERT(dst.Kind() != Location::NIL);
-    if (dst.Kind() != Location::SLOT && src.idx == dst.idx) {
+    ASSERT(dst.loc.Kind() != Location::NIL);
+    if (dst.loc.Kind() != Location::SLOT && src.idx == dst.loc.idx) {
         return;
     }
-    assignments.PushBack(Assignment { dst, src, 0, Format::LoadAccessKind::LD_64, false });
+    assignments.PushBack(Assignment { dst.loc, src, 0, Format::LoadAccessKind::LD_64, dst.stk, dst.byteOffset, false });
 }
 
-void MoveResolver::AddLoadFromAddr(Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk)
+void MoveResolver::AddLoadFromAddr(ArgTarget dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk)
 {
     ASSERT(srcAddr.Kind() == Location::IREG || srcAddr.Kind() == Location::SLOT);
-    ASSERT(dst.Kind() != Location::NIL);
-    assignments.PushBack(Assignment { dst, srcAddr, offset, ldk, true });
+    ASSERT(dst.loc.Kind() != Location::NIL);
+    assignments.PushBack(Assignment { dst.loc, srcAddr, offset, ldk, StkOfLdk(ldk), dst.byteOffset, true });
 }
 
 // Dispatches a single load-from-address to the matching MoveEmitter method.
 static void EmitLoadFromAddr(
-    MoveEmitter& emitter, Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk
+    MoveEmitter& emitter,
+    Location dst,
+    Location srcAddr,
+    int32_t offset,
+    Format::LoadAccessKind ldk,
+    uint32_t byteOffset = 0
 )
 {
     switch (dst.Kind()) {
         case Location::IREG: emitter.AssignIRegFromAddr(IReg::From(dst.IRegIdx()), srcAddr, offset, ldk); break;
         case Location::FREG: emitter.AssignFRegFromAddr(FReg::From(dst.FRegIdx()), srcAddr, offset, ldk); break;
-        case Location::SLOT: emitter.AssignSlotFromAddr(dst.SlotIdx(), srcAddr, offset, ldk); break;
+        case Location::SLOT: emitter.AssignSlotFromAddr(dst.SlotIdx(), srcAddr, offset, ldk, byteOffset); break;
         default:             ASSERT(false);
     }
 }
@@ -179,18 +184,22 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
             // Param slots cannot form any chains: emit immediately, before
             // the register shuffle.
             case Pack(Location::SLOT, Location::IREG, MOVE):
-                emitter.AssignSlotFromIReg(dst.SlotIdx(), IReg::From(src.IRegIdx()));
+                emitter.AssignSlotFromIReg(
+                    dst.SlotIdx(), IReg::From(src.IRegIdx()), assignment.stk, assignment.dstByteOffset
+                );
                 break;
             case Pack(Location::SLOT, Location::FREG, MOVE):
-                emitter.AssignSlotFromFReg(dst.SlotIdx(), FReg::From(src.FRegIdx()));
+                emitter.AssignSlotFromFReg(
+                    dst.SlotIdx(), FReg::From(src.FRegIdx()), assignment.stk, assignment.dstByteOffset
+                );
                 break;
             case Pack(Location::SLOT, Location::SLOT, MOVE):
-                emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx());
+                emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx(), assignment.stk, assignment.dstByteOffset);
                 break;
 
             case Pack(Location::SLOT, Location::IREG, LOAD):
             case Pack(Location::SLOT, Location::SLOT, LOAD):
-                EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
+                EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk, assignment.dstByteOffset);
                 break;
 
             // Untyped slots are immutable: processed after the register shuffle.
@@ -306,7 +315,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         auto dkind = dst.Kind();
 
         if (assignment.fromAddr && src.Kind() == Location::SLOT && dkind != Location::SLOT) {
-            EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
+            EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk, assignment.dstByteOffset);
         } else if (src.Kind() == Location::SLOT && dkind == Location::IREG) {
             emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
         } else if (src.Kind() == Location::SLOT && dkind == Location::FREG) {

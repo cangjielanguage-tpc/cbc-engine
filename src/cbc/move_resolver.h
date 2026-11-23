@@ -62,6 +62,19 @@ struct Location {
     operator int() const { return idx; }
 };
 
+/// Where a single argument goes: a register, or a width-sized byte range in the
+/// passing area.
+struct ArgTarget {
+    Location loc;
+    Format::StoreAccessKind stk = Format::StoreAccessKind::ST_64;
+    // Offset within the target's slot; non-zero only where a compacted ABI
+    // packs several arguments into one slot.
+    uint32_t byteOffset = 0;
+
+    /// A register target: placement is fully described by `loc`.
+    static ArgTarget Reg(Location loc) { return ArgTarget { loc }; }
+};
+
 // Abstract sink for resolved moves. Implementations emit the actual
 // instructions for each assignment kind. Slot indices are plain ints
 // (untyped stack slot for src, param-passing slot for dst).
@@ -70,14 +83,18 @@ public:
     virtual ~MoveEmitter()                                     = default;
     virtual void AssignIReg(IReg dst, IReg src)                = 0;
     virtual void AssignFReg(FReg dst, FReg src)                = 0;
-    virtual void AssignParamSlot(int paramSlot, int stackSlot) = 0;
-    virtual void AssignFRegFromSlot(FReg dst, int slot)        = 0;
-    virtual void AssignIRegFromSlot(IReg dst, int slot)        = 0;
-    virtual void AssignSlotFromIReg(int slot, IReg src)        = 0;
-    virtual void AssignSlotFromFReg(int slot, FReg src)        = 0;
+    // `paramSlot` is a slot index; `byteOffset` locates a compacted argument
+    // within that slot and `stk` is the width it must be stored with.
+    virtual void AssignParamSlot(int paramSlot, int stackSlot, Format::StoreAccessKind stk, uint32_t byteOffset) = 0;
+    virtual void AssignFRegFromSlot(FReg dst, int slot)                                                          = 0;
+    virtual void AssignIRegFromSlot(IReg dst, int slot)                                                          = 0;
+    virtual void AssignSlotFromIReg(int slot, IReg src, Format::StoreAccessKind stk, uint32_t byteOffset)        = 0;
+    virtual void AssignSlotFromFReg(int slot, FReg src, Format::StoreAccessKind stk, uint32_t byteOffset)        = 0;
     virtual void AssignIRegFromAddr(IReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk)      = 0;
     virtual void AssignFRegFromAddr(FReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk)      = 0;
-    virtual void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) = 0;
+    virtual void AssignSlotFromAddr(
+        int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk, uint32_t byteOffset
+    )                                                                                                         = 0;
     virtual void LeaParamArea(IReg dst, uint32_t offset)                                                      = 0;
 };
 
@@ -93,8 +110,16 @@ public:
     {}
 
     void Clear();
-    void AddMove(Location dst, Location src);
-    void AddLoadFromAddr(Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk);
+    void AddMove(ArgTarget dst, Location src);
+
+    void AddMove(Location dst, Location src) { AddMove(ArgTarget::Reg(dst), src); }
+
+    void AddLoadFromAddr(ArgTarget dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk);
+
+    void AddLoadFromAddr(Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk)
+    {
+        AddLoadFromAddr(ArgTarget::Reg(dst), srcAddr, offset, ldk);
+    }
     // Resolves the collected moves by emitting them through `emitter`.
     // Returns false when a move mixes register kinds (ireg<->freg),
     // which is unsupported.
@@ -108,6 +133,8 @@ private:
         Location src;
         int32_t offset;
         Format::LoadAccessKind ldk;
+        Format::StoreAccessKind stk;
+        uint32_t dstByteOffset;
         bool fromAddr;
     };
 

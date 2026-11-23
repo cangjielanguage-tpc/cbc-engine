@@ -24,6 +24,9 @@ public:
         bool sretShifts;
         int sretIrIdx;
         bool onlyOnStackVarargs;
+        // Size of one stack-passed argument slot, and its alignment.
+        // Compact (Darwin) ABIs size slots by value; others use a fixed 8.
+        bool compactStackSlots;
 
         template <Platform p> static PlatformDescription FromTraits()
         {
@@ -31,7 +34,8 @@ public:
                                        { PlatformTraits<p>::FR_HEAD_AREA, PlatformTraits<p>::FR_PARAM_COUNT },
                                        PlatformTraits<p>::SRET_SHIFTS,
                                        0,
-                                       PlatformTraits<p>::ONLY_ONSTACK_VARARGS };
+                                       PlatformTraits<p>::ONLY_ONSTACK_VARARGS,
+                                       PlatformTraits<p>::COMPACT_STACK_SLOTS };
             if constexpr (!PlatformTraits<p>::SRET_SHIFTS) {
                 desc.sretIrIdx = static_cast<int>(PlatformTraits<p>::SRET_REG);
             }
@@ -43,14 +47,20 @@ public:
 
     template <Platform p = HOST_PLATFORM> AbiAssigner() : AbiAssigner(PlatformDescription::FromTraits<p>()) {}
 
-    Location Consume(CbcTypeKind kind);
-    Location ConsumeVarArg(CbcTypeKind kind);
+    ArgTarget Consume(CbcTypeKind kind);
+    ArgTarget ConsumeVarArg(CbcTypeKind kind);
     // Consumes the struct-return (sret) argument: the hidden pointer to the
     // return struct. On shift platforms it takes the first int-register slot
     // as a record; on fixed-register platforms a dedicated slot.
-    Location ConsumeSret();
+    ArgTarget ConsumeSret();
 
-    int MaxStackSlot() const { return slotIdx; }
+    int MaxStackSlot() const { return MaxStackBytes() / STACK_SLOT_SIZE; }
+
+    /// Size and alignment of one stack-passed value of `kind`.
+    uint32_t StackSlotSize(CbcTypeKind kind) const;
+
+    /// Size in bytes of the whole passing area, rounded up to a whole slot.
+    int MaxStackBytes() const { return static_cast<int>(MathUtils::AlignUp(stackBytes, STACK_SLOT_SIZE)); }
 
     int MaxFRegs() const { return fargIdx; }
 
@@ -58,11 +68,13 @@ public:
 
     int FreeFRegs() const { return static_cast<int>(desc.fregHeadArea.Size()) - fargIdx; }
 
+    /// Reserves `size` bytes in the passing area and returns the first slot.
+    /// Whole areas are always slot-aligned, so their readers can use 8-byte loads.
     int ConsumeStackArea(uint32_t size)
     {
-        int base  = slotIdx;
-        slotIdx  += static_cast<int>(MathUtils::AlignUp(size, STACK_SLOT_SIZE) / STACK_SLOT_SIZE);
-        return base;
+        int base    = AlignStackCursor(STACK_SLOT_SIZE);
+        stackBytes += static_cast<int>(MathUtils::AlignUp(size, STACK_SLOT_SIZE));
+        return base / STACK_SLOT_SIZE;
     }
 
 private:
@@ -70,10 +82,13 @@ private:
     Location GiveFReg();
     Location GiveStackSlot();
 
+    int AlignStackCursor(uint32_t align);
+    ArgTarget StackArg(CbcTypeKind kind, uint32_t width);
+
     PlatformDescription desc;
     int iargIdx;
     int fargIdx;
-    int slotIdx;
+    int stackBytes;
 };
 
 template <typename F> class TrackedAbiAssigner : public AbiAssigner {
@@ -89,34 +104,34 @@ public:
           track(std::move(track))
     {}
 
-    Location Consume(CbcTypeKind kind)
+    ArgTarget Consume(CbcTypeKind kind)
     {
         auto target = AbiAssigner::Consume(kind);
-        track(target, kind);
+        track(target.loc, kind);
         return target;
     }
 
-    Location ConsumeVarArg(CbcTypeKind kind)
+    ArgTarget ConsumeVarArg(CbcTypeKind kind)
     {
         auto target = AbiAssigner::ConsumeVarArg(kind);
-        track(target, kind);
+        track(target.loc, kind);
         return target;
     }
 
-    Location ConsumeSret()
+    ArgTarget ConsumeSret()
     {
         auto target = AbiAssigner::ConsumeSret();
-        track(target, CbcTypeKind::REC);
+        track(target.loc, CbcTypeKind::REC);
         return target;
     }
 
-    template <typename ArgType> Location Consume(ArgType arg)
+    template <typename ArgType> ArgTarget Consume(ArgType arg)
     {
         ArgTypeTraits<ArgType> traits;
         return Consume(traits.Kind(arg));
     }
 
-    template <typename ArgType> Location ConsumeVarArg(ArgType arg)
+    template <typename ArgType> ArgTarget ConsumeVarArg(ArgType arg)
     {
         ArgTypeTraits<ArgType> traits;
         return ConsumeVarArg(traits.Kind(arg));

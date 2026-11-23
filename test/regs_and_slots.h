@@ -57,7 +57,11 @@ struct RegsAndSlots : public MoveEmitter {
     Cell iregs[IReg::VIRT_COUNT];
     Cell fregs[FReg::COUNT];
     Cell untyped[stackSlotCount];
-    Cell paramPassingStackSlots[stackSlotCount];
+
+    uint8_t SlotSizes[stackSlotCount] {};
+    // Byte-addressed view of the passing area: compacted arguments share a
+    // slot, so each byte offset gets its own cell.
+    Cell paramBytes[stackSlotCount * 8] {};
 
     int movCount = 0;
 
@@ -69,9 +73,19 @@ struct RegsAndSlots : public MoveEmitter {
             fregs[i] = Cell::None(FrValue(i));
         for (int i = 0; i < stackSlotCount; i++)
             untyped[i] = Cell::None(StValue(i));
-        for (int i = 0; i < stackSlotCount; i++)
-            paramPassingStackSlots[i] = Cell::None();
     }
+
+    /// Value of the slot-aligned argument in `slot` (byte offset 0).
+    Cell& Slot(int n) { return ParamAt(n, 0); }
+
+    const Cell& Slot(int n) const { return ParamAt(n, 0); }
+
+    /// Records a stack argument at `slot * 8 + byteOffset`.
+    static size_t slotIdx(int slot, uint32_t byteOffset) { return static_cast<size_t>(slot) * 8 + byteOffset; }
+
+    Cell& ParamAt(int slot, uint32_t byteOffset) { return paramBytes[slotIdx(slot, byteOffset)]; }
+
+    const Cell& ParamAt(int slot, uint32_t byteOffset) const { return paramBytes[slotIdx(slot, byteOffset)]; }
 
     Cell Read(Location src) const
     {
@@ -88,10 +102,19 @@ struct RegsAndSlots : public MoveEmitter {
         switch (dst.Kind()) {
             case Location::IREG: iregs[dst.IRegIdx()] = cell; break;
             case Location::FREG: fregs[dst.FRegIdx()] = cell; break;
-            case Location::SLOT: paramPassingStackSlots[dst.SlotIdx()] = cell; break;
+            case Location::SLOT: ParamAt(dst.SlotIdx(), 0) = cell; break;
             case Location::NIL: FATAL("illegal dst nil");
         }
         movCount++;
+    }
+
+    /// Value moved to a destination: a pristine source becomes a MOVE cell.
+    Cell Moved(Location src)
+    {
+        Cell cell = Read(src);
+        if (cell.tag == Cell::NONE)
+            cell.tag = Cell::MOVE;
+        return cell;
     }
 
     void Mov(Location dst, Location src)
@@ -112,18 +135,30 @@ struct RegsAndSlots : public MoveEmitter {
 
     void AssignFReg(FReg dst, FReg src) override { Mov(Location::FReg(dst), Location::FReg(src)); }
 
-    void AssignParamSlot(int paramSlot, int stackSlot) override
+    void AssignParamSlot(int paramSlot, int stackSlot, Format::StoreAccessKind stk, uint32_t byteOffset) override
     {
-        Mov(Location::Slot(paramSlot), Location::Slot(stackSlot));
+        SlotSizes[slotIdx(paramSlot, byteOffset)] = static_cast<uint8_t>(stk);
+        ParamAt(paramSlot, byteOffset)            = Moved(Location::Slot(stackSlot));
+        movCount++;
     }
 
     void AssignFRegFromSlot(FReg dst, int slot) override { Mov(Location::FReg(dst), Location::Slot(slot)); }
 
     void AssignIRegFromSlot(IReg dst, int slot) override { Mov(Location::IReg(dst), Location::Slot(slot)); }
 
-    void AssignSlotFromIReg(int slot, IReg src) override { Mov(Location::Slot(slot), Location::IReg(src)); }
+    void AssignSlotFromIReg(int slot, IReg src, Format::StoreAccessKind stk, uint32_t byteOffset) override
+    {
+        SlotSizes[slotIdx(slot, byteOffset)] = static_cast<uint8_t>(stk);
+        ParamAt(slot, byteOffset)            = Moved(Location::IReg(src));
+        movCount++;
+    }
 
-    void AssignSlotFromFReg(int slot, FReg src) override { Mov(Location::Slot(slot), Location::FReg(src)); }
+    void AssignSlotFromFReg(int slot, FReg src, Format::StoreAccessKind stk, uint32_t byteOffset) override
+    {
+        SlotSizes[slotIdx(slot, byteOffset)] = static_cast<uint8_t>(stk);
+        ParamAt(slot, byteOffset)            = Moved(Location::FReg(src));
+        movCount++;
+    }
 
     void AssignIRegFromAddr(IReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
     {
@@ -135,7 +170,9 @@ struct RegsAndSlots : public MoveEmitter {
         LoadTo(Location::FReg(dst), addr, offset, ldk);
     }
 
-    void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
+    void AssignSlotFromAddr(
+        int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk, uint32_t byteOffset
+    ) override
     {
         LoadTo(Location::Slot(paramSlot), addr, offset, ldk);
     }

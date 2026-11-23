@@ -1225,9 +1225,27 @@ bool TermMatcher::HasErrors() { return hasErrors; }
 
 Cbc::CbcTypeKind Cbc::ArgTypeTraits<Engine::Term>::Kind(Engine::Term const& term)
 {
-    if (term.IsFloat()) {
-        return CbcTypeKind::F64;
-    } else if (term.IsRecord()) {
+    using TK = Engine::TermKind;
+    switch (term.GetKind()) {
+        case TK::BOOLEAN: return CbcTypeKind::BOOL;
+        case TK::U8:      return CbcTypeKind::U8;
+        case TK::I8:      return CbcTypeKind::I8;
+        case TK::U16:     return CbcTypeKind::U16;
+        case TK::I16:     return CbcTypeKind::I16;
+        case TK::U32:     return CbcTypeKind::U32;
+        case TK::I32:     return CbcTypeKind::I32;
+        case TK::U64:     return CbcTypeKind::U64;
+        case TK::I64:     return CbcTypeKind::I64;
+        case TK::UADDR:   return CbcTypeKind::U64;
+        case TK::IADDR:   return CbcTypeKind::I64;
+        case TK::F16:     return CbcTypeKind::F16;
+        case TK::F32:     return CbcTypeKind::F32;
+        case TK::F64:     return CbcTypeKind::F64;
+        case TK::UCHAR32: return CbcTypeKind::U32;
+        case TK::BSTRING: return CbcTypeKind::U64;
+        default:          break;
+    }
+    if (term.IsRecord()) {
         return CbcTypeKind::REC;
     } else if (term.IsReference()) {
         return CbcTypeKind::REF;

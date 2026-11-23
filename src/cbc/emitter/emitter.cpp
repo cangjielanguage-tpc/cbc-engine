@@ -1480,14 +1480,14 @@ void Emitter::LogInstruction(char* string)
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = string } });
 }
 
-void Emitter::StackParam(IReg src, uint16_t offset)
+void Emitter::StackParam(IReg src, uint16_t offset, Format::StoreAccessKind stk)
 {
-    Encode(segment, RT::StackParam { .opc = RT::Opcode::STK_PARAM, .src = src, .dst = offset });
+    Encode(segment, RT::StackParam { .opc = RT::Opcode::STK_PARAM, .src = src, .stk = stk, .dst = offset });
 }
 
-void Emitter::StackParamF(FReg src, uint16_t dst)
+void Emitter::StackParamF(FReg src, uint16_t dst, Format::StoreAccessKind stk)
 {
-    Encode(segment, RT::StackParamF { .opc = RT::Opcode::STK_PARAM_F, .src = src, .dst = dst });
+    Encode(segment, RT::StackParamF { .opc = RT::Opcode::STK_PARAM_F, .src = src, .stk = stk, .dst = dst });
 }
 
 void Emitter::StackParamS16(int16_t src, uint16_t dst)

@@ -252,15 +252,13 @@ LABEL(NOP) {
 LABEL(STK_PARAM) {
     auto args = RT::StackParam::Decode(reader);
     LOG_INSTR;
-    auto stk = Cbc::Format::StoreAccessKind::ST_64; // FIXME: encode for darwin_aarch64
-    MemoryLocation(frameBot, args.dst).StorePrim(stk, args.src, ectype);
+    MemoryLocation(frameBot, args.dst).StorePrim(args.stk, args.src, ectype);
     NEXT;
 }
 LABEL(STK_PARAM_F) {
     auto args = RT::StackParamF::Decode(reader);
     LOG_INSTR;
-    auto stk = Cbc::Format::StoreAccessKind::ST_F64;
-    MemoryLocation(frameBot, args.dst).StorePrim(stk, args.src, ectype);
+    MemoryLocation(frameBot, args.dst).StorePrim(args.stk, args.src, ectype);
     NEXT;
 }
 LABEL(STK_PARAM_S16) {
