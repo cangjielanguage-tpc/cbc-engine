@@ -575,6 +575,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConstIndex
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, FrameRange args)
+{
+    Operand operands[] = { static_cast<uint32_t>(args.offset), args.size };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
 void LogBaseSpaceInstruction(
     uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )

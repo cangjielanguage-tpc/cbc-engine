@@ -196,6 +196,9 @@ public:
     void StackParamS32(int32_t src, uint16_t dst);
     void LeaStackParam(IReg dst, uint16_t offset);
 
+    Utils::Vector<uint8_t> FinishWithoutFixups();
+    void ZeroFrame(int32_t offset, uint32_t size);
+
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
     void Mov(RT::Opcode opcode, Reg d, Reg s);

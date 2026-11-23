@@ -11,6 +11,7 @@
 #include "adapters.h"
 #include "cbc/formater_rt.h"
 #include "cbc/isa_rewriter.h"
+#include "engine/decode/reader.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
 #include "engine/resolving_output.h"
@@ -295,8 +296,9 @@ ExecBytecodeInfo* FunctionHandleManager::RebuildAndPublish(Session& session, con
 
     Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         out.PrintLn(
-            "Inlined bytecode version {}: {}+{}",
+            "Inlined bytecode version {} for {}: {}+{}",
             published->version,
+            ResolveFunctionName(session, *fuh),
             static_cast<const void*>(published->code.bytecode),
             published->code.bytecodeSize
         );
@@ -313,6 +315,20 @@ void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fu
         auto dynFuh = std::get<DynamicFunctionHandle*>(fuh);
         return GetDirectCallTrampoline(dynFuh);
     }
+}
+
+std::string ResolveFunctionName(Session& session, const DynamicFunctionHandle& function)
+{
+    const auto definition = Decode::Read(session, function.methodDef);
+    const auto typeName   = Decode::Read(session, definition.TypeName());
+    const auto methodName = Decode::Read(session, definition.Name());
+
+    std::string result;
+    result.reserve(typeName.size() + 1 + methodName.size());
+    result.append(typeName.data(), typeName.size());
+    result.push_back('.');
+    result.append(methodName.data(), methodName.size());
+    return result;
 }
 
 } // namespace Interpretation

@@ -58,5 +58,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParam
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamS16 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamS32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, LeaStackParam args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, FrameRange args);
 } // namespace RT
 } // namespace Cbc

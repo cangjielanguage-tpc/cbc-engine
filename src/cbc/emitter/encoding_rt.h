@@ -65,6 +65,7 @@ void Encode(ByteBuffer& buf, RT::CopyFromTypeSlotGeneric command);
 void Encode(ByteBuffer& buf, RT::Index command);
 void Encode(ByteBuffer& buf, RT::IndexGeneric command);
 void Encode(ByteBuffer& buf, RT::ConstIndexGeneric command);
+void Encode(ByteBuffer& buf, RT::FrameRange command);
 } // namespace Emitter
 } // namespace Cbc
 

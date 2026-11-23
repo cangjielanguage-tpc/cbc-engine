@@ -1505,5 +1505,16 @@ void Emitter::LeaStackParam(IReg dst, uint16_t offset)
     Encode(segment, RT::LeaStackParam { .opc = RT::Opcode::LEA_STACK_PARAM, .dst = dst, .offset = offset });
 }
 
+Utils::Vector<uint8_t> Emitter::FinishWithoutFixups()
+{
+    ASSERT(fixups.Empty());
+    return segment.Finish();
+}
+
+void Emitter::ZeroFrame(int32_t offset, uint32_t size)
+{
+    Encode(segment, RT::FrameRange { RT::Opcode::ZERO_FRAME, offset, size });
+}
+
 } // namespace Emitter
 } // namespace Cbc

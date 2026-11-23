@@ -17,7 +17,7 @@ struct ExecBytecodeInfo;
 
 namespace Cbc {
 
-constexpr uint32_t MAX_INLINE_CBC_SIZE = 128;
+constexpr uint32_t MAX_INLINE_CBC_SIZE = 256;
 
 enum class InlineRejectionReason {
     NONE,
@@ -29,17 +29,11 @@ enum class InlineRejectionReason {
     STACK_PTRS_INFO,
     EXCEPTION_REGIONS,
     UNSUPPORTED_ABI,
-    NON_VOLATILE_REGISTERS,
     UNSUPPORTED_INSTRUCTION,
+    LITERALS,
 };
 
-struct InlineEligibilityResult {
-    InlineRejectionReason reason;
-
-    bool IsAllowed() const { return reason == InlineRejectionReason::NONE; }
-};
-
-InlineEligibilityResult CheckInlineEligibility(
+InlineRejectionReason CheckInlineEligibility(
     Engine::Session& session,
     Interpretation::DynamicFunctionHandle* callerFuh,
     Interpretation::DynamicFunctionHandle* calleeFuh,

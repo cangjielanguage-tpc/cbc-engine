@@ -377,5 +377,12 @@ void Encode(ByteBuffer& buf, RT::LeaStackParam command)
     buf.AddW16(command.offset);
 }
 
+void Encode(ByteBuffer& buf, RT::FrameRange command)
+{
+    Encode(buf, command.opc);
+    buf.AddW32(static_cast<uint32_t>(command.offset));
+    buf.AddW32(command.size);
+}
+
 } // namespace Emitter
 } // namespace Cbc

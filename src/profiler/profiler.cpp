@@ -1,7 +1,6 @@
 #include "profiler.h"
 
 #include "cbc/isa_rt.h"
-#include "engine/decode/reader.h"
 #include "inlining/inline_eligibility.h"
 #include "inlining/inline_plan.h"
 #include "interpreter/function_handle.h"
@@ -22,6 +21,8 @@
 #include <vector>
 
 namespace Cbc::Profiler {
+
+using Interpretation::ResolveFunctionName;
 
 bool enabled = true;
 
@@ -112,22 +113,6 @@ private:
         worker.join();
     }
 
-    static std::string ResolveFunctionName(
-        Engine::Session& session, const Interpretation::DynamicFunctionHandle& function
-    )
-    {
-        const auto definition = Decode::Read(session, function.methodDef);
-        const auto typeName   = Decode::Read(session, definition.TypeName());
-        const auto methodName = Decode::Read(session, definition.Name());
-
-        std::string result;
-        result.reserve(typeName.size() + 1 + methodName.size());
-        result.append(typeName.data(), typeName.size());
-        result.push_back('.');
-        result.append(methodName.data(), methodName.size());
-        return result;
-    }
-
     static ProfiledCall ParseProfiledCall(Engine::Session& session, const InlineRequest& request)
     {
         return {
@@ -192,9 +177,9 @@ private:
 
         for (const auto& request : requests) {
             auto* expectedCalleeBytecode = request.calleeFuh->bytecode.load();
-            const auto eligibility =
+            const auto rejection =
                 CheckInlineEligibility(session, request.callerFuh, request.calleeFuh, expectedCalleeBytecode);
-            if (!eligibility.IsAllowed()) {
+            if (rejection != InlineRejectionReason::NONE) {
                 Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
                     out.PrintLn(
                         "Inline rejected: caller {} ({}), callee {} ({}), cbc offset {}: {}",
@@ -203,7 +188,7 @@ private:
                         static_cast<const void*>(request.calleeFuh),
                         ResolveFunctionName(session, *request.calleeFuh),
                         request.cbcCallSiteOffset,
-                        eligibility.reason
+                        rejection
                     );
                 });
                 continue;
@@ -261,7 +246,15 @@ private:
         auto& manager = Interpretation::FunctionHandleManager::Of(session);
         for (const auto& plan : plans) {
             Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
-                out << "Inlining " << plan << Stream::endl;
+                out.PrintLn("Inlining {} for {}", plan, ResolveFunctionName(session, *plan.callerFuh));
+                for (const auto& site : plan.callSites) {
+                    out.PrintLn(
+                        "  callee {} at cbc +{} (rt +{})",
+                        ResolveFunctionName(session, *site.calleeFuh),
+                        site.cbcCallSiteOffset,
+                        site.runtimeCallSiteOffset
+                    );
+                }
             });
 
             auto* published = manager.RebuildAndPublish(session, plan);
@@ -269,7 +262,7 @@ private:
                 if (published != nullptr) {
                     out.PrintLn(
                         "Rebuild succeeded: function {} bytecode {} version {}, code {}+{}",
-                        ResolveFunctionName(session, *published->ownerFuh),
+                        ResolveFunctionName(session, *plan.callerFuh),
                         reinterpret_cast<const void*>(published),
                         published->version,
                         reinterpret_cast<const void*>(published->code.bytecode),
@@ -278,7 +271,7 @@ private:
                 } else {
                     out.PrintLn(
                         "Rebuild failed: function {} bytecode {} version {} was stale or the runtime transformation was rejected",
-                        ResolveFunctionName(session, *published->ownerFuh),
+                        ResolveFunctionName(session, *plan.callerFuh),
                         reinterpret_cast<const void*>(plan.expectedBytecode),
                         plan.expectedVersion
                     );

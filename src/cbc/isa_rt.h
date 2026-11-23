@@ -229,7 +229,8 @@
     X(STORE_FRAME_IMM_1, StoreFrameImm, "st.frame.imm.1 $0stk $1U8 $2U32")                                             \
     X(STORE_FRAME_IMM_2, StoreFrameImm, "st.frame.imm.2 $0stk $1U16 $2U32")                                            \
     X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                            \
-    X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")
+    X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")                                            \
+    X(ZERO_FRAME, FrameRange, "zero.frame $0I32 $1U32")
 
 namespace Cbc {
 namespace RT {
@@ -1103,6 +1104,20 @@ struct LeaStackParam {
         auto dst    = IReg::From(b >> 4);
         auto offset = reader.Read16();
         return LeaStackParam { opc, dst, offset };
+    }
+};
+
+struct FrameRange {
+    Opcode opc;
+    int32_t offset;
+    uint32_t size;
+
+    static FrameRange Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto offset = static_cast<int32_t>(reader.Read32());
+        auto size = reader.Read32();
+        return { opc, offset, size };
     }
 };
 

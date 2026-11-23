@@ -1769,6 +1769,12 @@ ATOMIC_STORE: {
     NEXT;
 }
 
+LABEL(ZERO_FRAME) {
+    auto args = RT::FrameRange::Decode(reader);
+    LOG_INSTR;
+    std::memset(reinterpret_cast<void*>(frame.start + args.offset), 0, args.size);
+    NEXT;
+}
 #undef NEXT
 #undef NEXT_COND
 }

@@ -36,6 +36,12 @@ std::optional<std::vector<BranchPatch>> PrepareBranchPatches(
 
 void ApplyBranchPatches(uint8_t* bytecode, uint32_t bytecodeSize, const std::vector<BranchPatch>& patches);
 
-bool IsSupportedBody(const Interpretation::Code& code);
+bool IsSupportedBody(
+    const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions
+);
+
+std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
+    const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions, uint32_t frameShift
+);
 
 } // namespace Cbc

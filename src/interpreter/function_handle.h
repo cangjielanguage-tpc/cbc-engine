@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -155,5 +156,7 @@ private:
 
     std::unique_ptr<Impl> impl;
 };
+
+std::string ResolveFunctionName(Engine::Session& session, const DynamicFunctionHandle& function);
 
 } // namespace Interpretation
