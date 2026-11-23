@@ -1371,16 +1371,16 @@ LABEL(TYPE_ARG) {
 
     NEXT;
 }
-LABEL(CONVERT) {
-    auto args = UncheckedConvertOp::Decode(reader);
+LABEL(CAST) {
+    auto args = UncheckedCastInstruction::Decode(reader);
     LOG_INSTR;
-    interpreter.Convert(args.cast, args.rr.x, args.rr.y);
+    interpreter.Cast(args.cast, args.rr.x, args.rr.y);
     NEXT;
 }
-LABEL(CHECKED_CONVERT) {
-    auto args = CheckedConvertOp::Decode(reader);
+LABEL(CHECKED_CAST) {
+    auto args = CheckedCastInstruction::Decode(reader);
     LOG_INSTR;
-    Type exception = interpreter.CheckedConvert(args.cast, args.rr.x, args.rr.y);
+    Type exception = interpreter.CheckedCast(args.cast, args.rr.x, args.rr.y);
     NEXT_OR_THROW(exception == Type::Successful, exception);
 }
 LABEL(BFXS) {

@@ -277,7 +277,7 @@ TEST_F(Float16EmitTest, CheckedHalfConversionsThrow)
         heap.Reset();
         Cbc::Emitter::Emitter e;
         e.FMovI16(FReg::FR0, Utils::Float16FromBits(0x7e55 /* quiet NaN */));
-        e.Convert(CheckedCastOp::Make(CastType::F16, to), IReg::IR1, FReg::FR0);
+        e.Cast(CheckedCastOp::Make(CastType::F16, to), IReg::IR1, FReg::FR0);
         e.Ret();
         EXPECT_EQ(InterpretThrows(e.Build(heap), U64(0), U64(0)), Type::CastOverflowInfOrNaN);
     }

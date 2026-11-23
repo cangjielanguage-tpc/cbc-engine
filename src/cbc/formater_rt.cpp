@@ -331,15 +331,15 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr arg
     formatter.Format();
 }
 
-template <typename Kind> void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConvertOp<Kind> args)
+template <typename Kind> void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CastInstruction<Kind> args)
 {
     Operand operands[] = { args.cast, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
-template void Log<Format::UncheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, UncheckedConvertOp);
-template void Log<Format::CheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, CheckedConvertOp);
+template void Log<Format::UncheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, UncheckedCastInstruction);
+template void Log<Format::CheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, CheckedCastInstruction);
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args)
 {

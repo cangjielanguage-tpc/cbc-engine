@@ -351,8 +351,8 @@ using CheckedCastOp = CastInst<CheckedCasts>;
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
-    X(CONVERT, UncheckedConvertOp, "convert $0cast $1ir $2ir")                /* FIXME: ir/fr */                       \
-    X(CHECKED_CONVERT, CheckedConvertOp, "checked.convert $0ccast $1ir $2ir") /* FIXME: ir/fr */                       \
+    X(CAST, UncheckedCastInstruction, "cast $0cast $1ir $2ir")                /* FIXME: ir/fr */                       \
+    X(CHECKED_CAST, CheckedCastInstruction, "checked.cast $0ccast $1ir $2ir") /* FIXME: ir/fr */                       \
     X(CALL_CLOSURE, B1, "call.closure")                                                                                \
     X(CALL_CLOSURE_SRET, B1, "call.closure.sret")                                                                      \
     X(CALL_CLOSURE_GENERIC, B1, "call.closure.g")                                                                      \
@@ -504,13 +504,13 @@ private:
 template <typename Kind> struct CastKindInfo;
 
 template <> struct CastKindInfo<Format::UncheckedCasts> {
-    static constexpr Opcode OPC                = Opcode::CONVERT;
-    static constexpr std::string_view MNEMONIC = "convert";
+    static constexpr Opcode OPC                = Opcode::CAST;
+    static constexpr std::string_view MNEMONIC = "cast";
 };
 
 template <> struct CastKindInfo<Format::CheckedCasts> {
-    static constexpr Opcode OPC                = Opcode::CHECKED_CONVERT;
-    static constexpr std::string_view MNEMONIC = "checked.convert";
+    static constexpr Opcode OPC                = Opcode::CHECKED_CAST;
+    static constexpr std::string_view MNEMONIC = "checked.cast";
 };
 
 class ImmKind {
@@ -602,24 +602,24 @@ struct B3xrrr {
     }
 };
 
-template <typename Kind> struct ConvertOp {
+template <typename Kind> struct CastInstruction {
     static constexpr int SIZE = 3;
 
     Opcode opc;
     Format::CastInst<Kind> cast;
     Format::RR rr;
 
-    static ConvertOp Decode(Decoder::ByteReader& reader)
+    static CastInstruction Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
         auto cast = Format::CastInst<Kind>(reader.Read8());
         auto rr   = Format::RR::Decode(reader);
-        return ConvertOp { opc, cast, rr };
+        return CastInstruction { opc, cast, rr };
     }
 };
 
-using UncheckedConvertOp = ConvertOp<Format::UncheckedCasts>;
-using CheckedConvertOp   = ConvertOp<Format::CheckedCasts>;
+using UncheckedCastInstruction = CastInstruction<Format::UncheckedCasts>;
+using CheckedCastInstruction   = CastInstruction<Format::CheckedCasts>;
 
 struct B3xi12 {
     static constexpr int SIZE = 3;

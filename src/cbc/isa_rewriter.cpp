@@ -800,12 +800,12 @@ struct IsaRewriter : public IsaParser {
         emit.Unary(op, width, d, s);
     }
 
-    void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
+    void Cast(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
         EmitCast<Format::CastOp>(cast, to, from);
     }
 
-    void CheckedConvert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
+    void CheckedCast(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
         EmitCast<Format::CheckedCastOp>(cast, to, from);
     }
@@ -815,7 +815,7 @@ struct IsaRewriter : public IsaParser {
         UNWRAP_OPT(op, Op::FromPair(cast.from, cast.to), [&]() {
             FailCast(RT::CastKindInfo<typename Op::KindType>::MNEMONIC, cast);
         });
-        emit.Convert(op, to, from);
+        emit.Cast(op, to, from);
     }
 
     void FailCast(std::string_view opcode, Format::CastType::Pair cast)
