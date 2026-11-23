@@ -142,6 +142,14 @@ public func checkedPow(base: Int64, exp: UInt64): ?Int64 {
     }
 }
 
+public func throwSymbolResolutionError(): Nothing {
+    throw Exception("CBC internal error: symbol resolution error")
+}
+
+public func throwAbstractMethodCallError(): Nothing {
+    throw Exception("CBC internal error: call of an abstract method")
+}
+
 public func throwImplicitException(tpe: Int64): Int64 {
     match (tpe) {
         case 1 => throw NoneValueException()
