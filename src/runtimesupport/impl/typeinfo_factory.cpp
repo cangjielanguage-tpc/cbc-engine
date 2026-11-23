@@ -45,6 +45,24 @@ static constexpr std::string_view STD_REF_WEAK_REF_TYPE_NAME = "std.ref:WeakRef"
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
+// Common allocation unit of the engine-built type infos.
+struct TiWrapper {
+    uint64_t magic;
+    CbcTypeInfo info;
+};
+
+// The magic is never checked, it only marks the allocation as an engine-built type info (handy in heap dumps).
+static constexpr uint64_t TI_WRAPPER_MAGIC = 0xfedcba0987654321;
+
+static TiWrapper* AllocTiWrapper()
+{
+    auto wrapper = Alloc<TiWrapper>();
+    if (wrapper != nullptr) {
+        wrapper->magic = TI_WRAPPER_MAGIC;
+    }
+    return wrapper;
+}
+
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
 static void* QueryTypeTemplate(Engine::Session& session, char const* typeName);
 
@@ -418,16 +436,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    struct TiWrapper {
-        uint64_t magic;
-        CbcTypeInfo info;
-    };
-
-    auto wrapper = Alloc<TiWrapper>();
+    auto wrapper = AllocTiWrapper();
     if (!wrapper) {
         return std::nullopt;
     }
-    wrapper->magic       = 0xfedcba0987654321;
     auto currentTypeInfo = &wrapper->info;
 
     TypeInfoBuilder builder(currentTypeInfo, session, term);
@@ -984,6 +996,79 @@ static std::optional<TypeInfo> QueryFunctional(
 
     auto closureTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.closure, 1, cfuncTIBox);
     return TypeInfo(closureTypeInfo);
+}
+
+// Shapes of the built-in primitive type infos. The order must follow Interpretation::BuiltinType
+struct BuiltinTypeInfoSpec {
+    char const* name;
+    TypeKind type;
+    uint32_t instanceSize;
+    uint8_t align;
+};
+
+constexpr BuiltinTypeInfoSpec builtinTypeInfoSpecs[Interpretation::BUILTIN_COUNT] = {
+    /* BUILTIN_UNIT    */ {"Unit",       TYPE_KIND_UNIT,         0,             1},
+    /* BUILTIN_BOOLEAN */ {"Bool",       TYPE_KIND_BOOL,         1,             1},
+    /* BUILTIN_U8      */ {"UInt8",      TYPE_KIND_UINT8,        1,             1},
+    /* BUILTIN_I8      */ {"Int8",       TYPE_KIND_INT8,         1,             1},
+    /* BUILTIN_U16     */ {"UInt16",     TYPE_KIND_UINT16,       2,             2},
+    /* BUILTIN_I16     */ {"Int16",      TYPE_KIND_INT16,        2,             2},
+    /* BUILTIN_U32     */ {"UInt32",     TYPE_KIND_UINT32,       4,             4},
+    /* BUILTIN_I32     */ {"Int32",      TYPE_KIND_INT32,        4,             4},
+    /* BUILTIN_U64     */ {"UInt64",     TYPE_KIND_UINT64,       8,             8},
+    /* BUILTIN_I64     */ {"Int64",      TYPE_KIND_INT64,        8,             8},
+    /* BUILTIN_UADDR   */ {"UIntNative", TYPE_KIND_UINT_NATIVE,  sizeof(void*), sizeof(void*)},
+    /* BUILTIN_IADDR   */ {"IntNative",  TYPE_KIND_INT_NATIVE,   sizeof(void*), sizeof(void*)},
+    /* BUILTIN_F16     */ {"Float16",    TYPE_KIND_FLOAT16,      2,             2},
+    /* BUILTIN_F32     */ {"Float32",    TYPE_KIND_FLOAT32,      4,             4},
+    /* BUILTIN_F64     */ {"Float64",    TYPE_KIND_FLOAT64,      8,             8},
+    /* BUILTIN_RUNE    */ {"Rune",       TYPE_KIND_RUNE,         4,             4},
+    /* BUILTIN_NOTHING */ {"Nothing",    TYPE_KIND_NOTHING,      0,             1},
+    /* BUILTIN_CSTRING */ {"CString",    TYPE_KIND_CSTRING,      sizeof(void*), sizeof(void*)},
+};
+
+// Guards against the spec table drifting away from the bytecode ABI enum order.
+static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_UNIT].type == TYPE_KIND_UNIT);
+static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_RUNE].type == TYPE_KIND_RUNE);
+static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_NOTHING].type == TYPE_KIND_NOTHING);
+static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_CSTRING].type == TYPE_KIND_CSTRING);
+
+static TypeInfo CreateBuiltinTypeInfo(Interpretation::BuiltinType builtin)
+{
+    auto const& spec = builtinTypeInfoSpecs[builtin];
+
+    auto wrapper = AllocTiWrapper();
+    if (!wrapper) {
+        FATAL("failed to allocate type info for the builtin type %s", spec.name);
+    }
+
+    // Zero initialization gives the AOT std-core shape of a primitive type info:
+    // flag = 0, fieldNum = 0, gctib = 0, uuid = 0, validInheritNum = 0, and null
+    // fields/typeArgs/extension data/method table.
+    auto info = &wrapper->info;
+    *info     = CbcTypeInfo{};
+
+    info->base.typeInfoName = spec.name;
+    info->base.type         = static_cast<int8_t>(spec.type);
+    info->base.instanceSize = spec.instanceSize;
+    info->base.align        = spec.align;
+
+    Log::typeinfo.Log(Logging::Level::INFO, [&spec](Stream::Output& out) {
+        out.PrintFmt(
+            "Builtin type info %s: type=%d instanceSize=%u align=%u", spec.name, spec.type, spec.instanceSize, spec.align
+        );
+        out.NewLine();
+    });
+
+    return TypeInfo(info);
+}
+
+void InitBuiltinTypeInfos()
+{
+    for (int i = 0; i < Interpretation::BUILTIN_COUNT; ++i) {
+        auto builtin                              = static_cast<Interpretation::BuiltinType>(i);
+        Interpretation::builtinTypeInfos[builtin] = CreateBuiltinTypeInfo(builtin);
+    }
 }
 
 std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
