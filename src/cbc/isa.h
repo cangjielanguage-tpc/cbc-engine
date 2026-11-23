@@ -489,20 +489,26 @@ private:
 };
 
 struct CastType {
+#define CastTypeValue(X)                                                                                               \
+    X(I8, 0x0, "I8")                                                                                                   \
+    X(U8, 0x1, "U8")                                                                                                   \
+    X(I16, 0x2, "I16")                                                                                                 \
+    X(U16, 0x3, "U16")                                                                                                 \
+    X(I32, 0x4, "I32")                                                                                                 \
+    X(U32, 0x5, "U32")                                                                                                 \
+    X(I64, 0x6, "I64")                                                                                                 \
+    X(U64, 0x7, "U64")                                                                                                 \
+    X(F16, 0x8, "F16")                                                                                                 \
+    X(F32, 0x9, "F32")                                                                                                 \
+    X(F64, 0xa, "F64")
+
+#define CastTypeEnum(opc, value, str) opc = value,
+
     enum Code : uint8_t {
-        I8  = 0x0,
-        U8  = 0x1,
-        I16 = 0x2,
-        U16 = 0x3,
-        I32 = 0x4,
-        U32 = 0x5,
-        I64 = 0x6,
-        U64 = 0x7,
-        F16 = 0x8,
-        F32 = 0x9,
-        F64 = 0xa,
-        COUNT
+        CastTypeValue(CastTypeEnum) COUNT
     };
+
+#undef CastTypeEnum
 
     struct Pair {
         Code from;
@@ -511,20 +517,15 @@ struct CastType {
 
     static constexpr std::string_view Name(Code code)
     {
+#define CastTypeStr(opc, value, str)                                                                                   \
+    case opc: return str;
+
         switch (code) {
-            case I8:  return "I8";
-            case U8:  return "U8";
-            case I16: return "I16";
-            case U16: return "U16";
-            case I32: return "I32";
-            case U32: return "U32";
-            case I64: return "I64";
-            case U64: return "U64";
-            case F16: return "F16";
-            case F32: return "F32";
-            case F64: return "F64";
-            default:  return "<invalid>";
+            CastTypeValue(CastTypeStr);
+            default: return "<invalid>";
         }
+
+#undef CastTypeStr
     }
 
     static constexpr bool IsFloatingPoint(Code code) { return code >= F16 && code <= F64; }

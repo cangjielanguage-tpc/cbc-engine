@@ -575,7 +575,7 @@ struct IsaRewriter : public IsaParser {
 
     template <typename Op> void EmitCast(Format::CastType::Pair cast, AnyReg to, AnyReg from)
     {
-        UNWRAP_OPT(op, Op::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to)), [&]() {
+        UNWRAP_OPT(op, Op::FromPair(cast.from, cast.to), [&]() {
             FailCast(RT::CastKindInfo<typename Op::KindType>::MNEMONIC, cast);
         });
         emit.Convert(op, to, from);

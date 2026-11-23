@@ -58,46 +58,19 @@ template <typename To, typename From> inline Value::Primitive CastFpToInt(From v
 }
 
 /// C++ type that backs the CBC type code in `Value::Primitive`.
-template <CastType::Code Code> struct CppType;
-
-template <> struct CppType<CastType::I8> {
-    using Type = int8_t;
-};
-
-template <> struct CppType<CastType::U8> {
-    using Type = uint8_t;
-};
-
-template <> struct CppType<CastType::I16> {
-    using Type = int16_t;
-};
-
-template <> struct CppType<CastType::U16> {
-    using Type = uint16_t;
-};
-
-template <> struct CppType<CastType::I32> {
-    using Type = int32_t;
-};
-
-template <> struct CppType<CastType::U32> {
-    using Type = uint32_t;
-};
-
-template <> struct CppType<CastType::I64> {
-    using Type = int64_t;
-};
-
-template <> struct CppType<CastType::U64> {
-    using Type = uint64_t;
-};
-
-template <> struct CppType<CastType::F32> {
-    using Type = float;
-};
-
-template <> struct CppType<CastType::F64> {
-    using Type = double;
+template <CastType::Code Code> struct CppType {
+    static_assert(Code != CastType::F16 && Code < CastType::COUNT, "Not supported yet");
+    // clang-format off
+    using Type = std::conditional_t<Code == CastType::I8, int8_t,
+        std::conditional_t<Code == CastType::U8, uint8_t,
+        std::conditional_t<Code == CastType::I16, int16_t,
+        std::conditional_t<Code == CastType::U16, uint16_t,
+        std::conditional_t<Code == CastType::I32, int32_t,
+        std::conditional_t<Code == CastType::U32, uint32_t,
+        std::conditional_t<Code == CastType::I64, int64_t,
+        std::conditional_t<Code == CastType::U64, uint64_t,
+        std::conditional_t<Code == CastType::F32, float, double>>>>>>>>>;
+    // clang-format on
 };
 
 template <CastType::Code Code> using CppTypeT = typename CppType<Code>::Type;
@@ -196,41 +169,12 @@ template <typename To> static inline CheckedCastResult CheckedCastFromUnsigned(u
     return { MakeIntPrim(static_cast<To>(value)), false };
 }
 
-// Bound of integer type encoded in double.
+// Bound of integer type encoded in double: one past the largest representable value,
+// or minus the smallest one for signed types.
 // Done this way to elide std::ldexp call.
-template <typename To> struct FpIntBound;
-
-template <> struct FpIntBound<int8_t> {
-    static constexpr double value = 0x1p7;
-};
-
-template <> struct FpIntBound<uint8_t> {
-    static constexpr double value = 0x1p8;
-};
-
-template <> struct FpIntBound<int16_t> {
-    static constexpr double value = 0x1p15;
-};
-
-template <> struct FpIntBound<uint16_t> {
-    static constexpr double value = 0x1p16;
-};
-
-template <> struct FpIntBound<int32_t> {
-    static constexpr double value = 0x1p31;
-};
-
-template <> struct FpIntBound<uint32_t> {
-    static constexpr double value = 0x1p32;
-};
-
-template <> struct FpIntBound<int64_t> {
-    static constexpr double value = 0x1p63;
-};
-
-template <> struct FpIntBound<uint64_t> {
-    static constexpr double value = 0x1p64;
-};
+template <typename To>
+inline constexpr double FpIntBound = std::is_signed_v<To> ? -static_cast<double>(std::numeric_limits<To>::min())
+                                                          : static_cast<double>(std::numeric_limits<To>::max()) + 1.0;
 
 // Checked casts rules: the source value must be representable
 // in the target type, otherwise the cast throws `OverflowException`.
@@ -247,7 +191,7 @@ template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
     // truncated value (so e.g. -128.9 fits into Int8 as -128).
     const double truncated = std::trunc(value);
 
-    constexpr double bound = FpIntBound<To>::value;
+    constexpr double bound = FpIntBound<To>;
     bool inRange;
     if constexpr (std::is_signed_v<To>) {
         inRange = truncated >= -bound && truncated < bound;

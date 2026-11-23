@@ -130,23 +130,24 @@ public:
     using KindType = Kind;
 
     using TypeCode = CastType::Code;
-    using TypePair = CastType::Pair;
 
     static constexpr size_t COUNT = sizeof(Kind::pairs) / sizeof(Kind::pairs[0]);
 
     /// Encodes the pair, or returns `std::nullopt` if the pair has no opcode of this kind.
-    constexpr static std::optional<CastInst> FromPair(uint8_t from, uint8_t to)
+    constexpr static std::optional<CastInst> FromPair(TypeCode from, TypeCode to)
     {
-        if (from >= CastType::COUNT || to >= CastType::COUNT) {
-            return std::nullopt;
+        for (size_t i = 0; i < COUNT; i++) {
+            if (Kind::pairs[i].from == from && Kind::pairs[i].to == to) {
+                return CastInst(static_cast<uint8_t>(i));
+            }
         }
-        return MakeOpt(static_cast<TypeCode>(from), static_cast<TypeCode>(to));
+        return std::nullopt;
     }
 
     /// Compile-time pair constructor: an unsupported pair is a compile error.
     constexpr static CastInst Make(TypeCode from, TypeCode to)
     {
-        auto op = MakeOpt(from, to);
+        auto op = FromPair(from, to);
         if (!op.has_value()) {
             auto fromName = CastType::Name(from);
             auto toName   = CastType::Name(to);
@@ -190,16 +191,6 @@ public:
     constexpr std::string_view FromTypeStr() const { return CastType::Name(FromType()); }
 
 private:
-    constexpr static std::optional<CastInst> MakeOpt(TypeCode from, TypeCode to)
-    {
-        for (size_t i = 0; i < COUNT; i++) {
-            if (Kind::pairs[i].from == from && Kind::pairs[i].to == to) {
-                return CastInst(static_cast<uint8_t>(i));
-            }
-        }
-        return std::nullopt;
-    }
-
     constexpr static bool UniquePairs()
     {
         for (size_t i = 0; i < COUNT; i++) {
