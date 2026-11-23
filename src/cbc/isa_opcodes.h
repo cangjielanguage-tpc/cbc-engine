@@ -56,8 +56,8 @@
     X(Binary64, BinaryGeneric<Width::W64>)                                                                             \
     X(BinaryImm32, BinaryImm<Width::W32>)                                                                              \
     X(BinaryImm64, BinaryImm<Width::W64>)                                                                              \
-    X(Cast, Cast)                                                                                                \
-    X(CheckedCast, CheckedCast)                                                                                  \
+    X(Cast, Cast)                                                                                                      \
+    X(CheckedCast, CheckedCast)                                                                                        \
     X(NewArr, NewArr)                                                                                                  \
     X(NewArrGeneric, NewArrGeneric)                                                                                    \
     X(GcPoint, GcPoint)                                                                                                \

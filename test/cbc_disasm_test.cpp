@@ -57,6 +57,16 @@ TEST_ASM(CbcDisasmTest, VirtCall)
     CompareWith("cbc-virt-call.asm", expected);
 }
 
+TEST_ASM(CbcDisasmTest, Cast)
+{
+    std::string expected = " 0: mov.W64 IR1, 1\n"
+                           " 3: cast I64, I32, IR1, IR1\n"
+                           " 6: cast U32, U64, IR1, IR1\n"
+                           " 9: checked.cast I8, I32, IR1, IR1\n"
+                           "12: ret.W64 IR1\n";
+    CompareWith("cast.asm", expected);
+}
+
 // Direct disasm of the InitOption Option opcodes via Cbc::RT::Log.
 // These verify the ISA-RT opcode-table format strings round-trip:
 //   INIT_NONE_GENERIC_OPT0 -> "init.none.g0 $1ir"
@@ -88,13 +98,4 @@ TEST(CbcRtDisasmTest, InitSomeGeneric)
         .underlyingTi = Cbc::IReg::IR1,
     };
     EXPECT_EQ("init.some.g0 IR2 IR1\n", RtLog(args));
-}
-
-TEST_ASM(CbcDisasmTest, Cast)
-{
-    std::string expected = " 0: mov.W64 IR1, 1\n"
-                           " 3: cast I64, I32, IR1, IR1\n"
-                           " 6: cast U32, U64, IR1, IR1\n"
-                           " 9: ret.W64 IR1\n";
-    CompareWith("cast.asm", expected);
 }

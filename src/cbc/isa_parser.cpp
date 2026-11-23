@@ -418,6 +418,9 @@ struct IsaParserImpl {
         parser.CBinaryImm(op, width, dst, lhs, static_cast<uint64_t>(MergeLowHi(low4, hibits)));
     }
 
+    // Compiler-ISA cast layout: the four nibbles are (toType, fromType, to, from).
+    // The engine's own RT form encodes a dense index into the cast pair table
+    // instead (see `RT::CastInstruction`).
     static auto ReadCastOperands(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();

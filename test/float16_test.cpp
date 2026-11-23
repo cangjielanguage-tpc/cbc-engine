@@ -167,7 +167,8 @@ TEST(Float16, NumericRoundTrips)
     for (uint32_t bits = 0; bits <= 0xffff; ++bits) {
         auto half = Value::MakeF16Bits(bits);
         for (auto wide : { CastType::F32, CastType::F64 }) {
-            auto result = CastPrim(CastOp::Make(wide, CastType::F16), CastPrim(CastOp::Make(CastType::F16, wide), half));
+            auto result =
+                CastPrim(CastOp::Make(wide, CastType::F16), CastPrim(CastOp::Make(CastType::F16, wide), half));
             // signless encodings above infinity are NaNs, whose payload may change in a cast
             if ((bits & 0x7fff) > 0x7c00) {
                 ASSERT_GT(Value::F16Bits(result) & 0x7fff, 0x7c00);
@@ -178,7 +179,7 @@ TEST(Float16, NumericRoundTrips)
     }
 }
 
-TEST(Float16, DirectDoubleConversion)
+TEST(Float16, DirectDoubleCast)
 {
 #if defined(__x86_64__) || defined(_M_X64)
     // TODO: https://git.excelsior.internal/cbc/kanban/issues/265
@@ -191,10 +192,7 @@ TEST(Float16, DirectDoubleConversion)
                         { 0x1p-24, 1 },
                         { 0x1p-25, 0 },
                         { -0.0, 0x8000 } }) {
-        EXPECT_EQ(
-            Value::F16Bits(CastPrim(CastOp::Make(CastType::F64, CastType::F16), F64(entry.first))),
-            entry.second
-        );
+        EXPECT_EQ(Value::F16Bits(CastPrim(CastOp::Make(CastType::F64, CastType::F16), F64(entry.first))), entry.second);
     }
 }
 
@@ -216,7 +214,9 @@ TEST(Float16, IntegerBoundsAndCheckedCasts)
         );
     }
     EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, CastType::I8), Value::MakeF16Bits(0x7c00 /* +inf */)).u64, 127);
-    EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, CastType::U16), Value::MakeF16Bits(0x7bff /* 65504.0 */)).u64, 65504);
+    EXPECT_EQ(
+        CastPrim(CastOp::Make(CastType::F16, CastType::U16), Value::MakeF16Bits(0x7bff /* 65504.0 */)).u64, 65504
+    );
     EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, CastType::U64), Value::MakeF16Bits(0xbc00 /* -1.0 */)).u64, 0);
     EXPECT_EQ(
         CastPrim(CastOp::Make(CastType::F16, CastType::I64), Value::MakeF16Bits(0xfc00 /* -inf */)).u64,
@@ -264,7 +264,7 @@ TEST(Float16, SerializedEncodingAndDisassembly)
     EXPECT_EQ(stream.ToString(), "0: fmovi.16 FR2 bits=64853\n4: fret.W16 FR2\n");
 }
 
-TEST_F(Float16EmitTest, CheckedHalfConversionsThrow)
+TEST_F(Float16EmitTest, CheckedHalfCastsThrow)
 {
     for (auto to : { CastType::I8,
                      CastType::U8,

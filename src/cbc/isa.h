@@ -559,6 +559,9 @@ struct CastType {
     }
 
     static constexpr bool IsFloatingPoint(Code code) { return code >= F16 && code <= F64; }
+
+    // `IsFloatingPoint` relies on F16..F64 being one contiguous block of codes.
+    static_assert(F32 == F16 + 1 && F64 == F32 + 1, "float cast codes must stay contiguous");
 };
 
 class FloatOperations {

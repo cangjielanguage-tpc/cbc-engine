@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -15,7 +14,9 @@ using Interpretation::CheckedCastOp;
 using Interpretation::CheckedCastPrim;
 using Interpretation::Type;
 using CastType = Cbc::Format::CastType;
-using Prim = Interpretation::Value::Primitive;
+using Prim     = Interpretation::Value::Primitive;
+using Cbc::Format::CheckedCasts;
+using Cbc::Format::UncheckedCasts;
 
 constexpr uint64_t ALL_ONES = 0xffffffffffffffffULL;
 
@@ -100,12 +101,12 @@ void ExpectUncheckedInt(CastOp op, Prim in, uint64_t expected)
     EXPECT_EQ(CastPrim(op, in).u64, expected);
 }
 
-void ExpectCheckedInt(CheckedCastOp op, Prim in, uint64_t expected, bool overflow)
+void ExpectCheckedInt(CheckedCastOp op, Prim in, uint64_t expected, Type expectedException = Type::Successful)
 {
     SCOPED_TRACE(OpName(op));
     auto res = CheckedCastPrim(op, in);
-    EXPECT_EQ(res.exception != Type::Successful, overflow);
-    if (!overflow) {
+    EXPECT_EQ(res.exception, expectedException);
+    if (expectedException == Type::Successful) {
         EXPECT_EQ(res.value.u64, expected);
     }
 }
@@ -120,7 +121,7 @@ struct CheckedIntCase {
     CheckedCastOp op;
     Prim input;
     uint64_t expected;
-    bool overflow;
+    Type exception;
 };
 
 } // namespace
@@ -255,95 +256,122 @@ TEST(CastsTest, UncheckedFloatToFloat)
     EXPECT_FLOAT_EQ(CastPrim(CastOp::Make(CastType::F64, CastType::F32), F64(1.5)).f32, 1.5f);
 }
 
-TEST(CastsTest, CheckedInteger)
+TEST(CastsTest, UncheckedIntToF16)
 {
-    const CheckedIntCase cases[] = {
-        { CheckedCastOp::Make(CastType::I8, CastType::U8), I8(127), 127, false },
-        { CheckedCastOp::Make(CastType::I8, CastType::U8), I8(-1), 0, true },
-        { CheckedCastOp::Make(CastType::U8, CastType::I8), U8(127), 127, false },
-        { CheckedCastOp::Make(CastType::U8, CastType::I8), U8(128), 0, true },
+    struct Case {
+        CastOp op;
+        Prim input;
+        uint16_t expected;
+    };
 
-        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(127), 127, false },
-        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(128), 0, true },
-        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(-128), 0xffffffffffffff80ULL, false },
-        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(-129), 0, true },
-        { CheckedCastOp::Make(CastType::I16, CastType::U8), I16(255), 255, false },
-        { CheckedCastOp::Make(CastType::I16, CastType::U8), I16(256), 0, true },
-        { CheckedCastOp::Make(CastType::I16, CastType::U8), I16(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I16, CastType::U16), I16(32767), 32767, false },
-        { CheckedCastOp::Make(CastType::I16, CastType::U16), I16(-1), 0, true },
-        { CheckedCastOp::Make(CastType::U16, CastType::I8), U16(127), 127, false },
-        { CheckedCastOp::Make(CastType::U16, CastType::I8), U16(128), 0, true },
-        { CheckedCastOp::Make(CastType::U16, CastType::U8), U16(255), 255, false },
-        { CheckedCastOp::Make(CastType::U16, CastType::U8), U16(256), 0, true },
-        { CheckedCastOp::Make(CastType::U16, CastType::I16), U16(32767), 32767, false },
-        { CheckedCastOp::Make(CastType::U16, CastType::I16), U16(32768), 0, true },
-
-        { CheckedCastOp::Make(CastType::I32, CastType::I8), I32(127), 127, false },
-        { CheckedCastOp::Make(CastType::I32, CastType::I8), I32(128), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::I8), I32(-129), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::U8), I32(255), 255, false },
-        { CheckedCastOp::Make(CastType::I32, CastType::U8), I32(256), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::U8), I32(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::I16), I32(32767), 32767, false },
-        { CheckedCastOp::Make(CastType::I32, CastType::I16), I32(32768), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::I16), I32(-32769), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::U16), I32(65535), 65535, false },
-        { CheckedCastOp::Make(CastType::I32, CastType::U16), I32(65536), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::U16), I32(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::U32), I32(0), 0, false },
-        { CheckedCastOp::Make(CastType::I32, CastType::U32), I32(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I32, CastType::U32), I32(0x7fffffff), 0x7fffffff, false },
-        { CheckedCastOp::Make(CastType::U32, CastType::I8), U32(127), 127, false },
-        { CheckedCastOp::Make(CastType::U32, CastType::I8), U32(128), 0, true },
-        { CheckedCastOp::Make(CastType::U32, CastType::U8), U32(255), 255, false },
-        { CheckedCastOp::Make(CastType::U32, CastType::U8), U32(256), 0, true },
-        { CheckedCastOp::Make(CastType::U32, CastType::I16), U32(32767), 32767, false },
-        { CheckedCastOp::Make(CastType::U32, CastType::I16), U32(32768), 0, true },
-        { CheckedCastOp::Make(CastType::U32, CastType::U16), U32(65535), 65535, false },
-        { CheckedCastOp::Make(CastType::U32, CastType::U16), U32(65536), 0, true },
-        { CheckedCastOp::Make(CastType::U32, CastType::I32), U32(0x7fffffff), 0x7fffffff, false },
-        { CheckedCastOp::Make(CastType::U32, CastType::I32), U32(0x80000000), 0, true },
-
-        { CheckedCastOp::Make(CastType::I64, CastType::I8), I64(127), 127, false },
-        { CheckedCastOp::Make(CastType::I64, CastType::I8), I64(128), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::I8), I64(-129), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U8), I64(255), 255, false },
-        { CheckedCastOp::Make(CastType::I64, CastType::U8), I64(256), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U8), I64(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::I16), I64(32767), 32767, false },
-        { CheckedCastOp::Make(CastType::I64, CastType::I16), I64(32768), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::I16), I64(-32769), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U16), I64(65535), 65535, false },
-        { CheckedCastOp::Make(CastType::I64, CastType::U16), I64(65536), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U16), I64(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::I32), I64(0x7fffffff), 0x7fffffff, false },
-        { CheckedCastOp::Make(CastType::I64, CastType::I32), I64(0x80000000), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::I32), I64(-2147483649LL), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U32), I64(0xffffffff), 0xffffffff, false },
-        { CheckedCastOp::Make(CastType::I64, CastType::U32), I64(0x100000000LL), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U32), I64(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U64), I64(0), 0, false },
-        { CheckedCastOp::Make(CastType::I64, CastType::U64), I64(-1), 0, true },
-        { CheckedCastOp::Make(CastType::I64, CastType::U64), I64(0x7fffffffffffffffLL), 0x7fffffffffffffffULL, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::I8), U64(127), 127, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::I8), U64(128), 0, true },
-        { CheckedCastOp::Make(CastType::U64, CastType::U8), U64(255), 255, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::U8), U64(256), 0, true },
-        { CheckedCastOp::Make(CastType::U64, CastType::I16), U64(32767), 32767, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::I16), U64(32768), 0, true },
-        { CheckedCastOp::Make(CastType::U64, CastType::U16), U64(65535), 65535, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::U16), U64(65536), 0, true },
-        { CheckedCastOp::Make(CastType::U64, CastType::I32), U64(0x7fffffff), 0x7fffffff, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::I32), U64(0x80000000), 0, true },
-        { CheckedCastOp::Make(CastType::U64, CastType::U32), U64(0xffffffff), 0xffffffff, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::U32), U64(0x100000000ULL), 0, true },
-        { CheckedCastOp::Make(CastType::U64, CastType::I64), U64(0x7fffffffffffffffULL), 0x7fffffffffffffffULL, false },
-        { CheckedCastOp::Make(CastType::U64, CastType::I64), U64(0x8000000000000000ULL), 0, true },
+    const Case cases[] = {
+        { CastOp::Make(CastType::I32, CastType::F16), I32(-5), 0xc500 },
+        { CastOp::Make(CastType::U32, CastType::F16), U32(1), 0x3c00 },
+        { CastOp::Make(CastType::I64, CastType::F16), I64(2048), 0x6800 },
+        { CastOp::Make(CastType::U64, CastType::F16), U64(65504), 0x7bff },
     };
 
     for (const auto& c : cases) {
-        ExpectCheckedInt(c.op, c.input, c.expected, c.overflow);
+        SCOPED_TRACE(OpName(c.op));
+        EXPECT_EQ(Interpretation::Value::F16Bits(CastPrim(c.op, c.input)), c.expected);
+    }
+}
+
+TEST(CastsTest, CheckedInteger)
+{
+    const CheckedIntCase cases[] = {
+        { CheckedCastOp::Make(CastType::I8, CastType::U8), I8(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::I8, CastType::U8), I8(-1), 0, Type::CastOverflowU8Min },
+        { CheckedCastOp::Make(CastType::U8, CastType::I8), U8(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::U8, CastType::I8), U8(128), 0, Type::CastOverflowI8Max },
+
+        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(128), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(-128), 0xffffffffffffff80ULL, Type::Successful },
+        { CheckedCastOp::Make(CastType::I16, CastType::I8), I16(-129), 0, Type::CastOverflowI8Min },
+        { CheckedCastOp::Make(CastType::I16, CastType::U8), I16(255), 255, Type::Successful },
+        { CheckedCastOp::Make(CastType::I16, CastType::U8), I16(256), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::I16, CastType::U8), I16(-1), 0, Type::CastOverflowU8Min },
+        { CheckedCastOp::Make(CastType::I16, CastType::U16), I16(32767), 32767, Type::Successful },
+        { CheckedCastOp::Make(CastType::I16, CastType::U16), I16(-1), 0, Type::CastOverflowU16Min },
+        { CheckedCastOp::Make(CastType::U16, CastType::I8), U16(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::U16, CastType::I8), U16(128), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::U16, CastType::U8), U16(255), 255, Type::Successful },
+        { CheckedCastOp::Make(CastType::U16, CastType::U8), U16(256), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::U16, CastType::I16), U16(32767), 32767, Type::Successful },
+        { CheckedCastOp::Make(CastType::U16, CastType::I16), U16(32768), 0, Type::CastOverflowI16Max },
+
+        { CheckedCastOp::Make(CastType::I32, CastType::I8), I32(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::I32, CastType::I8), I32(128), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::I32, CastType::I8), I32(-129), 0, Type::CastOverflowI8Min },
+        { CheckedCastOp::Make(CastType::I32, CastType::U8), I32(255), 255, Type::Successful },
+        { CheckedCastOp::Make(CastType::I32, CastType::U8), I32(256), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::I32, CastType::U8), I32(-1), 0, Type::CastOverflowU8Min },
+        { CheckedCastOp::Make(CastType::I32, CastType::I16), I32(32767), 32767, Type::Successful },
+        { CheckedCastOp::Make(CastType::I32, CastType::I16), I32(32768), 0, Type::CastOverflowI16Max },
+        { CheckedCastOp::Make(CastType::I32, CastType::I16), I32(-32769), 0, Type::CastOverflowI16Min },
+        { CheckedCastOp::Make(CastType::I32, CastType::U16), I32(65535), 65535, Type::Successful },
+        { CheckedCastOp::Make(CastType::I32, CastType::U16), I32(65536), 0, Type::CastOverflowU16Max },
+        { CheckedCastOp::Make(CastType::I32, CastType::U16), I32(-1), 0, Type::CastOverflowU16Min },
+        { CheckedCastOp::Make(CastType::I32, CastType::U32), I32(0), 0, Type::Successful },
+        { CheckedCastOp::Make(CastType::I32, CastType::U32), I32(-1), 0, Type::CastOverflowU32Min },
+        { CheckedCastOp::Make(CastType::I32, CastType::U32), I32(0x7fffffff), 0x7fffffff, Type::Successful },
+        { CheckedCastOp::Make(CastType::U32, CastType::I8), U32(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::U32, CastType::I8), U32(128), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::U32, CastType::U8), U32(255), 255, Type::Successful },
+        { CheckedCastOp::Make(CastType::U32, CastType::U8), U32(256), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::U32, CastType::I16), U32(32767), 32767, Type::Successful },
+        { CheckedCastOp::Make(CastType::U32, CastType::I16), U32(32768), 0, Type::CastOverflowI16Max },
+        { CheckedCastOp::Make(CastType::U32, CastType::U16), U32(65535), 65535, Type::Successful },
+        { CheckedCastOp::Make(CastType::U32, CastType::U16), U32(65536), 0, Type::CastOverflowU16Max },
+        { CheckedCastOp::Make(CastType::U32, CastType::I32), U32(0x7fffffff), 0x7fffffff, Type::Successful },
+        { CheckedCastOp::Make(CastType::U32, CastType::I32), U32(0x80000000), 0, Type::CastOverflowI32Max },
+
+        { CheckedCastOp::Make(CastType::I64, CastType::I8), I64(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::I64, CastType::I8), I64(128), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::I64, CastType::I8), I64(-129), 0, Type::CastOverflowI8Min },
+        { CheckedCastOp::Make(CastType::I64, CastType::U8), I64(255), 255, Type::Successful },
+        { CheckedCastOp::Make(CastType::I64, CastType::U8), I64(256), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::I64, CastType::U8), I64(-1), 0, Type::CastOverflowU8Min },
+        { CheckedCastOp::Make(CastType::I64, CastType::I16), I64(32767), 32767, Type::Successful },
+        { CheckedCastOp::Make(CastType::I64, CastType::I16), I64(32768), 0, Type::CastOverflowI16Max },
+        { CheckedCastOp::Make(CastType::I64, CastType::I16), I64(-32769), 0, Type::CastOverflowI16Min },
+        { CheckedCastOp::Make(CastType::I64, CastType::U16), I64(65535), 65535, Type::Successful },
+        { CheckedCastOp::Make(CastType::I64, CastType::U16), I64(65536), 0, Type::CastOverflowU16Max },
+        { CheckedCastOp::Make(CastType::I64, CastType::U16), I64(-1), 0, Type::CastOverflowU16Min },
+        { CheckedCastOp::Make(CastType::I64, CastType::I32), I64(0x7fffffff), 0x7fffffff, Type::Successful },
+        { CheckedCastOp::Make(CastType::I64, CastType::I32), I64(0x80000000), 0, Type::CastOverflowI32Max },
+        { CheckedCastOp::Make(CastType::I64, CastType::I32), I64(-2147483649LL), 0, Type::CastOverflowI32Min },
+        { CheckedCastOp::Make(CastType::I64, CastType::U32), I64(0xffffffff), 0xffffffff, Type::Successful },
+        { CheckedCastOp::Make(CastType::I64, CastType::U32), I64(0x100000000LL), 0, Type::CastOverflowU32Max },
+        { CheckedCastOp::Make(CastType::I64, CastType::U32), I64(-1), 0, Type::CastOverflowU32Min },
+        { CheckedCastOp::Make(CastType::I64, CastType::U64), I64(0), 0, Type::Successful },
+        { CheckedCastOp::Make(CastType::I64, CastType::U64), I64(-1), 0, Type::CastOverflowU64Min },
+        { CheckedCastOp::Make(CastType::I64, CastType::U64),
+          I64(0x7fffffffffffffffLL),
+          0x7fffffffffffffffULL,
+          Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::I8), U64(127), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::I8), U64(128), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::U64, CastType::U8), U64(255), 255, Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::U8), U64(256), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::U64, CastType::I16), U64(32767), 32767, Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::I16), U64(32768), 0, Type::CastOverflowI16Max },
+        { CheckedCastOp::Make(CastType::U64, CastType::U16), U64(65535), 65535, Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::U16), U64(65536), 0, Type::CastOverflowU16Max },
+        { CheckedCastOp::Make(CastType::U64, CastType::I32), U64(0x7fffffff), 0x7fffffff, Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::I32), U64(0x80000000), 0, Type::CastOverflowI32Max },
+        { CheckedCastOp::Make(CastType::U64, CastType::U32), U64(0xffffffff), 0xffffffff, Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::U32), U64(0x100000000ULL), 0, Type::CastOverflowU32Max },
+        { CheckedCastOp::Make(CastType::U64, CastType::I64),
+          U64(0x7fffffffffffffffULL),
+          0x7fffffffffffffffULL,
+          Type::Successful },
+        { CheckedCastOp::Make(CastType::U64, CastType::I64), U64(0x8000000000000000ULL), 0, Type::CastOverflowI64Max },
+    };
+
+    for (const auto& c : cases) {
+        ExpectCheckedInt(c.op, c.input, c.expected, c.exception);
     }
 }
 
@@ -355,81 +383,89 @@ TEST(CastsTest, CheckedFloatToInt)
     const double inf64 = std::numeric_limits<double>::infinity();
 
     const CheckedIntCase cases[] = {
-        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(127.9f), 127, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(128.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(-128.9f), 0xffffffffffffff80ULL, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(-129.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(nan32), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(inf32), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(255.9f), 255, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(256.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(-0.9f), 0, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(-1.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(nan32), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I16), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::I16), F32(32768.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I16), F32(-32769.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U16), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::U16), F32(65536.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U16), F32(-1.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I32), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::I32), F32(2147483648.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I32), F32(-3e9f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U32), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::U32), F32(4294967296.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U32), F32(-1.0f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I64), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::I64), F32(1e30f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::I64), F32(nan32), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U64), F32(42.9f), 42, false },
-        { CheckedCastOp::Make(CastType::F32, CastType::U64), F32(1e30f), 0, true },
-        { CheckedCastOp::Make(CastType::F32, CastType::U64), F32(-1.0f), 0, true },
+        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(127.9f), 127, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(128.0f), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(-128.9f), 0xffffffffffffff80ULL, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(-129.0f), 0, Type::CastOverflowI8Min },
+        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(nan32), 0, Type::CastOverflowInfOrNaN },
+        { CheckedCastOp::Make(CastType::F32, CastType::I8), F32(inf32), 0, Type::CastOverflowInfOrNaN },
+        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(255.9f), 255, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(256.0f), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(-0.9f), 0, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(-1.0f), 0, Type::CastOverflowU8Min },
+        { CheckedCastOp::Make(CastType::F32, CastType::U8), F32(nan32), 0, Type::CastOverflowInfOrNaN },
+        { CheckedCastOp::Make(CastType::F32, CastType::I16), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::I16), F32(32768.0f), 0, Type::CastOverflowI16Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::I16), F32(-32769.0f), 0, Type::CastOverflowI16Min },
+        { CheckedCastOp::Make(CastType::F32, CastType::U16), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::U16), F32(65536.0f), 0, Type::CastOverflowU16Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::U16), F32(-1.0f), 0, Type::CastOverflowU16Min },
+        { CheckedCastOp::Make(CastType::F32, CastType::I32), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::I32), F32(2147483648.0f), 0, Type::CastOverflowI32Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::I32), F32(-3e9f), 0, Type::CastOverflowI32Min },
+        { CheckedCastOp::Make(CastType::F32, CastType::U32), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::U32), F32(4294967296.0f), 0, Type::CastOverflowU32Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::U32), F32(-1.0f), 0, Type::CastOverflowU32Min },
+        { CheckedCastOp::Make(CastType::F32, CastType::I64), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::I64), F32(1e30f), 0, Type::CastOverflowI64Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::I64), F32(nan32), 0, Type::CastOverflowInfOrNaN },
+        { CheckedCastOp::Make(CastType::F32, CastType::U64), F32(42.9f), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F32, CastType::U64), F32(1e30f), 0, Type::CastOverflowU64Max },
+        { CheckedCastOp::Make(CastType::F32, CastType::U64), F32(-1.0f), 0, Type::CastOverflowU64Min },
 
-        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(128.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(-129.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(nan64), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U8), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::U8), F64(256.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U8), F64(-1.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I16), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::I16), F64(32768.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I16), F64(-32769.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U16), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::U16), F64(65536.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U16), F64(-1.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I32), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::I32), F64(2147483648.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I32), F64(-2147483649.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U32), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::U32), F64(4294967296.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U32), F64(-1.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I64), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::I64), F64(9223372036854775808.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::I64), F64(-1e30), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(42.9), 42, false },
-        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(18446744073709551616.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(-1.0), 0, true },
-        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(inf64), 0, true },
+        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(128.0), 0, Type::CastOverflowI8Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(-129.0), 0, Type::CastOverflowI8Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::I8), F64(nan64), 0, Type::CastOverflowInfOrNaN },
+        { CheckedCastOp::Make(CastType::F64, CastType::U8), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::U8), F64(256.0), 0, Type::CastOverflowU8Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::U8), F64(-1.0), 0, Type::CastOverflowU8Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::I16), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::I16), F64(32768.0), 0, Type::CastOverflowI16Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::I16), F64(-32769.0), 0, Type::CastOverflowI16Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::U16), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::U16), F64(65536.0), 0, Type::CastOverflowU16Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::U16), F64(-1.0), 0, Type::CastOverflowU16Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::I32), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::I32), F64(2147483648.0), 0, Type::CastOverflowI32Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::I32), F64(-2147483649.0), 0, Type::CastOverflowI32Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::U32), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::U32), F64(4294967296.0), 0, Type::CastOverflowU32Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::U32), F64(-1.0), 0, Type::CastOverflowU32Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::I64), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::I64), F64(9223372036854775808.0), 0, Type::CastOverflowI64Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::I64), F64(-1e30), 0, Type::CastOverflowI64Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(42.9), 42, Type::Successful },
+        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(18446744073709551616.0), 0, Type::CastOverflowU64Max },
+        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(-1.0), 0, Type::CastOverflowU64Min },
+        { CheckedCastOp::Make(CastType::F64, CastType::U64), F64(inf64), 0, Type::CastOverflowInfOrNaN },
     };
 
     for (const auto& c : cases) {
-        ExpectCheckedInt(c.op, c.input, c.expected, c.overflow);
+        ExpectCheckedInt(c.op, c.input, c.expected, c.exception);
     }
 }
 
-TEST(CastsTest, OpcodeDispatch)
+TEST(CastsTest, PairEncodingRoundTrip)
 {
-    EXPECT_EQ(CastPrim(CastOp::Make(CastType::U32, CastType::U8), U32(0x100)).u64, 0);
-
-    auto checkedInRange = CheckedCastPrim(CheckedCastOp::Make(CastType::U32, CastType::U8), U32(0xff));
-    EXPECT_EQ(checkedInRange.exception, Type::Successful);
-    EXPECT_EQ(checkedInRange.value.u64, 0xff);
-
-    auto checkedOverflow = CheckedCastPrim(CheckedCastOp::Make(CastType::U32, CastType::U8), U32(0x100));
-    EXPECT_NE(checkedOverflow.exception, Type::Successful);
+    for (size_t i = 0; i < CastOp::COUNT; ++i) {
+        auto pair = UncheckedCasts::pairs[i];
+        auto op   = CastOp::FromPair(pair.from, pair.to);
+        ASSERT_TRUE(op.has_value());
+        EXPECT_EQ(op->Raw(), i) << OpName(*op);
+        EXPECT_EQ(op->FromType(), pair.from);
+        EXPECT_EQ(op->ToType(), pair.to);
+    }
+    for (size_t i = 0; i < CheckedCastOp::COUNT; ++i) {
+        auto pair = CheckedCasts::pairs[i];
+        auto op   = CheckedCastOp::FromPair(pair.from, pair.to);
+        ASSERT_TRUE(op.has_value());
+        EXPECT_EQ(op->Raw(), i) << OpName(*op);
+        EXPECT_EQ(op->FromType(), pair.from);
+        EXPECT_EQ(op->ToType(), pair.to);
+    }
 }
 
 TEST(CastsTest, OpPairs)
@@ -443,4 +479,3 @@ TEST(CastsTest, OpPairs)
 
     EXPECT_FALSE(CastOp::FromPair(CastType::COUNT, CastType::I8).has_value());
 }
-

@@ -384,7 +384,7 @@ void Emitter::SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, u
     // outside the width's signed or unsigned range would be silently
     // truncated to a different value by the interpreter.
     switch (width) {
-        case Width::W8: ASSERT(MathUtils::IsNBitsSigned(imm, 8) || imm <= 0xFF); break;
+        case Width::W8:  ASSERT(MathUtils::IsNBitsSigned(imm, 8) || imm <= 0xFF); break;
         case Width::W16: ASSERT(MathUtils::IsNBitsSigned(imm, 16) || imm <= 0xFFFF); break;
         case Width::W32: ASSERT(MathUtils::IsNBitsSigned(imm, 32) || imm <= 0xFFFFFFFF); break;
         case Width::W64: break;
@@ -427,7 +427,7 @@ void Emitter::BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm)
 {
     // Same width-range obligation as SatBinaryImm above.
     switch (width) {
-        case Width::W8: ASSERT(MathUtils::IsNBitsSigned(imm, 8) || imm <= 0xFF); break;
+        case Width::W8:  ASSERT(MathUtils::IsNBitsSigned(imm, 8) || imm <= 0xFF); break;
         case Width::W16: ASSERT(MathUtils::IsNBitsSigned(imm, 16) || imm <= 0xFFFF); break;
         case Width::W32: ASSERT(MathUtils::IsNBitsSigned(imm, 32) || imm <= 0xFFFFFFFF); break;
         case Width::W64: break;
@@ -1169,7 +1169,7 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
-template <typename Kind> void Emitter::Cast(Format::CastInst<Kind> op, Reg to, Reg from)
+template <typename Kind> void Emitter::Cast(Format::CastCode<Kind> op, Reg to, Reg from)
 {
     RT::CastInstruction<Kind> command {
         .opc  = RT::CastKindInfo<Kind>::OPC,

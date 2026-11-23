@@ -802,26 +802,26 @@ struct IsaRewriter : public IsaParser {
 
     void Cast(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        EmitCast<Format::CastOp>(cast, to, from);
+        EmitCast<Format::UncheckedCasts>(cast, to, from);
     }
 
     void CheckedCast(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        EmitCast<Format::CheckedCastOp>(cast, to, from);
+        EmitCast<Format::CheckedCasts>(cast, to, from);
     }
 
-    template <typename Op> void EmitCast(Format::CastType::Pair cast, AnyReg to, AnyReg from)
+    template <typename Kind> void EmitCast(Format::CastType::Pair cast, AnyReg to, AnyReg from)
     {
-        UNWRAP_OPT(op, Op::FromPair(cast.from, cast.to), [&]() {
-            FailCast(RT::CastKindInfo<typename Op::KindType>::MNEMONIC, cast);
+        UNWRAP_OPT(op, Format::CastCode<Kind>::FromPair(cast.from, cast.to), [&]() {
+            FailCast(RT::CastKindInfo<Kind>::MNEMONIC, cast);
         });
         emit.Cast(op, to, from);
     }
 
-    void FailCast(std::string_view opcode, Format::CastType::Pair cast)
+    void FailCast(std::string_view mnemonic, Format::CastType::Pair cast)
     {
         Fail(
-            std::string(opcode) + ": unsupported cast " + std::string(Format::CastType::Name(cast.from)) + " -> " +
+            std::string(mnemonic) + ": unsupported cast " + std::string(Format::CastType::Name(cast.from)) + " -> " +
             std::string(Format::CastType::Name(cast.to))
         );
     }

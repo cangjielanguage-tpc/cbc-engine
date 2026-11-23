@@ -23,7 +23,8 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5xi12ri12
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, VirtualCall args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5i32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr args);
-template <typename Kind> void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CastInstruction<Kind> args);
+template <typename Kind>
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CastInstruction<Kind> args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12i8 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3rrrr args);

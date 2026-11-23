@@ -581,9 +581,11 @@ public:
         ectype->Put(d, Value::Primitive { .u64 = res });
     }
 
+    /// Stores `op`'s source operand into `to`. The operand and destination register
+    /// classes follow `op`'s pair, not the caller.
     void Cast(CastOp op, Reg to, Reg from) { PutCastResult(op, to, CastPrim(op, GetCastOperand(op, from))); }
 
-    // Returns `Type::Successful` when the cast value is stored into the
+    // Returns `Type::Successful` when the cast result is stored into the
     // destination. Otherwise returns the exception to throw.
     Type CheckedCast(CheckedCastOp op, Reg to, Reg from)
     {
@@ -594,20 +596,6 @@ public:
 
         PutCastResult(op, to, res.value);
         return Type::Successful;
-    }
-
-    template <typename Kind> inline Value::Primitive GetCastOperand(Format::CastInst<Kind> op, Reg from)
-    {
-        return op.FromIsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
-    }
-
-    template <typename Kind> inline void PutCastResult(Format::CastInst<Kind> op, Reg to, Value::Primitive res)
-    {
-        if (op.ToIsFloatingPoint()) {
-            ectype->Put(to.FR(), res);
-        } else {
-            ectype->Put(to.IR(), res);
-        }
     }
 
     inline bool BitFieldExtract(Reg dst, Reg src, uint8_t offset, uint8_t size, bool sx)
@@ -791,6 +779,20 @@ public:
     }
 
 private:
+    template <typename Kind> inline Value::Primitive GetCastOperand(Format::CastCode<Kind> op, Reg from)
+    {
+        return op.FromIsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
+    }
+
+    template <typename Kind> inline void PutCastResult(Format::CastCode<Kind> op, Reg to, Value::Primitive res)
+    {
+        if (op.ToIsFloatingPoint()) {
+            ectype->Put(to.FR(), res);
+        } else {
+            ectype->Put(to.IR(), res);
+        }
+    }
+
     inline bool NullCheck(Value::Reference obj) { return true; }
 
     Ectype* ectype;

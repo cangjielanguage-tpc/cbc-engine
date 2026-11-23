@@ -640,7 +640,7 @@ INSTANTIATE_TEST_SUITE_P(EmitTest, EmitFPow, ::testing::ValuesIn(fpowCases), FPo
 INSTANTIATE_TEST_SUITE_P(EmitTest, EmitFPowi, ::testing::ValuesIn(fpowiCases), FPowiCaseName);
 
 // ---------------------------------------------------------------------------
-// Conversions
+// Casts
 // ---------------------------------------------------------------------------
 
 TEST(EmitTest, Simple_Cast)
