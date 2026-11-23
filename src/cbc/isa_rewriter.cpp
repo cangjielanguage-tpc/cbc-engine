@@ -112,24 +112,15 @@ struct RewriterMoveEmitter : public MoveEmitter {
 
     void AssignParamSlot(int paramSlot, int stackSlot, Format::StoreAccessKind stk, uint32_t byteOffset) override
     {
+        // Direct width-exact frame -> passing-area copy: a staging register
+        // would clobber IR_ACC, which carries the interface type info at
+        // interface calls.
         auto srcOffset = frameLayout.UntypedSlotOffset(stackSlot);
         auto dstOffset = static_cast<uint16_t>(paramSlot) * Cbc::STACK_SLOT_SIZE + byteOffset;
-        if (stk == Format::StoreAccessKind::ST_64) {
-            // Whole slot: the frame-slot copy instructions carry the value
-            // verbatim and need no staging register.
-            if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
-                emit.StackParamS16(srcOffset, dstOffset);
-            } else {
-                emit.StackParamS32(srcOffset, dstOffset);
-            }
-        } else if (Format::StoreAccessKind(stk).IsFloat()) {
-            // Compacted float argument: route through a float register.
-            emit.LoadFrame(LdkOfStk(stk), SCRATCH_FOR_PBV_F, srcOffset);
-            emit.StackParamF(SCRATCH_FOR_PBV_F, dstOffset, stk);
+        if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
+            emit.StackParamS16(srcOffset, dstOffset, stk);
         } else {
-            // Compacted argument: copy exactly its width so neighbours survive.
-            emit.LoadFrame(LdkOfStk(stk), SCRATCH_FOR_PBV, srcOffset);
-            emit.StackParam(SCRATCH_FOR_PBV, dstOffset, stk);
+            emit.StackParamS32(srcOffset, dstOffset, stk);
         }
     }
 
@@ -187,12 +178,9 @@ struct RewriterMoveEmitter : public MoveEmitter {
         return SCRATCH_FOR_PBV;
     }
 
-    // Not a value needed after a foreign call, so it is free for staging.
+    // Only the foreign by-value struct path stages through a register. Not a
+    // value needed at foreign calls, so it is free there.
     static constexpr IReg SCRATCH_FOR_PBV = IReg::IR_ACC;
-    // Float counterpart, same contract as above. FR15 is also the
-    // MoveResolver's cycle-breaking temp, but slot destinations are emitted
-    // before that shuffle starts, so it is free here.
-    static constexpr FReg SCRATCH_FOR_PBV_F = FReg::FR15;
 };
 
 struct IsaRewriter : public IsaParser {
@@ -1439,9 +1427,9 @@ struct IsaRewriter : public IsaParser {
             argnum = Interpretation::StaticCallTypeInfoArgs::NONE;
         } else if (loc.Kind() == Location::IREG) {
             argnum = loc.IRegIdx();
-            ASSERT(argnum < IReg::VIRT_COUNT);
+            ASSERT(argnum < IReg::COUNT);
         } else if (loc.Kind() == Location::SLOT) {
-            argnum = loc.SlotIdx() + IReg::VIRT_COUNT;
+            argnum = loc.SlotIdx() + IReg::COUNT;
         } else {
             ASSERTION(false, "outerti loc can not be freg");
         }

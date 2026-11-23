@@ -11,7 +11,7 @@ namespace Cbc {
 struct Location {
     int idx;
 
-    static constexpr int REG_COUNT = IReg::VIRT_COUNT + FReg::COUNT;
+    static constexpr int REG_COUNT = IReg::COUNT + FReg::COUNT;
 
     constexpr Location() : idx(0) {}
 
@@ -28,7 +28,7 @@ struct Location {
     {
         if (idx < 0)
             return NIL;
-        if (idx < IReg::VIRT_COUNT)
+        if (idx < IReg::COUNT)
             return IREG;
         if (idx < REG_COUNT)
             return FREG;
@@ -37,13 +37,13 @@ struct Location {
 
     uint32_t IRegIdx() const { return idx; }
 
-    uint32_t FRegIdx() const { return idx - IReg::VIRT_COUNT; }
+    uint32_t FRegIdx() const { return idx - IReg::COUNT; }
 
     uint32_t SlotIdx() const { return idx - REG_COUNT; }
 
     static Location IReg(IReg::Value reg) { return Location { static_cast<int>(reg) }; }
 
-    static Location FReg(FReg::Value reg) { return Location { IReg::VIRT_COUNT + static_cast<int>(reg) }; }
+    static Location FReg(FReg::Value reg) { return Location { IReg::COUNT + static_cast<int>(reg) }; }
 
     static Location Slot(int slot) { return Location { REG_COUNT + slot }; }
 

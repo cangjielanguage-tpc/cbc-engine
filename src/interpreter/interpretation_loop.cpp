@@ -28,15 +28,38 @@ using namespace RTSupport;
 [[gnu::always_inline]]
 static inline uintptr_t ParamSlotPosition(uintptr_t frameBot, uint16_t arg)
 {
-    ASSERT(arg >= IReg::VIRT_COUNT);
-    return frameBot + (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
+    ASSERT(arg >= IReg::COUNT);
+    return frameBot + (arg - IReg::COUNT) * Cbc::STACK_SLOT_SIZE;
+}
+
+[[gnu::always_inline]]
+static inline void CopyParamBytes(uintptr_t dst, uintptr_t src, Format::StoreAccessKind stk)
+{
+    switch (stk) {
+        case Format::StoreAccessKind::ST_8:
+            std::memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<const void*>(src), 1);
+            return;
+        case Format::StoreAccessKind::ST_16:
+        case Format::StoreAccessKind::ST_F16:
+            std::memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<const void*>(src), 2);
+            return;
+        case Format::StoreAccessKind::ST_32:
+        case Format::StoreAccessKind::ST_F32:
+            std::memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<const void*>(src), 4);
+            return;
+        case Format::StoreAccessKind::ST_64:
+        case Format::StoreAccessKind::ST_REF:
+            std::memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<const void*>(src), 8);
+            return;
+        default: FATAL("Unexpected stk");
+    }
 }
 
 [[gnu::always_inline]]
 static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
-    if (arg < IReg::VIRT_COUNT) {
+    if (arg < IReg::COUNT) {
         return TypeInfo(ectype->GetPrimitive(IReg::From(arg)).u64);
     }
     return *reinterpret_cast<TypeInfo*>(ParamSlotPosition(frameBot, arg));
@@ -46,7 +69,7 @@ static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint
 static inline void WriteCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg, TypeInfo ti)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
-    if (arg < IReg::VIRT_COUNT) {
+    if (arg < IReg::COUNT) {
         ectype->Put(IReg::From(arg), Value::Primitive { ti.UInt() });
     } else {
         *reinterpret_cast<TypeInfo*>(ParamSlotPosition(frameBot, arg)) = ti;
@@ -264,17 +287,13 @@ LABEL(STK_PARAM_F) {
 LABEL(STK_PARAM_S16) {
     auto args = RT::StackParamS16::Decode(reader);
     LOG_INSTR;
-    auto srcLoc = frame.start + args.src;
-    auto dstLoc = frameBot + args.dst;
-    *reinterpret_cast<uint64_t*>(dstLoc) = *reinterpret_cast<uint64_t*>(srcLoc);
+    CopyParamBytes(frameBot + args.dst, frame.start + args.src, args.stk);
     NEXT;
 }
 LABEL(STK_PARAM_S32) {
     auto args = RT::StackParamS32::Decode(reader);
     LOG_INSTR;
-    auto srcLoc = frame.start + args.src;
-    auto dstLoc = frameBot + args.dst;
-    *reinterpret_cast<uint64_t*>(dstLoc) = *reinterpret_cast<uint64_t*>(srcLoc);
+    CopyParamBytes(frameBot + args.dst, frame.start + args.src, args.stk);
     NEXT;
 }
 LABEL(LEA_STACK_PARAM) {

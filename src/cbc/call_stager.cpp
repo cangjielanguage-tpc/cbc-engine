@@ -381,6 +381,8 @@ std::optional<ForeignCallSignature> MakeForeignCallSignature(
             param.isVarArgLabel = true;
         } else if (term.GetKind() == Engine::TermKind::VARRAY) {
             param.isVArray = true;
+        } else if (term.GetKind() == Engine::TermKind::UNIT) {
+            param.kind = CbcTypeKind::I64;
         } else {
             param.kind = ArgTypeTraits<Engine::Term> {}.Kind(term);
             if (param.kind == CbcTypeKind::REC) {
@@ -398,7 +400,7 @@ std::optional<ForeignCallSignature> MakeForeignCallSignature(
     }
 
     auto retType = sig.ResType().term;
-    if (retType.IsRecord()) {
+    if (retType.IsRecord() && retType.GetKind() != Engine::TermKind::UNIT) {
         if (!FlattenCAbiFields(resolver, retType, 0, info.retFields)) {
             return std::nullopt;
         }

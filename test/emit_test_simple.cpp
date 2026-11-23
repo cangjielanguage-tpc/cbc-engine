@@ -1215,7 +1215,7 @@ TEST(EmitTest, StackParams)
         "0x000: st.stack.param IR3 0x10",
         "0x004: st.stack.param.f FR3 0x14",
         "0x008: st.stack.param.s.16 -5 0x18",
-        "0x00d: st.stack.param.s.32 -100000 0x1c"
+        "0x00e: st.stack.param.s.32 -100000 0x1c"
     );
 }
 

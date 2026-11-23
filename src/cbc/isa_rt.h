@@ -1071,13 +1071,15 @@ struct StackParamS16 {
     Opcode opc;
     int16_t src;
     uint16_t dst;
+    Format::StoreAccessKind stk;
 
     inline static StackParamS16 Decode(Decoder::ByteReader& reader)
     {
         auto opc = Opcode(reader.Read8());
         auto src = static_cast<int16_t>(reader.Read16());
         auto dst = reader.Read16();
-        return StackParamS16 { opc, src, dst };
+        auto stk = Format::StoreAccessKind::From(reader.Read8());
+        return StackParamS16 { opc, src, dst, stk };
     }
 };
 
@@ -1085,13 +1087,15 @@ struct StackParamS32 {
     Opcode opc;
     int32_t src;
     uint16_t dst;
+    Format::StoreAccessKind stk;
 
     inline static StackParamS32 Decode(Decoder::ByteReader& reader)
     {
         auto opc = Opcode(reader.Read8());
         auto src = static_cast<int32_t>(reader.Read32());
         auto dst = reader.Read16();
-        return StackParamS32 { opc, src, dst };
+        auto stk = Format::StoreAccessKind::From(reader.Read8());
+        return StackParamS32 { opc, src, dst, stk };
     }
 };
 
