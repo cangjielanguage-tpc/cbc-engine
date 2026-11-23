@@ -31,8 +31,8 @@ extern void engine_c_abi_adapter_end();
 extern void (*engine_stack_grow_stub)();
 extern void (*engine_i2n_stub)();
 extern void* (*engine_tls_function)();
-extern void (*engine_implicit_exception_thrower)(int kind);
-extern void* engine_future_execute_function;
+
+extern void* (*engine_implicit_exception_thrower)(void);
 extern void* engine_set_runtime_cjthread_handle_function;
 extern void (*engine_throw_out_of_interpreter)(DYN_ObjRef exception);
 extern void* (*engine_newobject_pinned_function)(DYN_TypeInfo*, int hasFinalizer);

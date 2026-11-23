@@ -356,7 +356,10 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethodInType(
         mcount++;
         result = m;
     }
-    ASSERTION(mcount == 1, "unexpected method count");
+    // Zero methods is legitimate: images may contain types with empty method sets
+    // (e.g. std.core:Future stub emitted by the hotfix patch for field layout only).
+    // The callers fall back to other sources (std core, helpers) in that case.
+    ASSERTION(mcount <= 1, "unexpected method count");
     return result;
 }
 
