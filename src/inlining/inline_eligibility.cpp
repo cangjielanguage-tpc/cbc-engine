@@ -1,7 +1,6 @@
 #include "inline_eligibility.h"
 
 #include "engine/decode/reader.h"
-#include "engine/image/flags.h"
 #include "inlining/runtime_bytecode.h"
 #include "inlining/runtime_frame.h"
 #include "interpreter/function_handle.h"
@@ -48,11 +47,8 @@ InlineRejectionReason CheckInlineEligibility(
         return InlineRejectionReason::STACK_PTRS_INFO;
     }
 
-    const auto abiFlags = definition.GetABIFlags();
-    const auto& abi     = expectedCalleeBytecode->abiInfo;
-    if (abi.isSRet || abi.hasTailReg || abi.stackPtrParams != 0 || abi.derivedPairs != 0 ||
-        definition->abiKind != Image::MethodAbiKind::STATIC || abiFlags.Is(Image::MethodRefFlag::HAS_OUTER_TI) ||
-        abiFlags.Is(Image::MethodRefFlag::HAS_FTVARS)) {
+    const auto& abi = expectedCalleeBytecode->abiInfo;
+    if (abi.isSRet || abi.hasTailReg || abi.stackPtrParams != 0 || abi.derivedPairs != 0) {
         return InlineRejectionReason::UNSUPPORTED_ABI;
     }
     if (!expectedCalleeBytecode->gcInfo.positionalInfo.Empty() ||
