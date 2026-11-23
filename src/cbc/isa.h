@@ -1070,6 +1070,58 @@ struct RImm12 {
 };
 
 } // namespace Format
+
+inline Format::LoadAccessKind Ldk(CbcTypeKind kind)
+{
+    using LDK = Format::LoadAccessKind;
+    switch (kind) {
+        case CbcTypeKind::U8:  return LDK::LD_U8;
+        case CbcTypeKind::I8:  return LDK::LD_S8;
+        case CbcTypeKind::U16: return LDK::LD_U16;
+        case CbcTypeKind::I16: return LDK::LD_S16;
+        case CbcTypeKind::U32:
+        case CbcTypeKind::I32: return LDK::LD_32;
+        case CbcTypeKind::U64:
+        case CbcTypeKind::I64: return LDK::LD_64;
+        case CbcTypeKind::F32: return LDK::LD_F32;
+        case CbcTypeKind::F64: return LDK::LD_F64;
+
+        case CbcTypeKind::BOOL: return LDK::LD_U8;
+        case CbcTypeKind::REF:  return LDK::LD_REF;
+        case CbcTypeKind::REC:  return LDK::LD_LEA;
+
+        default: {
+            FATAL("Not supported type kind %d", static_cast<int>(kind));
+            return LDK::LD_S8;
+        }
+    }
+}
+
+inline Format::StoreAccessKind Stk(CbcTypeKind kind)
+{
+    using STK = Format::StoreAccessKind;
+    switch (kind) {
+        case CbcTypeKind::U8:
+        case CbcTypeKind::I8:  return STK::ST_8;
+        case CbcTypeKind::U16:
+        case CbcTypeKind::I16: return STK::ST_16;
+        case CbcTypeKind::U32:
+        case CbcTypeKind::I32: return STK::ST_32;
+        case CbcTypeKind::U64:
+        case CbcTypeKind::I64: return STK::ST_64;
+        case CbcTypeKind::F32: return STK::ST_F32;
+        case CbcTypeKind::F64: return STK::ST_F64;
+
+        case CbcTypeKind::BOOL: return STK::ST_8;
+        case CbcTypeKind::REF:  return STK::ST_REF;
+
+        default: {
+            FATAL("Not supported type kind %d", static_cast<int>(kind));
+            return STK::ST_8;
+        }
+    }
+}
+
 } // namespace Cbc
 
 namespace Stream {

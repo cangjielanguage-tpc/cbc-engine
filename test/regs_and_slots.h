@@ -140,6 +140,14 @@ struct RegsAndSlots : public MoveEmitter {
         LoadTo(Location::Slot(paramSlot), addr, offset, ldk);
     }
 
+    void LeaParamArea(IReg dst, uint32_t offset) override
+    {
+        Assign(
+            Location::IReg(dst),
+            Cell::Load(Read(Location::IReg(dst)).value, static_cast<int32_t>(offset), Format::LoadAccessKind::LD_LEA)
+        );
+    }
+
     void Resolve(MoveResolver& mr) { mr.Resolve(*this); }
 };
 

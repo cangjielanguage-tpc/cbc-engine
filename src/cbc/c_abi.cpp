@@ -7,6 +7,8 @@
 #include "utils/misc.h"
 
 #include <algorithm>
+#include <iterator>
+#include <utility>
 
 namespace Cbc {
 
@@ -94,15 +96,21 @@ static CAbiStructPlan ClassifyAAPCS64(Utils::Span<const CAbiField> fields, uint3
     return plan;
 }
 
+static CAbiStructPlan ClassifyDarwinAArch64(Utils::Span<const CAbiField> fields, uint32_t size)
+{
+    return ClassifyAAPCS64(fields, size);
+}
+
 CAbiStructPlan ClassifyCAbiStruct(
-    Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs, bool ret
+    CAbi abi, Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs, bool ret
 )
 {
     CAbiStructPlan plan;
-    switch (HostTraits::C_ABI) {
-        case CAbi::SYSV:    plan = ClassifySysV(fields, size); break;
-        case CAbi::AAPCS64: plan = ClassifyAAPCS64(fields, size); break;
-        default:            FATAL("unknown C ABI"); return plan;
+    switch (abi) {
+        case CAbi::SYSV:           plan = ClassifySysV(fields, size); break;
+        case CAbi::AAPCS64:        plan = ClassifyAAPCS64(fields, size); break;
+        case CAbi::DARWIN_AARCH64: plan = ClassifyDarwinAArch64(fields, size); break;
+        default:                   FATAL("unknown C ABI"); return plan;
     }
 
     if (plan.passBy == CAbiPassBy::REGS) {
@@ -118,7 +126,7 @@ CAbiStructPlan ClassifyCAbiStruct(
             return plan;
         }
 
-        if ((isVarArg && HostTraits::ONLY_ONSTACK_VARARGS) || needIRegs > freeIRegs || needFRegs > freeFRegs) {
+        if ((isVarArg && abi == CAbi::DARWIN_AARCH64) || needIRegs > freeIRegs || needFRegs > freeFRegs) {
             plan.passBy = CAbiPassBy::STACK;
             plan.pieces.Clear();
         }
@@ -126,11 +134,26 @@ CAbiStructPlan ClassifyCAbiStruct(
     return plan;
 }
 
-CAbiStructPlan ClassifyCAbiStructRet(Utils::Span<const CAbiField> fields, uint32_t size)
+template <Platform p> static constexpr std::pair<int, int> RetBudgetFromTraits()
 {
-    int iRegsNeeded = std::size(HostTraits::RET_IREGS);
-    int fRegsNeeded = std::size(HostTraits::RET_FREGS);
-    return ClassifyCAbiStruct(fields, size, false, iRegsNeeded, fRegsNeeded, true);
+    return { static_cast<int>(std::size(PlatformTraits<p>::RET_IREGS)),
+             static_cast<int>(std::size(PlatformTraits<p>::RET_FREGS)) };
+}
+
+static std::pair<int, int> RetBudgetFor(CAbi abi)
+{
+    switch (abi) {
+        case CAbi::SYSV:           return RetBudgetFromTraits<Platform::LINUX_X64>();
+        case CAbi::AAPCS64:        return RetBudgetFromTraits<Platform::LINUX_AARCH64>();
+        case CAbi::DARWIN_AARCH64: return RetBudgetFromTraits<Platform::DARWIN_AARCH64>();
+    }
+    FATAL("unknown C ABI");
+}
+
+CAbiStructPlan ClassifyCAbiStructRet(CAbi abi, Utils::Span<const CAbiField> fields, uint32_t size)
+{
+    auto [iRegs, fRegs] = RetBudgetFor(abi);
+    return ClassifyCAbiStruct(abi, fields, size, false, iRegs, fRegs, true);
 }
 
 // Fills `fields` argument with collected leaf fields info.
