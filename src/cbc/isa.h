@@ -1133,24 +1133,16 @@ inline Format::StoreAccessKind StkOfLdk(Format::LoadAccessKind ldk)
         case Format::LoadAccessKind::LD_U16:
         case Format::LoadAccessKind::LD_S16: return Format::StoreAccessKind::ST_16;
         case Format::LoadAccessKind::LD_32:  return Format::StoreAccessKind::ST_32;
+        case Format::LoadAccessKind::LD_64:  return Format::StoreAccessKind::ST_64;
         case Format::LoadAccessKind::LD_REF: return Format::StoreAccessKind::ST_REF;
+        case Format::LoadAccessKind::LD_F16: return Format::StoreAccessKind::ST_F16;
         case Format::LoadAccessKind::LD_F32: return Format::StoreAccessKind::ST_F32;
         case Format::LoadAccessKind::LD_F64: return Format::StoreAccessKind::ST_F64;
-        default:                             return Format::StoreAccessKind::ST_64;
-    }
-}
 
-/// Load width matching a store width.
-inline Format::LoadAccessKind LdkOfStk(Format::StoreAccessKind stk)
-{
-    switch (stk) {
-        case Format::StoreAccessKind::ST_8:   return Format::LoadAccessKind::LD_U8;
-        case Format::StoreAccessKind::ST_16:  return Format::LoadAccessKind::LD_U16;
-        case Format::StoreAccessKind::ST_32:  return Format::LoadAccessKind::LD_32;
-        case Format::StoreAccessKind::ST_REF: return Format::LoadAccessKind::LD_REF;
-        case Format::StoreAccessKind::ST_F32: return Format::LoadAccessKind::LD_F32;
-        case Format::StoreAccessKind::ST_F64: return Format::LoadAccessKind::LD_F64;
-        default:                              return Format::LoadAccessKind::LD_64;
+        default: {
+            FATAL("Not supported load kind %d", static_cast<int>(ldk));
+            return Format::StoreAccessKind::ST_64;
+        }
     }
 }
 

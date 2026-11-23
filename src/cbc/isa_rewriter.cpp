@@ -112,9 +112,6 @@ struct RewriterMoveEmitter : public MoveEmitter {
 
     void AssignParamSlot(int paramSlot, int stackSlot, Format::StoreAccessKind stk, uint32_t byteOffset) override
     {
-        // Direct width-exact frame -> passing-area copy: a staging register
-        // would clobber IR_ACC, which carries the interface type info at
-        // interface calls.
         auto srcOffset = frameLayout.UntypedSlotOffset(stackSlot);
         auto dstOffset = static_cast<uint16_t>(paramSlot) * Cbc::STACK_SLOT_SIZE + byteOffset;
         if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
@@ -126,11 +123,13 @@ struct RewriterMoveEmitter : public MoveEmitter {
 
     void AssignFRegFromSlot(FReg dst, int slot) override
     {
+        // FIXME: load/stores must be typed
         emit.LoadFrame(LDK::LD_F64, dst, frameLayout.UntypedSlotOffset(slot));
     }
 
     void AssignIRegFromSlot(IReg dst, int slot) override
     {
+        // FIXME: load/stores must be typed
         emit.LoadFrame(LDK::LD_64, dst, frameLayout.UntypedSlotOffset(slot));
     }
 
@@ -178,8 +177,9 @@ struct RewriterMoveEmitter : public MoveEmitter {
         return SCRATCH_FOR_PBV;
     }
 
-    // Only the foreign by-value struct path stages through a register. Not a
-    // value needed at foreign calls, so it is free there.
+    // This register is used for different operations during interpreation.
+    // It's expected that on the moment of foreign call this register doesn't
+    // contain any value that is needed after call.
     static constexpr IReg SCRATCH_FOR_PBV = IReg::IR_ACC;
 };
 
@@ -354,7 +354,7 @@ struct IsaRewriter : public IsaParser {
     void StageManagedCallArgs(
         Utils::Span<const Location> args,
         CallAbiFlags const& flags,
-        CallSignature const& sig,
+        ManagedCallSignature const& sig,
         Location* outerTiLoc = nullptr,
         Location* thisTiLoc  = nullptr,
         bool genericParams   = false
@@ -1333,9 +1333,9 @@ struct IsaRewriter : public IsaParser {
             Fail("Unable to plan struct returning");
             return;
         }
-        auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, flags, *info, retPlan);
-        ASSERTION(stackSlotsCount <= UINT8_MAX, "too many stack arguments in foreign call");
-        emit.CallCFunc(target, stackSlotsCount, fregsCount);
+        auto [stackBytes, fregsCount] = StageForeignCallArgs(args, flags, *info, retPlan);
+        ASSERTION(stackBytes <= UINT8_MAX, "too many stack arguments in foreign call");
+        emit.CallCFunc(target, stackBytes, fregsCount);
         EmitFillSRetAreaByRegs(retPlan);
         BindStatePoint();
         EmitReturnedTo();
@@ -1373,15 +1373,15 @@ struct IsaRewriter : public IsaParser {
                 Fail("Unable to plan struct returning");
                 return;
             }
-            auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, callFlags, *foreignSig, retPlan);
+            auto [stackBytes, fregsCount] = StageForeignCallArgs(args, callFlags, *foreignSig, retPlan);
             EmitLogCall("call.2n", method);
-            ASSERTION(stackSlotsCount <= UINT8_MAX, "too many stack arguments in foreign call");
-            emit.DirectCall2n(sym, stackSlotsCount, fregsCount);
+            ASSERTION(stackBytes <= UINT8_MAX, "too many stack arguments in foreign call");
+            emit.DirectCall2n(sym, stackBytes, fregsCount);
             BindStatePoint();
             EmitFillSRetAreaByRegs(retPlan);
         } else if (compiled) {
             // AOT managed call
-            auto callSig = MakeCallSignature(method->signature);
+            auto callSig = MakeManagedCallSignature(method->signature);
             auto sym = emit.NewAddressSym(compiled->funcPtr);
             StageManagedCallArgs(args, callFlags, callSig);
             EmitLogCall("call.2c", method);
@@ -1389,7 +1389,7 @@ struct IsaRewriter : public IsaParser {
             BindStatePoint();
         } else {
             // CBC managed call
-            auto callSig = MakeCallSignature(method->signature);
+            auto callSig = MakeManagedCallSignature(method->signature);
             StageManagedCallArgs(args, callFlags, callSig);
             EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
@@ -1412,7 +1412,7 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        auto info = MakeCallSignature(method->signature);
+        auto info = MakeManagedCallSignature(method->signature);
         StageManagedCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), info);
         EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
@@ -1456,7 +1456,7 @@ struct IsaRewriter : public IsaParser {
 
         auto flags         = MakeCallAbiFlags(ref.flags, ref.abiKind);
         Location thisTiLoc = Location::Nil();
-        auto info          = MakeCallSignature(method->signature);
+        auto info          = MakeManagedCallSignature(method->signature);
         StageManagedCallArgs(args, flags, info, nullptr, &thisTiLoc);
         EmitLogCall("call.interf", method);
 
@@ -1487,7 +1487,7 @@ struct IsaRewriter : public IsaParser {
         auto flags          = MakeCallAbiFlags(ref.flags, ref.abiKind);
         Location outerTiLoc = Location::Nil();
         Location thisTiLoc  = Location::Nil();
-        auto info           = MakeCallSignature(method->signature);
+        auto info           = MakeManagedCallSignature(method->signature);
         StageManagedCallArgs(args, flags, info, &outerTiLoc, &thisTiLoc);
         EmitLogCall("call.interf.g", method);
 
@@ -1546,7 +1546,7 @@ struct IsaRewriter : public IsaParser {
         bool sret = (resolver.Wrap(retType).GetKind() == TK::REC) || generic;
 
         Resolution::MethodSignature sig { &resolver, term, Engine::Term::Predefined(Engine::TermKind::NIL) };
-        auto info = MakeCallSignature(sig);
+        auto info = MakeManagedCallSignature(sig);
         StageManagedCallArgs(
             args,
             { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER },
@@ -2175,7 +2175,7 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
     auto flags   = def.GetABIFlags();
     auto sigTerm = Engine::TermManager::Resolve(session, def.Signature());
 
-    auto selfSig         = MakeCallSignature(sigTerm);
+    auto selfSig         = MakeManagedCallSignature(sigTerm);
     selfSig.funcVarCount = def->arity;
     auto tailParams      = ComputeTailParams(
         selfSig,

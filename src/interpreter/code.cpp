@@ -1,5 +1,6 @@
 #include "interpreter/code.h"
 #include "cbc/abi.h"
+#include "cbc/call_stager.h"
 #include "engine/image/flags.h"
 #include "interpreter/ectype.h"
 #include "platform_traits.h"
@@ -60,35 +61,14 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         }
     });
 
-    if (flags.isSRet) {
-        abi.ConsumeSret();
-    }
-
-    switch (flags.abiKind) {
-        case Image::MethodAbiKind::MUT: {
-            auto derived = abi.Consume(Cbc::CbcTypeKind::I64);
-            abi.Consume(Cbc::CbcTypeKind::REF);
-            ASSERT(derived.loc.Kind() == Cbc::Location::IREG);
-            derivedPairs |= (1u << derived.loc.IRegIdx());
-            break;
+    auto callSig         = Cbc::MakeManagedCallSignature(signature);
+    callSig.funcVarCount = flags.funcVars;
+    for (auto arg : Cbc::ManagedArgSequence(callSig, { flags.isSRet, flags.hasOuterTi, flags.abiKind }, false)) {
+        auto target = arg.role == Cbc::ManagedArg::Role::Sret ? abi.ConsumeSret() : abi.Consume(arg.kind);
+        if (arg.role == Cbc::ManagedArg::Role::Derived) {
+            ASSERT(target.loc.Kind() == Cbc::Location::IREG);
+            derivedPairs |= (1u << target.loc.IRegIdx());
         }
-        case Image::MethodAbiKind::REF_RECEIVER:   abi.Consume(Cbc::CbcTypeKind::REF); break;
-        case Image::MethodAbiKind::REC_RECEIVER:   abi.Consume(Cbc::CbcTypeKind::REC); break;
-        case Image::MethodAbiKind::PRIM_RECEIVER:  abi.Consume(Cbc::CbcTypeKind::I64); break;
-        case Image::MethodAbiKind::FPRIM_RECEIVER: abi.Consume(Cbc::CbcTypeKind::F64); break;
-        case Image::MethodAbiKind::STATIC:
-        case Image::MethodAbiKind::HAS_THIS_TI:    ;
-    }
-
-    int termIdx = 0;
-    int length  = signature.GetLength() - 1; // skip ret type term.
-    while (termIdx < length) {
-        abi.Consume(signature.Subterm(termIdx++));
-    }
-
-    bool hasThisTi = (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI);
-    for (int i = 0; i < hasThisTi + flags.hasOuterTi + flags.funcVars; i++) {
-        abi.Consume(Cbc::CbcTypeKind::I64);
     }
 
     bool hasTailReg = (totalIntArgs > IREG_PARAM_PASSING_AMOUNT || totalFloatArgs > FREG_ABI_AMOUNT);

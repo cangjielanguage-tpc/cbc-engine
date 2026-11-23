@@ -7,8 +7,6 @@
 #include "utils/misc.h"
 
 #include <algorithm>
-#include <iterator>
-#include <utility>
 
 namespace Cbc {
 
@@ -102,7 +100,14 @@ static CAbiStructPlan ClassifyDarwinAArch64(Utils::Span<const CAbiField> fields,
 }
 
 CAbiStructPlan ClassifyCAbiStruct(
-    CAbi abi, Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs, bool ret
+    CAbi abi,
+    Utils::Span<const CAbiField> fields,
+    uint32_t size,
+    bool isVarArg,
+    bool onlyOnStackVarargs,
+    int freeIRegs,
+    int freeFRegs,
+    bool ret
 )
 {
     CAbiStructPlan plan;
@@ -126,7 +131,7 @@ CAbiStructPlan ClassifyCAbiStruct(
             return plan;
         }
 
-        if ((isVarArg && abi == CAbi::DARWIN_AARCH64) || needIRegs > freeIRegs || needFRegs > freeFRegs) {
+        if ((isVarArg && onlyOnStackVarargs) || needIRegs > freeIRegs || needFRegs > freeFRegs) {
             plan.passBy = CAbiPassBy::STACK;
             plan.pieces.Clear();
         }
@@ -153,7 +158,7 @@ static std::pair<int, int> RetBudgetFor(CAbi abi)
 CAbiStructPlan ClassifyCAbiStructRet(CAbi abi, Utils::Span<const CAbiField> fields, uint32_t size)
 {
     auto [iRegs, fRegs] = RetBudgetFor(abi);
-    return ClassifyCAbiStruct(abi, fields, size, false, iRegs, fRegs, true);
+    return ClassifyCAbiStruct(abi, fields, size, false, false, iRegs, fRegs, true);
 }
 
 // Fills `fields` argument with collected leaf fields info.

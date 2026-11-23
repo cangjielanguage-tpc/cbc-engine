@@ -15,41 +15,108 @@ using LDK = Format::LoadAccessKind;
 
 StagingResult CallStager::Fail(std::string&& msg) { return { .ok = false, .failure = std::move(msg) }; }
 
-bool CallStager::CheckManagedArgCount(
-    size_t argCount, const CallAbiFlags& flags, const CallSignature& sig, StagingResult& result
+Utils::Vector<ManagedArg> ManagedArgSequence(
+    const ManagedCallSignature& sig, const CallAbiFlags& flags, bool genericParams
 )
 {
-    size_t expected  = 0;
-    expected        += flags.isSRet;
-    switch (flags.abiKind) {
-        case Image::MethodAbiKind::STATIC:         expected += 0; break;
-        case Image::MethodAbiKind::HAS_THIS_TI:
-        case Image::MethodAbiKind::REF_RECEIVER:
-        case Image::MethodAbiKind::REC_RECEIVER:
-        case Image::MethodAbiKind::PRIM_RECEIVER:
-        case Image::MethodAbiKind::FPRIM_RECEIVER: expected += 1; break;
-        case Image::MethodAbiKind::MUT:            expected += 2; break;
+    Utils::Vector<ManagedArg> seq;
+    seq.Reserve(sig.params.Size() + 5);
+    if (flags.isSRet) {
+        seq.PushBack({ CbcTypeKind::REC, ManagedArg::Role::Sret });
     }
-    expected += sig.params.Size();
-    expected += sig.funcVarCount;
-    expected += flags.hasOuterTi;
+    switch (flags.abiKind) {
+        case Image::MethodAbiKind::MUT:
+            seq.PushBack({ CbcTypeKind::I64, ManagedArg::Role::Derived });
+            seq.PushBack({ CbcTypeKind::REF, ManagedArg::Role::Receiver });
+            break;
+        case Image::MethodAbiKind::REF_RECEIVER:  seq.PushBack({ CbcTypeKind::REF, ManagedArg::Role::Receiver }); break;
+        case Image::MethodAbiKind::PRIM_RECEIVER: seq.PushBack({ CbcTypeKind::I64, ManagedArg::Role::Receiver }); break;
+        case Image::MethodAbiKind::FPRIM_RECEIVER:
+            seq.PushBack({ CbcTypeKind::F64, ManagedArg::Role::Receiver });
+            break;
+        case Image::MethodAbiKind::REC_RECEIVER: seq.PushBack({ CbcTypeKind::REC, ManagedArg::Role::Receiver }); break;
+        case Image::MethodAbiKind::STATIC:
+        case Image::MethodAbiKind::HAS_THIS_TI:  break;
+    }
+    for (auto param : sig.params) {
+        // call.closure.g passes every parameter boxed, whatever the signature says.
+        seq.PushBack({ genericParams ? CbcTypeKind::REF : param, ManagedArg::Role::Param });
+    }
+    for (int i = 0; i < sig.funcVarCount; i++) {
+        seq.PushBack({ CbcTypeKind::I64, ManagedArg::Role::FuncVar });
+    }
+    if (flags.hasOuterTi) {
+        seq.PushBack({ CbcTypeKind::I64, ManagedArg::Role::OuterTi });
+    }
+    if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
+        seq.PushBack({ CbcTypeKind::I64, ManagedArg::Role::ThisTi });
+    }
+    return seq;
+}
 
-    if (expected != argCount) {
+StagingResult CallStager::StageManaged(
+    Utils::Span<const Location> args,
+    const CallAbiFlags& flags,
+    const ManagedCallSignature& sig,
+    Location* outerTiLoc,
+    Location* thisTiLoc,
+    bool genericParams
+)
+{
+    StagingResult result;
+    auto seq = ManagedArgSequence(sig, flags, genericParams);
+    if (seq.Size() != args.Size()) {
         Stream::StringBuffer buf;
         buf.PrintLn(
             "Expected = {}. Actual = {}. ps = {}, ftvs = {}, sret = {}, outerti = {}, abi_kind = {}",
-            expected,
-            argCount,
+            seq.Size(),
+            args.Size(),
             sig.params.Size(),
             sig.funcVarCount,
             flags.isSRet,
             flags.hasOuterTi,
             flags.abiKind
         );
-        result = Fail(buf.ToString());
-        return false;
+        return Fail(buf.ToString());
     }
-    return true;
+
+    MoveResolver moves;
+    TrackedAbiAssigner abi(desc, [&](Location target, CbcTypeKind kind) {
+        if (target.Kind() == Location::SLOT) {
+            if (kind == CbcTypeKind::REF)
+                result.paramRefSlots.PushBack(target.SlotIdx());
+            if (kind == CbcTypeKind::REC)
+                result.paramRecSlots.PushBack(target.SlotIdx());
+        }
+    });
+
+    int idx = 0;
+    for (auto arg : seq) {
+        auto target = arg.role == ManagedArg::Role::Sret ? abi.ConsumeSret() : abi.Consume(arg.kind);
+        moves.AddMove(target, args[idx++]);
+        switch (arg.role) {
+            case ManagedArg::Role::Derived:
+                ASSERT(target.loc.Kind() == Location::IREG);
+                result.derived = target.loc.IRegIdx();
+                break;
+            case ManagedArg::Role::OuterTi:
+                if (outerTiLoc)
+                    *outerTiLoc = target.loc;
+                break;
+            case ManagedArg::Role::ThisTi:
+                if (thisTiLoc)
+                    *thisTiLoc = target.loc;
+                break;
+            default: break;
+        }
+    }
+
+    if (!moves.Resolve(moveEmitter)) {
+        return Fail("Register kind mismatch");
+    }
+
+    result.maxParamPassingSize = std::max(result.maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackBytes()));
+    return result;
 }
 
 bool CallStager::CheckForeignArgCount(
@@ -79,109 +146,6 @@ bool CallStager::CheckForeignArgCount(
     return true;
 }
 
-StagingResult CallStager::StageManaged(
-    Utils::Span<const Location> args,
-    const CallAbiFlags& flags,
-    const CallSignature& sig,
-    Location* outerTiLoc,
-    Location* thisTiLoc,
-    bool genericParams
-)
-{
-    StagingResult result;
-    int funcVarsCount = sig.funcVarCount;
-    if (!CheckManagedArgCount(args.Size(), flags, sig, result)) {
-        return result;
-    }
-
-    MoveResolver moves;
-    TrackedAbiAssigner abi(desc, [&](Location target, CbcTypeKind kind) {
-        if (target.Kind() == Location::SLOT) {
-            if (kind == CbcTypeKind::REF)
-                result.paramRefSlots.PushBack(target.SlotIdx());
-            if (kind == CbcTypeKind::REC)
-                result.paramRecSlots.PushBack(target.SlotIdx());
-        }
-    });
-
-    int idx = 0;
-    if (flags.isSRet) {
-        moves.AddMove(abi.ConsumeSret(), args[idx++]);
-    }
-    switch (flags.abiKind) {
-        case Image::MethodAbiKind::MUT: {
-            auto derived    = args[idx++];
-            auto base       = args[idx++];
-            auto derivedLoc = abi.Consume(CbcTypeKind::REC);
-            auto baseLoc    = abi.Consume(CbcTypeKind::REF);
-            moves.AddMove(derivedLoc, derived);
-            moves.AddMove(baseLoc, base);
-            ASSERT(derivedLoc.loc.Kind() == Location::IREG);
-            result.derived = derivedLoc.loc.IRegIdx();
-            break;
-        }
-        case Image::MethodAbiKind::REF_RECEIVER: {
-            moves.AddMove(abi.Consume(CbcTypeKind::REF), args[idx++]);
-            break;
-        }
-        case Image::MethodAbiKind::PRIM_RECEIVER: {
-            moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx++]);
-            break;
-        }
-        case Image::MethodAbiKind::FPRIM_RECEIVER: {
-            moves.AddMove(abi.Consume(CbcTypeKind::F64), args[idx++]);
-            break;
-        }
-        case Image::MethodAbiKind::REC_RECEIVER: {
-            moves.AddMove(abi.Consume(CbcTypeKind::REC), args[idx++]);
-            break;
-        }
-        case Image::MethodAbiKind::STATIC:
-        case Image::MethodAbiKind::HAS_THIS_TI:;
-    }
-
-    auto params = sig.params;
-    ASSERT(args.Size() >= params.Size() + idx);
-
-    if (genericParams) {
-        // Special case for call.closure.g
-        // The referenced type (of closure) in instruction doesn't encode parameters as boxes.
-        for (size_t j = 0; j < params.Size(); ++idx, ++j) {
-            moves.AddMove(abi.Consume(CbcTypeKind::REF), args[idx]);
-        }
-    } else {
-        for (size_t j = 0; j < params.Size(); ++j) {
-            moves.AddMove(abi.Consume(params[j].kind), args[idx++]);
-        }
-    }
-
-    ASSERT(funcVarsCount <= static_cast<int>(args.Size()));
-    for (int j = 0; j < funcVarsCount; idx++, j++) {
-        moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx]);
-    }
-
-    if (flags.hasOuterTi) {
-        auto loc = abi.Consume(CbcTypeKind::I64);
-        moves.AddMove(loc, args[idx++]);
-        if (outerTiLoc)
-            *outerTiLoc = loc.loc;
-    }
-
-    if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
-        auto loc = abi.Consume(CbcTypeKind::I64);
-        moves.AddMove(loc, args[idx++]);
-        if (thisTiLoc)
-            *thisTiLoc = loc.loc;
-    }
-
-    if (!moves.Resolve(moveEmitter)) {
-        return Fail("Register kind mismatch");
-    }
-
-    result.maxParamPassingSize = std::max(result.maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackBytes()));
-    return result;
-}
-
 std::optional<CAbiStructPlan> CallStager::StageForeignStructRet(
     const ForeignCallSignature& sig, const CallAbiFlags& flags
 )
@@ -194,7 +158,7 @@ std::optional<CAbiStructPlan> CallStager::StageForeignStructRet(
 
 bool CallStager::StageForeignStructArg(
     Location srcAddr,
-    const ParamInfo& param,
+    const ForeignParam& param,
     bool varArgPos,
     MoveResolver& moves,
     AbiAssigner& abi,
@@ -202,7 +166,9 @@ bool CallStager::StageForeignStructArg(
 )
 {
     auto size = param.flatSize;
-    auto plan = ClassifyCAbiStruct(cAbi, param.fields, size, varArgPos, abi.FreeIRegs(), abi.FreeFRegs());
+    auto plan = ClassifyCAbiStruct(
+        cAbi, param.fields, size, varArgPos, desc.onlyOnStackVarargs, abi.FreeIRegs(), abi.FreeFRegs()
+    );
     switch (plan.passBy) {
         case CAbiPassBy::EMPTY: break;
         case CAbiPassBy::REGS:  {
@@ -229,14 +195,14 @@ bool CallStager::StageForeignStructArg(
     return true;
 }
 
-ForeignStaging CallStager::StageForeign(
+ForeignStagingResult CallStager::StageForeign(
     Utils::Span<const Location> args,
     const CallAbiFlags& flags,
     const ForeignCallSignature& sig,
     std::optional<CAbiStructPlan> retPlan
 )
 {
-    ForeignStaging staging;
+    ForeignStagingResult staging;
     auto& result = staging.result;
 
     int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
@@ -344,25 +310,23 @@ ForeignStaging CallStager::StageForeign(
     return staging;
 }
 
-CallSignature MakeCallSignature(Engine::Term signature)
+ManagedCallSignature MakeManagedCallSignature(Engine::Term signature)
 {
-    CallSignature info;
+    ManagedCallSignature info;
     uint32_t paramCount = signature.GetLength() - 1; // skip ret type
     info.params.Reserve(paramCount);
     for (uint32_t i = 0; i < paramCount; i++) {
-        ParamInfo param;
-        param.kind = ArgTypeTraits<Engine::Term> {}.Kind(signature.Subterm(i));
-        info.params.PushBack(param);
+        info.params.PushBack(ArgTypeTraits<Engine::Term> {}.Kind(signature.Subterm(i)));
     }
     return info;
 }
 
-CallSignature MakeCallSignature(const Resolution::MethodSignature& sig)
+ManagedCallSignature MakeManagedCallSignature(const Resolution::MethodSignature& sig)
 {
     ASSERT(!sig.isVarArg);
 
-    CallSignature info = MakeCallSignature(sig.term);
-    info.funcVarCount  = sig.tvars.GetLength();
+    ManagedCallSignature info = MakeManagedCallSignature(sig.term);
+    info.funcVarCount         = sig.tvars.GetLength();
     return info;
 }
 
@@ -376,7 +340,7 @@ std::optional<ForeignCallSignature> MakeForeignCallSignature(
     auto params = sig.Params();
     info.params.Reserve(params.Size());
     for (auto term : params) {
-        ParamInfo param;
+        ForeignParam param;
         if (term.GetKind() == Engine::TermKind::VARARGLABEL) {
             param.isVarArgLabel = true;
         } else if (term.GetKind() == Engine::TermKind::VARRAY) {
@@ -424,51 +388,22 @@ static Format::LoadAccessKind TailLoadKind(CbcTypeKind kind)
 }
 
 Utils::Vector<TailParamInfo> ComputeTailParams(
-    const CallSignature& sig, const CallAbiFlags& flags, const AbiAssigner::PlatformDescription& desc
+    const ManagedCallSignature& sig, const CallAbiFlags& flags, const AbiAssigner::PlatformDescription& desc
 )
 {
     Utils::Vector<TailParamInfo> tail;
     AbiAssigner abi(desc);
 
-    auto record = [&](ArgTarget target, CbcTypeKind kind) {
+    for (auto arg : ManagedArgSequence(sig, flags, false)) {
+        auto target = arg.role == ManagedArg::Role::Sret ? abi.ConsumeSret() : abi.Consume(arg.kind);
         if (target.loc.Kind() != Location::SLOT) {
-            return;
+            continue;
         }
         tail.PushBack(TailParamInfo {
             .offset = static_cast<uint32_t>(target.loc.SlotIdx()) * STACK_SLOT_SIZE + target.byteOffset,
-            .ldk    = TailLoadKind(kind),
+            .ldk    = TailLoadKind(arg.kind),
         });
-    };
-
-    if (flags.isSRet) {
-        record(abi.ConsumeSret(), CbcTypeKind::REC);
     }
-
-    // Same consumption order as StageManaged: receiver, parameters, then the
-    // hidden trailing arguments.
-    switch (flags.abiKind) {
-        case Image::MethodAbiKind::MUT: {
-            record(abi.Consume(CbcTypeKind::REC), CbcTypeKind::REC);
-            record(abi.Consume(CbcTypeKind::REF), CbcTypeKind::REF);
-            break;
-        }
-        case Image::MethodAbiKind::REF_RECEIVER:   record(abi.Consume(CbcTypeKind::REF), CbcTypeKind::REF); break;
-        case Image::MethodAbiKind::PRIM_RECEIVER:  record(abi.Consume(CbcTypeKind::I64), CbcTypeKind::I64); break;
-        case Image::MethodAbiKind::FPRIM_RECEIVER: record(abi.Consume(CbcTypeKind::F64), CbcTypeKind::F64); break;
-        case Image::MethodAbiKind::REC_RECEIVER:   record(abi.Consume(CbcTypeKind::REC), CbcTypeKind::REC); break;
-        case Image::MethodAbiKind::STATIC:
-        case Image::MethodAbiKind::HAS_THIS_TI:    break;
-    }
-
-    for (const auto& param : sig.params) {
-        record(abi.Consume(param.kind), param.kind);
-    }
-
-    int hiddenCount = sig.funcVarCount + flags.hasOuterTi + (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI);
-    for (int i = 0; i < hiddenCount; i++) {
-        record(abi.Consume(CbcTypeKind::I64), CbcTypeKind::I64);
-    }
-
     return tail;
 }
 

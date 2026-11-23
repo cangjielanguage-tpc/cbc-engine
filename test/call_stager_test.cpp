@@ -86,22 +86,15 @@ Location SlotLoc(int idx) { return Location::Slot(idx); }
 /// Destination stack location for the n-th spilled argument.
 Location StackArgLoc(int n) { return Location::Slot(n); }
 
-ParamInfo Param(CbcTypeKind kind)
+CbcTypeKind IntParam() { return CbcTypeKind::I64; }
+
+CbcTypeKind RefParam() { return CbcTypeKind::REF; }
+
+CbcTypeKind RecParam() { return CbcTypeKind::REC; }
+
+ForeignParam FlatRecParam(std::initializer_list<CAbiField> leaves, uint32_t size)
 {
-    ParamInfo p;
-    p.kind = kind;
-    return p;
-}
-
-ParamInfo IntParam() { return Param(CbcTypeKind::I64); }
-
-ParamInfo RefParam() { return Param(CbcTypeKind::REF); }
-
-ParamInfo RecParam() { return Param(CbcTypeKind::REC); }
-
-ParamInfo FlatRecParam(std::initializer_list<CAbiField> leaves, uint32_t size)
-{
-    ParamInfo p = Param(CbcTypeKind::REC);
+    ForeignParam p { CbcTypeKind::REC };
     for (auto leaf : leaves) {
         p.fields.PushBack(leaf);
     }
@@ -109,9 +102,9 @@ ParamInfo FlatRecParam(std::initializer_list<CAbiField> leaves, uint32_t size)
     return p;
 }
 
-ParamInfo F64Param() { return Param(CbcTypeKind::F64); }
+CbcTypeKind F64Param() { return CbcTypeKind::F64; }
 
-ParamInfo F32Param() { return Param(CbcTypeKind::F32); }
+CbcTypeKind F32Param() { return CbcTypeKind::F32; }
 
 CallAbiFlags StaticFlags() { return { false, false, Image::MethodAbiKind::STATIC }; }
 
@@ -122,8 +115,8 @@ CallAbiFlags StaticFlags() { return { false, false, Image::MethodAbiKind::STATIC
 
 TEST_P(StagerTest, IntArgsLandInParameterRegisters)
 {
-    Utils::Vector<ParamInfo> params { IntParam(), IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam(), IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(3), IRegLoc(4) };
 
     RecordArgs(args);
@@ -136,8 +129,8 @@ TEST_P(StagerTest, IntArgsLandInParameterRegisters)
 
 TEST_P(StagerTest, FloatArgsLandInFloatRegisters)
 {
-    Utils::Vector<ParamInfo> params { F64Param(), F32Param() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { F64Param(), F32Param() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { FRegLoc(2), FRegLoc(3) };
 
     RecordArgs(args);
@@ -150,8 +143,8 @@ TEST_P(StagerTest, FloatArgsLandInFloatRegisters)
 
 TEST_P(StagerTest, MixedIntAndFloatArgsKeepIndependentCounters)
 {
-    Utils::Vector<ParamInfo> params { IntParam(), F64Param(), IntParam(), F32Param() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam(), F64Param(), IntParam(), F32Param() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(7), FRegLoc(2), IRegLoc(8), FRegLoc(3) };
 
     RecordArgs(args);
@@ -166,14 +159,14 @@ TEST_P(StagerTest, MixedIntAndFloatArgsKeepIndependentCounters)
 
 TEST_P(StagerTest, IntArgsOverflowToSuccessiveStackSlots)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < 9; i++) {
         params.PushBack(IntParam());
         args.PushBack(IRegLoc(i));
     }
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     RecordArgs(args);
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
@@ -189,14 +182,14 @@ TEST_P(StagerTest, IntArgsOverflowToSuccessiveStackSlots)
 
 TEST_P(StagerTest, FloatArgsOverflowToStackSlots)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < 9; i++) {
         params.PushBack(F64Param());
         args.PushBack(FRegLoc(i));
     }
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     RecordArgs(args);
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
@@ -210,8 +203,8 @@ TEST_P(StagerTest, FloatArgsOverflowToStackSlots)
 
 TEST_P(StagerTest, ArgumentFromUntypedSlotLandsInRegister)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { SlotLoc(2) };
 
     RecordArgs(args);
@@ -223,8 +216,8 @@ TEST_P(StagerTest, ArgumentFromUntypedSlotLandsInRegister)
 
 TEST_P(StagerTest, SwappedArgumentsAreNotClobbered)
 {
-    Utils::Vector<ParamInfo> params { IntParam(), IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam(), IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(2), IRegLoc(1) };
 
     RecordArgs(args);
@@ -237,8 +230,8 @@ TEST_P(StagerTest, SwappedArgumentsAreNotClobbered)
 
 TEST_P(StagerTest, RotatedArgumentsAreNotClobbered)
 {
-    Utils::Vector<ParamInfo> params { IntParam(), IntParam(), IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam(), IntParam(), IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(2), IRegLoc(3), IRegLoc(1) };
 
     RecordArgs(args);
@@ -252,14 +245,14 @@ TEST_P(StagerTest, RotatedArgumentsAreNotClobbered)
 
 TEST_P(StagerTest, RefArgOnStackIsReportedAsParamRefSlot)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i <= IntRegCount(); i++) {
         params.PushBack(RefParam());
         args.PushBack(IRegLoc(i + 1));
     }
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
     ASSERT_TRUE(result.ok) << result.failure;
@@ -270,14 +263,14 @@ TEST_P(StagerTest, RefArgOnStackIsReportedAsParamRefSlot)
 
 TEST_P(StagerTest, RecArgOnStackIsReportedAsParamRecSlot)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i <= IntRegCount(); i++) {
         params.PushBack(RecParam());
         args.PushBack(IRegLoc(i + 1));
     }
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
     ASSERT_TRUE(result.ok) << result.failure;
@@ -288,8 +281,8 @@ TEST_P(StagerTest, RecArgOnStackIsReportedAsParamRecSlot)
 
 TEST_P(StagerTest, MutReceiverStagesDerivedBasePair)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(5), IRegLoc(6), IRegLoc(7) };
 
     RecordArgs(args);
@@ -306,8 +299,8 @@ TEST_P(StagerTest, MutReceiverStagesDerivedBasePair)
 
 TEST_P(StagerTest, GenericClosureParametersArePassedAsReferences)
 {
-    Utils::Vector<ParamInfo> params { IntParam(), IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam(), IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(3), IRegLoc(4), IRegLoc(5), IRegLoc(6) };
 
     RecordArgs(args);
@@ -323,8 +316,8 @@ TEST_P(StagerTest, GenericClosureParametersArePassedAsReferences)
 
 TEST_P(StagerTest, OuterTiAndThisTiLocationsAreReported)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(3), IRegLoc(4), IRegLoc(5) };
 
     Location outerTiLoc = Location::Nil();
@@ -340,8 +333,8 @@ TEST_P(StagerTest, OuterTiAndThisTiLocationsAreReported)
 
 TEST_P(StagerTest, ManagedArgCountMismatchFails)
 {
-    Utils::Vector<ParamInfo> params { IntParam(), IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam(), IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(3) };
 
     auto result = stager.StageManaged(args, StaticFlags(), sig);
@@ -352,7 +345,7 @@ TEST_P(StagerTest, ManagedArgCountMismatchFails)
 
 TEST_P(StagerTest, ForeignIntArgsLandInParameterRegisters)
 {
-    Utils::Vector<ParamInfo> params { IntParam(), IntParam() };
+    Utils::Vector<ForeignParam> params { IntParam(), IntParam() };
     ForeignCallSignature sig { params };
     Utils::Vector<Location> args { IRegLoc(3), IRegLoc(4) };
 
@@ -366,7 +359,7 @@ TEST_P(StagerTest, ForeignIntArgsLandInParameterRegisters)
 
 TEST_P(StagerTest, ForeignFloatArgsLandInFloatRegisters)
 {
-    Utils::Vector<ParamInfo> params { F64Param() };
+    Utils::Vector<ForeignParam> params { F64Param() };
     ForeignCallSignature sig { params };
     Utils::Vector<Location> args { FRegLoc(4) };
 
@@ -380,7 +373,7 @@ TEST_P(StagerTest, ForeignFloatArgsLandInFloatRegisters)
 TEST_P(StagerTest, ForeignIntArgsOverflowToStack)
 {
     int regs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<ForeignParam> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < regs + 2; i++) {
         params.PushBack(IntParam());
@@ -402,7 +395,7 @@ TEST_P(StagerTest, ForeignIntArgsOverflowToStack)
 
 TEST_P(StagerTest, ForeignStackArgFromUntypedSlotLandsInStackSlot)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<ForeignParam> params;
     Utils::Vector<Location> args;
     int spillIdx = IntRegCount();
     for (int i = 0; i <= spillIdx; i++) {
@@ -422,10 +415,10 @@ TEST_P(StagerTest, ForeignStackArgFromUntypedSlotLandsInStackSlot)
 
 TEST_P(StagerTest, ForeignVarArgLabelIsNotAnArgument)
 {
-    ParamInfo label;
+    ForeignParam label;
     label.isVarArgLabel = true;
 
-    Utils::Vector<ParamInfo> params { IntParam(), label, IntParam() };
+    Utils::Vector<ForeignParam> params { IntParam(), label, IntParam() };
     ForeignCallSignature sig { params, /*isVarArg=*/true };
     Utils::Vector<Location> args { IRegLoc(3), IRegLoc(4) };
 
@@ -443,10 +436,10 @@ TEST_P(StagerTest, ForeignVarArgLabelIsNotAnArgument)
 
 TEST_P(StagerTest, ForeignVArrayArgIsPassedByReference)
 {
-    ParamInfo varray;
+    ForeignParam varray;
     varray.isVArray = true;
 
-    Utils::Vector<ParamInfo> params { varray };
+    Utils::Vector<ForeignParam> params { varray };
     ForeignCallSignature sig { params };
     Utils::Vector<Location> args { IRegLoc(4) };
 
@@ -459,7 +452,7 @@ TEST_P(StagerTest, ForeignVArrayArgIsPassedByReference)
 
 TEST_P(StagerTest, ForeignArgCountMismatchFails)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
+    Utils::Vector<ForeignParam> params { IntParam() };
     ForeignCallSignature sig { params };
     Utils::Vector<Location> args { IRegLoc(1), IRegLoc(2) };
 
@@ -471,7 +464,7 @@ TEST_P(StagerTest, ForeignArgCountMismatchFails)
 
 TEST_P(StagerTest, ForeignSmallStructIsPassedInIntegerRegisters)
 {
-    Utils::Vector<ParamInfo> params { FlatRecParam({ { 0, 8, false }, { 8, 8, false } }, 16) };
+    Utils::Vector<ForeignParam> params { FlatRecParam({ { 0, 8, false }, { 8, 8, false } }, 16) };
     ForeignCallSignature sig { params };
     Utils::Vector<Location> args { SlotLoc(0) };
 
@@ -490,7 +483,7 @@ TEST_P(StagerTest, ForeignSmallStructIsPassedInIntegerRegisters)
 
 TEST_P(StagerTest, ForeignLargeStructAbove16Bytes)
 {
-    Utils::Vector<ParamInfo> params {
+    Utils::Vector<ForeignParam> params {
         FlatRecParam({ { 0, 8, false }, { 8, 8, false }, { 16, 8, false }, { 24, 8, false } }, 32)
     };
     ForeignCallSignature sig { params };
@@ -520,7 +513,7 @@ TEST_P(StagerTest, ForeignLargeStructAbove16Bytes)
 
 TEST_P(StagerTest, ForeignAllFloatStruct)
 {
-    Utils::Vector<ParamInfo> params {
+    Utils::Vector<ForeignParam> params {
         FlatRecParam({ { 0, 4, true }, { 4, 4, true }, { 8, 4, true }, { 12, 4, true } }, 16)
     };
     ForeignCallSignature sig { params };
@@ -576,8 +569,8 @@ TEST_P(StagerTest, ForeignStructRetIsSkippedWhenNotSRet)
 
 TEST_P(StagerTest, ManagedSRetOccupiesDedicatedOrShiftedSlot)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { SlotLoc(4), IRegLoc(3) };
 
     RecordArgs(args);
@@ -616,8 +609,8 @@ TEST_P(StagerTest, ForeignStructRetUsesPlatformFpBudget)
 
 TEST_P(StagerTest, PrimReceiverTakesIntegerRegister)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(5), IRegLoc(6) };
 
     RecordArgs(args);
@@ -630,8 +623,8 @@ TEST_P(StagerTest, PrimReceiverTakesIntegerRegister)
 
 TEST_P(StagerTest, FPrimReceiverTakesFloatRegister)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { FRegLoc(5), IRegLoc(6) };
 
     RecordArgs(args);
@@ -644,8 +637,8 @@ TEST_P(StagerTest, FPrimReceiverTakesFloatRegister)
 
 TEST_P(StagerTest, RecReceiverTakesIntegerRegisterAndDoesNotShiftSret)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { IRegLoc(5), IRegLoc(6) };
 
     RecordArgs(args);
@@ -659,8 +652,8 @@ TEST_P(StagerTest, RecReceiverTakesIntegerRegisterAndDoesNotShiftSret)
 TEST_P(StagerTest, FuncTypeVariablesTakeIntegerRegisters)
 {
     // Generic instance: type vars are passed as trailing integer arguments.
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, /*funcVarCount=*/2 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, /*funcVarCount=*/2 };
     Utils::Vector<Location> args { IRegLoc(3), IRegLoc(4), IRegLoc(5) };
 
     RecordArgs(args);
@@ -675,7 +668,7 @@ TEST_P(StagerTest, FuncTypeVariablesTakeIntegerRegisters)
 TEST_P(StagerTest, FuncTypeVariablesOverflowToStackAfterParams)
 {
     int regs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < regs; i++) {
         params.PushBack(IntParam());
@@ -685,7 +678,7 @@ TEST_P(StagerTest, FuncTypeVariablesOverflowToStackAfterParams)
     args.PushBack(IRegLoc(regs + 1));
     args.PushBack(IRegLoc(regs + 2));
 
-    CallSignature sig { params, 2 };
+    ManagedCallSignature sig { params, 2 };
     RecordArgs(args);
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
@@ -698,10 +691,10 @@ TEST_P(StagerTest, GenericParamsIgnoreDeclaredKindsAndPassReferences)
 {
     // Generic closure: every parameter is passed as a managed reference,
     // regardless of the declared kind.
-    ParamInfo rec = RecParam();
-    ParamInfo f64 = F64Param();
-    Utils::Vector<ParamInfo> params { rec, f64 };
-    CallSignature sig { params, 0 };
+    CbcTypeKind rec = RecParam();
+    CbcTypeKind f64 = F64Param();
+    Utils::Vector<CbcTypeKind> params { rec, f64 };
+    ManagedCallSignature sig { params, 0 };
     // Receiver, two parameters, outer type info.
     Utils::Vector<Location> args { IRegLoc(3), IRegLoc(4), IRegLoc(5), IRegLoc(6) };
 
@@ -718,8 +711,8 @@ TEST_P(StagerTest, GenericParamsIgnoreDeclaredKindsAndPassReferences)
 
 TEST_P(StagerTest, MutReceiverWithSRet)
 {
-    Utils::Vector<ParamInfo> params { IntParam() };
-    CallSignature sig { params, 0 };
+    Utils::Vector<CbcTypeKind> params { IntParam() };
+    ManagedCallSignature sig { params, 0 };
     Utils::Vector<Location> args { SlotLoc(4), IRegLoc(5), IRegLoc(6), IRegLoc(7) };
 
     RecordArgs(args);
@@ -756,7 +749,7 @@ TEST_P(StagerTest, MutReceiverWithSRet)
 TEST_P(StagerTest, CompactSlotsFitSmallArgs)
 {
     int regs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < regs; i++) {
         params.PushBack(IntParam());
@@ -764,11 +757,11 @@ TEST_P(StagerTest, CompactSlotsFitSmallArgs)
     }
     // Four i16 arguments fill a single 8-byte stack region on Darwin.
     for (int i = 0; i < 4; i++) {
-        params.PushBack(Param(CbcTypeKind::I16));
+        params.PushBack(CbcTypeKind::I16);
         args.PushBack(SlotLoc(i));
     }
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
     ASSERT_TRUE(result.ok) << result.failure;
@@ -782,21 +775,21 @@ TEST_P(StagerTest, CompactSlotsFitSmallArgs)
 TEST_P(StagerTest, CompactSlotsPackMixedWidths)
 {
     int regs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < regs; i++) {
         params.PushBack(IntParam());
         args.PushBack(IRegLoc(i + 1));
     }
     // i32 + i16 + i16: 4 + 2 + 2 = 8 bytes on Darwin, 24 on Linux.
-    params.PushBack(Param(CbcTypeKind::I32));
-    params.PushBack(Param(CbcTypeKind::I16));
-    params.PushBack(Param(CbcTypeKind::I16));
+    params.PushBack(CbcTypeKind::I32);
+    params.PushBack(CbcTypeKind::I16);
+    params.PushBack(CbcTypeKind::I16);
     args.PushBack(SlotLoc(0));
     args.PushBack(SlotLoc(1));
     args.PushBack(SlotLoc(2));
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
     ASSERT_TRUE(result.ok) << result.failure;
@@ -810,7 +803,7 @@ TEST_P(StagerTest, CompactSlotsPackMixedWidths)
 TEST_P(StagerTest, CompactSlotsOnlySingleByteArgs)
 {
     int regs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < regs; i++) {
         params.PushBack(IntParam());
@@ -818,11 +811,11 @@ TEST_P(StagerTest, CompactSlotsOnlySingleByteArgs)
     }
     // Eight booleans occupy exactly one 8-byte region on Darwin.
     for (int i = 0; i < 8; i++) {
-        params.PushBack(Param(CbcTypeKind::BOOL));
+        params.PushBack(CbcTypeKind::BOOL);
         args.PushBack(SlotLoc(i));
     }
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
     ASSERT_TRUE(result.ok) << result.failure;
@@ -837,14 +830,14 @@ TEST_P(StagerTest, CompactSlotsForForeignNamedArgs)
 {
     // Named (non-variadic) foreign args pack on Darwin; varargs stay 8-byte.
     int nRegs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<ForeignParam> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < nRegs; i++) {
         params.PushBack(IntParam());
         args.PushBack(IRegLoc(i + 1));
     }
     for (int i = 0; i < 4; i++) {
-        params.PushBack(Param(CbcTypeKind::I16));
+        params.PushBack(CbcTypeKind::I16);
         args.PushBack(SlotLoc(i));
     }
 
@@ -874,7 +867,7 @@ TEST_P(StagerTest, CompactSlotsForForeignNamedArgs)
 TEST_P(StagerTest, CompactSlotsRespectNaturalAlignment)
 {
     int nRegs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < nRegs; i++) {
         params.PushBack(IntParam());
@@ -882,12 +875,12 @@ TEST_P(StagerTest, CompactSlotsRespectNaturalAlignment)
     }
     // A 1-byte argument followed by a 64-bit one: the latter must be aligned,
     // not packed at offset 1.
-    params.PushBack(Param(CbcTypeKind::BOOL));
+    params.PushBack(CbcTypeKind::BOOL);
     params.PushBack(IntParam());
     args.PushBack(SlotLoc(0));
     args.PushBack(SlotLoc(1));
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
     ASSERT_TRUE(result.ok) << result.failure;
@@ -899,7 +892,7 @@ TEST_P(StagerTest, CompactSlotsRespectNaturalAlignment)
 TEST_P(StagerTest, CompactedArgumentFromFrameSlotKeepsItsWidth)
 {
     int nRegs = IntRegCount();
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < nRegs; i++) {
         params.PushBack(IntParam());
@@ -907,12 +900,12 @@ TEST_P(StagerTest, CompactedArgumentFromFrameSlotKeepsItsWidth)
     }
     // The spilled arguments arrive from untyped frame slots, taking the
     // frame-slot -> passing-area path rather than a register move.
-    params.PushBack(Param(CbcTypeKind::I16));
-    params.PushBack(Param(CbcTypeKind::I16));
+    params.PushBack(CbcTypeKind::I16);
+    params.PushBack(CbcTypeKind::I16);
     args.PushBack(SlotLoc(0));
     args.PushBack(SlotLoc(1));
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto result = stager.StageManaged(args, StaticFlags(), sig);
 
     ASSERT_TRUE(result.ok) << result.failure;
@@ -936,7 +929,7 @@ TEST_P(StagerTest, CompactedArgumentFromFrameSlotKeepsItsWidth)
 
 TEST_P(StagerTest, TailOffsetsPackPerPlatform)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     for (int i = 0; i < IntRegCount(); i++) {
         params.PushBack(IntParam());
     }
@@ -944,13 +937,13 @@ TEST_P(StagerTest, TailOffsetsPackPerPlatform)
         params.PushBack(F64Param());
     }
     // Every following parameter overflows to the passing area.
-    params.PushBack(Param(CbcTypeKind::U8));
-    params.PushBack(Param(CbcTypeKind::U8));
+    params.PushBack(CbcTypeKind::U8);
+    params.PushBack(CbcTypeKind::U8);
     params.PushBack(IntParam());
     params.PushBack(F32Param());
-    params.PushBack(Param(CbcTypeKind::I16));
+    params.PushBack(CbcTypeKind::I16);
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto tail = ComputeTailParams(sig, StaticFlags(), Info().desc);
 
     ASSERT_EQ(tail.Size(), 5u);
@@ -975,24 +968,24 @@ TEST_P(StagerTest, TailOffsetsPackPerPlatform)
 
 TEST_P(StagerTest, TailLoadKindsFollowParameterKinds)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     for (int i = 0; i < IntRegCount(); i++) {
         params.PushBack(IntParam());
     }
     for (int i = 0; i < FloatRegCount(); i++) {
         params.PushBack(F64Param());
     }
-    params.PushBack(Param(CbcTypeKind::U8));
-    params.PushBack(Param(CbcTypeKind::I8));
-    params.PushBack(Param(CbcTypeKind::U16));
-    params.PushBack(Param(CbcTypeKind::I16));
-    params.PushBack(Param(CbcTypeKind::I32));
+    params.PushBack(CbcTypeKind::U8);
+    params.PushBack(CbcTypeKind::I8);
+    params.PushBack(CbcTypeKind::U16);
+    params.PushBack(CbcTypeKind::I16);
+    params.PushBack(CbcTypeKind::I32);
     params.PushBack(F32Param());
     params.PushBack(IntParam());
     params.PushBack(RefParam());
     params.PushBack(RecParam());
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     auto tail = ComputeTailParams(sig, StaticFlags(), Info().desc);
 
     ASSERT_EQ(tail.Size(), 9u);
@@ -1012,7 +1005,7 @@ TEST_P(StagerTest, TailLoadKindsFollowParameterKinds)
 
 TEST_P(StagerTest, TailParamsMatchManagedStaging)
 {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<CbcTypeKind> params;
     Utils::Vector<Location> args;
     for (int i = 0; i < IntRegCount(); i++) {
         params.PushBack(IntParam());
@@ -1020,8 +1013,8 @@ TEST_P(StagerTest, TailParamsMatchManagedStaging)
     for (int i = 0; i < FloatRegCount(); i++) {
         params.PushBack(F64Param());
     }
-    params.PushBack(Param(CbcTypeKind::U8));
-    params.PushBack(Param(CbcTypeKind::I16));
+    params.PushBack(CbcTypeKind::U8);
+    params.PushBack(CbcTypeKind::I16);
     params.PushBack(IntParam());
     params.PushBack(F32Param());
     params.PushBack(RefParam());
@@ -1030,7 +1023,7 @@ TEST_P(StagerTest, TailParamsMatchManagedStaging)
         args.PushBack(SlotLoc(static_cast<int>(i)));
     }
 
-    CallSignature sig { params, 0 };
+    ManagedCallSignature sig { params, 0 };
     RecordArgs(args);
     auto result = stager.StageManaged(args, StaticFlags(), sig);
     ASSERT_TRUE(result.ok) << result.failure;
@@ -1054,7 +1047,7 @@ TEST_P(StagerTest, TailParamsMatchManagedStaging)
         ASSERT_LT(ordinal, static_cast<int>(tail.Size())) << "argument " << i << " has no tail ordinal";
         EXPECT_EQ(tail[ordinal].offset, static_cast<uint32_t>(*at))
             << "tail ordinal " << ordinal << " for argument " << i;
-        EXPECT_EQ(static_cast<int>(sink.SlotSizes[*at]), static_cast<int>(StkArg(params[i].kind)))
+        EXPECT_EQ(static_cast<int>(sink.SlotSizes[*at]), static_cast<int>(StkArg(params[i])))
             << "store width for argument " << i;
         ordinal++;
     }

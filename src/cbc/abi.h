@@ -24,8 +24,6 @@ public:
         bool sretShifts;
         int sretIrIdx;
         bool onlyOnStackVarargs;
-        // Size of one stack-passed argument slot, and its alignment.
-        // Compact (Darwin) ABIs size slots by value; others use a fixed 8.
         bool compactStackSlots;
 
         template <Platform p> static PlatformDescription FromTraits()
@@ -55,9 +53,6 @@ public:
     ArgTarget ConsumeSret();
 
     int MaxStackSlot() const { return MaxStackBytes() / STACK_SLOT_SIZE; }
-
-    /// Size and alignment of one stack-passed value of `kind`.
-    uint32_t StackSlotSize(CbcTypeKind kind) const;
 
     /// Size in bytes of the whole passing area, rounded up to a whole slot.
     int MaxStackBytes() const { return static_cast<int>(MathUtils::AlignUp(stackBytes, STACK_SLOT_SIZE)); }

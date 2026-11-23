@@ -62,6 +62,7 @@ CAbiStructPlan ClassifyCAbiStruct(
     Utils::Span<const CAbiField> fields,
     uint32_t size,
     bool isVarArg,
+    bool onlyOnStackVarargs,
     int freeIRegs,
     int freeFRegs,
     bool ret = false

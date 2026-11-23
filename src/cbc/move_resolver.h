@@ -62,8 +62,7 @@ struct Location {
     operator int() const { return idx; }
 };
 
-/// Where a single argument goes: a register, or a width-sized byte range in the
-/// passing area.
+/// Where a single argument goes: a register or a byte range in the stack area.
 struct ArgTarget {
     Location loc;
     Format::StoreAccessKind stk = Format::StoreAccessKind::ST_64;
@@ -73,6 +72,13 @@ struct ArgTarget {
 
     /// A register target: placement is fully described by `loc`.
     static ArgTarget Reg(Location loc) { return ArgTarget { loc }; }
+
+    /// A stack target: `byteOffset` locates a compacted value within `slot`
+    /// and `stk` is the width it is stored with.
+    static ArgTarget Stack(int slot, Format::StoreAccessKind stk, uint32_t byteOffset)
+    {
+        return ArgTarget { Location::Slot(slot), stk, byteOffset };
+    }
 };
 
 // Abstract sink for resolved moves. Implementations emit the actual

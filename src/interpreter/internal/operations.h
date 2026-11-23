@@ -874,6 +874,7 @@ public:
     {}
 
     inline void StorePrim(StoreAccessKind::Value stk, Format::Reg src, Ectype* ectype);
+    inline void Copy(StoreAccessKind::Value stk, const MemoryLocation& src);
     inline void StoreImm(StoreAccessKind::Value stk, uint64_t imm);
     inline void LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst, Ectype* ectype);
 
@@ -885,6 +886,7 @@ private:
     template <typename P> inline void Store(Format::Reg src, Ectype* ectype);
     template <typename P> inline void StoreImm(uint64_t imm);
     template <typename P> inline void Load(Format::Reg dst, Ectype* ectype);
+    template <typename P> inline void Copy(const MemoryLocation& src);
 
     uint8_t* base;
     intptr_t offset;
@@ -973,6 +975,26 @@ inline void MemoryLocation::StorePrim(StoreAccessKind::Value stk, Format::Reg sr
         case StoreAccessKind::ST_F64: Store<double>(src, ectype); return;
         default:                      FATAL("Unexpected stk");
     }
+}
+
+inline void MemoryLocation::Copy(StoreAccessKind::Value stk, const MemoryLocation& src)
+{
+    switch (stk) {
+        case StoreAccessKind::ST_8:   Copy<uint8_t>(src); return;
+        case StoreAccessKind::ST_16:  Copy<uint16_t>(src); return;
+        case StoreAccessKind::ST_32:  Copy<uint32_t>(src); return;
+        case StoreAccessKind::ST_64:  Copy<uint64_t>(src); return;
+        case StoreAccessKind::ST_F16: Copy<Utils::Float16>(src); return;
+        case StoreAccessKind::ST_F32: Copy<float>(src); return;
+        case StoreAccessKind::ST_F64: Copy<double>(src); return;
+        case StoreAccessKind::ST_REF: Copy<Value::Reference>(src); return;
+        default:                      FATAL("Unexpected stk");
+    }
+}
+
+template <typename P> inline void MemoryLocation::Copy(const MemoryLocation& src)
+{
+    std::memcpy(base + offset, src.base + src.offset, sizeof(P));
 }
 
 inline void MemoryLocation::StoreImm(StoreAccessKind::Value stk, uint64_t imm)

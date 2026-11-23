@@ -4,7 +4,6 @@ namespace Cbc {
 
 AbiAssigner::AbiAssigner(const PlatformDescription& desc) : desc(desc), iargIdx(0), fargIdx(0), stackBytes(0) {}
 
-/// Size and alignment of one stack-passed value, as in Darwin PCS
 static uint32_t StackArgSize(CbcTypeKind kind, bool compact)
 {
     if (!compact) {
@@ -24,18 +23,14 @@ static uint32_t StackArgSize(CbcTypeKind kind, bool compact)
     }
 }
 
-uint32_t AbiAssigner::StackSlotSize(CbcTypeKind kind) const { return StackArgSize(kind, desc.compactStackSlots); }
-
-/// Places one stack argument of `width` bytes and describes where it landed.
 ArgTarget AbiAssigner::StackArg(CbcTypeKind kind, uint32_t width)
 {
     int offset  = AlignStackCursor(width);
     stackBytes += static_cast<int>(width);
     auto stk     = kind == CbcTypeKind::REC || kind == CbcTypeKind::REF ? Format::StoreAccessKind::ST_64 : Stk(kind);
-    return ArgTarget { Location::Slot(offset / STACK_SLOT_SIZE), stk, static_cast<uint32_t>(offset % STACK_SLOT_SIZE) };
+    return ArgTarget::Stack(offset / STACK_SLOT_SIZE, stk, static_cast<uint32_t>(offset % STACK_SLOT_SIZE));
 }
 
-/// Aligns the passing-area cursor to `align` and returns the resulting offset.
 int AbiAssigner::AlignStackCursor(uint32_t align)
 {
     stackBytes = static_cast<int>(MathUtils::AlignUp(static_cast<uint32_t>(stackBytes), align));

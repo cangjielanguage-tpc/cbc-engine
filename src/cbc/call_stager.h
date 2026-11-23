@@ -22,34 +22,52 @@ struct MethodSignature;
 
 namespace Cbc {
 
-struct ParamInfo {
-    CbcTypeKind kind   = CbcTypeKind::INVALID;
-    bool isVarArgLabel = false;
-    bool isVArray      = false;
-    Utils::Vector<CAbiField> fields; // filled only for foreign by-value records
-    uint32_t flatSize = 0;
+/// One argument of a managed call, in ABI order.
+struct ManagedArg {
+    enum class Role {
+        Sret,
+        Derived,
+        Receiver,
+        Param,
+        FuncVar,
+        OuterTi,
+        ThisTi,
+    };
+    CbcTypeKind kind;
+    Role role;
 };
 
-/// Managed (Cangjie ABI) call: no varargs, no by-value records.
-struct CallSignature {
-    Utils::Vector<ParamInfo> params;
-    int funcVarCount = 0;
-};
-
-/// One stack-passed parameter as seen by the callee: its byte offset from the
+/// Stack-passed parameter as seen by the callee: its byte offset from the
 /// tail base (the `n`-th stack parameter is `ld.tail` operand `n`) and the
-/// load kind that reads exactly what the caller-side store wrote. Short
-/// integrals are widened to 32-bit in the bytecode (`ld.tail.32`) but occupy
-/// their natural width in the passing area, so the load kind comes from the
-/// parameter kind, not from the instruction.
+/// load kind that reads exactly what the caller-side store wrote.
 struct TailParamInfo {
     uint32_t offset;
     Format::LoadAccessKind ldk;
 };
 
-/// Foreign (C ABI) call: record layouts are resolved by the time it is built.
+/// Declared parameter of a foreign (C ABI) signature: a scalar kind, or a
+/// by-value record with its flattened layout.
+struct ForeignParam {
+    ForeignParam() = default;
+
+    ForeignParam(CbcTypeKind kind) : kind(kind) {}
+
+    CbcTypeKind kind   = CbcTypeKind::INVALID;
+    bool isVarArgLabel = false;
+    bool isVArray      = false;
+    Utils::Vector<CAbiField> fields; // filled only for by-value records
+    uint32_t flatSize = 0;
+};
+
+/// Managed (Cangjie ABI) call: no varargs, records are always passed as 8-byte pointers.
+struct ManagedCallSignature {
+    Utils::Vector<CbcTypeKind> params;
+    int funcVarCount = 0;
+};
+
+/// Foreign (C ABI) call: may use varargs and pass records by value.
 struct ForeignCallSignature {
-    Utils::Vector<ParamInfo> params;
+    Utils::Vector<ForeignParam> params;
     bool isVarArg = false;
     Utils::Vector<CAbiField> retFields;
     uint32_t retSize = 0;
@@ -70,7 +88,7 @@ struct StagingResult {
     std::string failure;
 };
 
-struct ForeignStaging {
+struct ForeignStagingResult {
     int stackBytes = 0;
     int fregs      = 0;
     StagingResult result;
@@ -88,13 +106,13 @@ public:
     StagingResult StageManaged(
         Utils::Span<const Location> args,
         const CallAbiFlags& flags,
-        const CallSignature& sig,
+        const ManagedCallSignature& sig,
         Location* outerTiLoc = nullptr,
         Location* thisTiLoc  = nullptr,
         bool genericParams   = false
     );
 
-    ForeignStaging StageForeign(
+    ForeignStagingResult StageForeign(
         Utils::Span<const Location> args,
         const CallAbiFlags& flags,
         const ForeignCallSignature& sig,
@@ -111,17 +129,13 @@ private:
         uint32_t dstOffset = 0; // byte offset of the copy from the frame bottom
     };
 
-    bool CheckManagedArgCount(
-        size_t argCount, const CallAbiFlags& flags, const CallSignature& sig, StagingResult& result
-    );
-
     bool CheckForeignArgCount(
         size_t argCount, const CallAbiFlags& flags, const ForeignCallSignature& sig, StagingResult& result
     );
 
     bool StageForeignStructArg(
         Location srcAddr,
-        const ParamInfo& param,
+        const ForeignParam& param,
         bool varArgPos,
         MoveResolver& moves,
         AbiAssigner& abi,
@@ -135,10 +149,17 @@ private:
     CAbi cAbi;
 };
 
-CallSignature MakeCallSignature(const Resolution::MethodSignature& sig);
+/// Arguments of a managed call in ABI order: sret, receiver, parameters,
+/// function variables, outer/this type infos. Shared by call staging and the
+/// callee-side layouts so their orderings agree by construction.
+Utils::Vector<ManagedArg> ManagedArgSequence(
+    const ManagedCallSignature& sig, const CallAbiFlags& flags, bool genericParams
+);
+
+ManagedCallSignature MakeManagedCallSignature(const Resolution::MethodSignature& sig);
 
 /// Signature of a method from its raw signature term (ret type excluded from params).
-CallSignature MakeCallSignature(Engine::Term signature);
+ManagedCallSignature MakeManagedCallSignature(Engine::Term signature);
 
 std::optional<ForeignCallSignature> MakeForeignCallSignature(
     Resolution::Resolver& resolver, const Resolution::MethodSignature& sig
@@ -148,7 +169,7 @@ std::optional<ForeignCallSignature> MakeForeignCallSignature(
 /// `ld.tail` ordinal order. Mirrors the placement `StageManaged` produces for
 /// a call to the same signature.
 Utils::Vector<TailParamInfo> ComputeTailParams(
-    const CallSignature& sig, const CallAbiFlags& flags, const AbiAssigner::PlatformDescription& desc
+    const ManagedCallSignature& sig, const CallAbiFlags& flags, const AbiAssigner::PlatformDescription& desc
 );
 
 } // namespace Cbc
