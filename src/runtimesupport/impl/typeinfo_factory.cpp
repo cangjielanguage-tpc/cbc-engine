@@ -999,6 +999,12 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
     }
 }
 
+// The SDK represents the two closure code pointers as Int64 fields.
+static DYN_TypeInfo* ClosureCodePointerTypeInfo()
+{
+    return UnpackTypeInfo(Interpretation::builtinTypeInfos[Interpretation::BUILTIN_I64]);
+}
+
 static std::optional<TypeInfo> QueryFunctional(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
 )
@@ -1025,13 +1031,33 @@ static std::optional<TypeInfo> QueryFunctional(
         void* closure;
     };
 
-    static auto templates =
-        Templates { .cfunc = QueryTypeTemplate(session, "CFunc"), .closure = QueryTypeTemplate(session, "Closure") };
+    static auto templates = [&session]() {
+        static TypeTemplate cfunc { "CFunc", TYPE_KIND_CFUNC, 0, 0, 1, 0,
+            nullptr, nullptr, nullptr, nullptr, nullptr, 0 };
+        static void* closureFields[] = {
+            reinterpret_cast<void*>(&ClosureCodePointerTypeInfo),
+            reinterpret_cast<void*>(&ClosureCodePointerTypeInfo),
+        };
+        static TypeTemplate closure { "Closure", TYPE_KIND_FUNC, 0, 2, 1, 0,
+            closureFields, nullptr, nullptr, nullptr, nullptr, 0 };
+        auto cfuncTemplate = QueryTypeTemplate(session, "CFunc", true);
+        auto closureTemplate = QueryTypeTemplate(session, "Closure", true);
+        return Templates {
+            .cfunc = cfuncTemplate ? cfuncTemplate : &cfunc,
+            .closure = closureTemplate ? closureTemplate : &closure,
+        };
+    }();
 
     auto cfuncTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.cfunc, infos.Size(), infos.Data());
+    if (!cfuncTypeInfo) {
+        return std::nullopt;
+    }
     DYN_TypeInfo* cfuncTIBox[1] = { cfuncTypeInfo };
 
     auto closureTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.closure, 1, cfuncTIBox);
+    if (!closureTypeInfo) {
+        return std::nullopt;
+    }
     return TypeInfo(closureTypeInfo);
 }
 
