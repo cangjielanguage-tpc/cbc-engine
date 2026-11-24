@@ -90,6 +90,27 @@ static void FreeStrings(char* methodName, char* className, char* fileName)
     delete[] fileName;
 }
 
+// A frame with this line number is dropped from a traceback by
+// `std.core::getStackTraceImpl`; the runtime uses the same marker when it
+// filters native frames.
+static constexpr size_t NEED_FILTED_FLAG = static_cast<size_t>(-1);
+
+// Whether a frame of the given type belongs to the exception creation layer and
+// must not appear in a traceback.
+//
+// The runtime filters native frames by matching their lowered names against
+// `MangleNameHelper::filtMangleNameSet`, whose `_CNat` entry is the `std.core`
+// package. Interpreted frames never reach that check: the runtime copies the
+// description built here as is, so the same filter is applied on this side to
+// keep both kinds of frames consistent.
+static bool IsHiddenFromStackTrace(std::string_view typeName)
+{
+    size_t delimPos          = typeName.find(':');
+    std::string_view package = delimPos == std::string_view::npos ? typeName : typeName.substr(0, delimPos);
+
+    return package == "std.core";
+}
+
 // TODO support getting src line by bytecode posiiton
 // TODO print "<...>" if type or method arity is > 1
 void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_InterpretedFrameDesc* frameDesc)
@@ -102,6 +123,9 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
         FATAL("Couldn't get method definition for stacktrace from FuH: %p", dynFuh);
         return;
     }
+
+    auto typeNameView = Decode::Read(session, methodDef.TypeName());
+    bool hidden       = IsHiddenFromStackTrace(typeNameView);
 
     // Line number
     {
@@ -123,6 +147,10 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
                 }
                 break;
             }
+        }
+
+        if (hidden) {
+            frameDesc->lineNumber = NEED_FILTED_FLAG;
         }
     }
 
@@ -150,8 +178,6 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // Type name
     {
-        auto typeNameView = Decode::Read(session, methodDef.TypeName());
-
         size_t delimPos = typeNameView.find(':');
         if (delimPos == std::string_view::npos) {
             // method is in a package
