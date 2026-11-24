@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <optional>
 #include <string_view>
 
@@ -998,45 +999,40 @@ static std::optional<TypeInfo> QueryFunctional(
     return TypeInfo(closureTypeInfo);
 }
 
-// Shapes of the built-in primitive type infos. The order must follow Interpretation::BuiltinType
+// Shapes of the built-in primitive type infos.
 struct BuiltinTypeInfoSpec {
+    Interpretation::BuiltinType typeKind;
     char const* name;
     TypeKind type;
     uint32_t instanceSize;
     uint8_t align;
 };
 
-constexpr BuiltinTypeInfoSpec builtinTypeInfoSpecs[Interpretation::BUILTIN_COUNT] = {
-    /* BUILTIN_UNIT    */ {"Unit",       TYPE_KIND_UNIT,         0,             1},
-    /* BUILTIN_BOOLEAN */ {"Bool",       TYPE_KIND_BOOL,         1,             1},
-    /* BUILTIN_U8      */ {"UInt8",      TYPE_KIND_UINT8,        1,             1},
-    /* BUILTIN_I8      */ {"Int8",       TYPE_KIND_INT8,         1,             1},
-    /* BUILTIN_U16     */ {"UInt16",     TYPE_KIND_UINT16,       2,             2},
-    /* BUILTIN_I16     */ {"Int16",      TYPE_KIND_INT16,        2,             2},
-    /* BUILTIN_U32     */ {"UInt32",     TYPE_KIND_UINT32,       4,             4},
-    /* BUILTIN_I32     */ {"Int32",      TYPE_KIND_INT32,        4,             4},
-    /* BUILTIN_U64     */ {"UInt64",     TYPE_KIND_UINT64,       8,             8},
-    /* BUILTIN_I64     */ {"Int64",      TYPE_KIND_INT64,        8,             8},
-    /* BUILTIN_UADDR   */ {"UIntNative", TYPE_KIND_UINT_NATIVE,  sizeof(void*), sizeof(void*)},
-    /* BUILTIN_IADDR   */ {"IntNative",  TYPE_KIND_INT_NATIVE,   sizeof(void*), sizeof(void*)},
-    /* BUILTIN_F16     */ {"Float16",    TYPE_KIND_FLOAT16,      2,             2},
-    /* BUILTIN_F32     */ {"Float32",    TYPE_KIND_FLOAT32,      4,             4},
-    /* BUILTIN_F64     */ {"Float64",    TYPE_KIND_FLOAT64,      8,             8},
-    /* BUILTIN_RUNE    */ {"Rune",       TYPE_KIND_RUNE,         4,             4},
-    /* BUILTIN_NOTHING */ {"Nothing",    TYPE_KIND_NOTHING,      0,             1},
-    /* BUILTIN_CSTRING */ {"CString",    TYPE_KIND_CSTRING,      sizeof(void*), sizeof(void*)},
+constexpr BuiltinTypeInfoSpec builtinTypeInfoSpecs[] = {
+    {Interpretation::BUILTIN_UNIT,    "Unit",       TYPE_KIND_UNIT,        0,             1},
+    {Interpretation::BUILTIN_BOOLEAN, "Bool",       TYPE_KIND_BOOL,        1,             1},
+    {Interpretation::BUILTIN_U8,      "UInt8",      TYPE_KIND_UINT8,       1,             1},
+    {Interpretation::BUILTIN_I8,      "Int8",       TYPE_KIND_INT8,        1,             1},
+    {Interpretation::BUILTIN_U16,     "UInt16",     TYPE_KIND_UINT16,      2,             2},
+    {Interpretation::BUILTIN_I16,     "Int16",      TYPE_KIND_INT16,       2,             2},
+    {Interpretation::BUILTIN_U32,     "UInt32",     TYPE_KIND_UINT32,      4,             4},
+    {Interpretation::BUILTIN_I32,     "Int32",      TYPE_KIND_INT32,       4,             4},
+    {Interpretation::BUILTIN_U64,     "UInt64",     TYPE_KIND_UINT64,      8,             8},
+    {Interpretation::BUILTIN_I64,     "Int64",      TYPE_KIND_INT64,       8,             8},
+    {Interpretation::BUILTIN_UADDR,   "UIntNative", TYPE_KIND_UINT_NATIVE, sizeof(void*), sizeof(void*)},
+    {Interpretation::BUILTIN_IADDR,   "IntNative",  TYPE_KIND_INT_NATIVE,  sizeof(void*), sizeof(void*)},
+    {Interpretation::BUILTIN_F16,     "Float16",    TYPE_KIND_FLOAT16,     2,             2},
+    {Interpretation::BUILTIN_F32,     "Float32",    TYPE_KIND_FLOAT32,     4,             4},
+    {Interpretation::BUILTIN_F64,     "Float64",    TYPE_KIND_FLOAT64,     8,             8},
+    {Interpretation::BUILTIN_RUNE,    "Rune",       TYPE_KIND_RUNE,        4,             4},
+    {Interpretation::BUILTIN_NOTHING, "Nothing",    TYPE_KIND_NOTHING,     0,             1},
+    {Interpretation::BUILTIN_CSTRING, "CString",    TYPE_KIND_CSTRING,     sizeof(void*), sizeof(void*)},
 };
 
-// Guards against the spec table drifting away from the bytecode ABI enum order.
-static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_UNIT].type == TYPE_KIND_UNIT);
-static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_RUNE].type == TYPE_KIND_RUNE);
-static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_NOTHING].type == TYPE_KIND_NOTHING);
-static_assert(builtinTypeInfoSpecs[Interpretation::BUILTIN_CSTRING].type == TYPE_KIND_CSTRING);
+static_assert(Interpretation::BUILTIN_COUNT == std::size(builtinTypeInfoSpecs));
 
-static TypeInfo CreateBuiltinTypeInfo(Interpretation::BuiltinType builtin)
+static TypeInfo CreateBuiltinTypeInfo(BuiltinTypeInfoSpec const& spec)
 {
-    auto const& spec = builtinTypeInfoSpecs[builtin];
-
     auto wrapper = AllocTiWrapper();
     if (!wrapper) {
         FATAL("failed to allocate type info for the builtin type %s", spec.name);
@@ -1065,9 +1061,8 @@ static TypeInfo CreateBuiltinTypeInfo(Interpretation::BuiltinType builtin)
 
 void InitBuiltinTypeInfos()
 {
-    for (int i = 0; i < Interpretation::BUILTIN_COUNT; ++i) {
-        auto builtin                              = static_cast<Interpretation::BuiltinType>(i);
-        Interpretation::builtinTypeInfos[builtin] = CreateBuiltinTypeInfo(builtin);
+    for (auto const& spec : builtinTypeInfoSpecs) {
+        Interpretation::builtinTypeInfos[spec.typeKind] = CreateBuiltinTypeInfo(spec);
     }
 }
 
