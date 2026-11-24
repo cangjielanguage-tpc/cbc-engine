@@ -19,12 +19,24 @@ namespace Engine {
 
 using FileId = Image::FileId;
 
+/// Optional fallback symbol resolver consulted by `Dependencies::FindSymbol`
+/// when none of the loaded dependency objects contains the requested symbol.
+/// On failure the resolver must return null and fill `errBuffer`
+/// (at least 256 bytes long) with a human readable error message.
+using SymbolResolveFn = void* (*)(void* ctx, char const* name, char* errBuffer);
+
 /// List of dependencies that engine is using.
 class Dependencies {
     using SharedObject = Utils::SharedObject;
 
 public:
-    Dependencies(Utils::Vector<std::shared_ptr<SharedObject>>&& objects) : objects(std::move(objects)) {}
+    Dependencies(
+        Utils::Vector<std::shared_ptr<SharedObject>>&& objects,
+        void* resolverCtx = nullptr,
+        SymbolResolveFn resolverFn = nullptr
+    )
+        : objects(std::move(objects)), resolverCtx(resolverCtx), resolverFn(resolverFn)
+    {}
 
     Dependencies() = default;
 
@@ -34,6 +46,8 @@ public:
 
 private:
     Utils::Vector<std::shared_ptr<SharedObject>> objects;
+    void* resolverCtx = nullptr;
+    SymbolResolveFn resolverFn = nullptr;
 };
 
 class Loader;
@@ -104,7 +118,7 @@ private:
 /// Builder of an engine.
 class Loader {
 public:
-    Loader();
+    Loader(void* resolverCtx = nullptr, SymbolResolveFn resolverFn = nullptr);
     Loader(Loader&& other);
     ~Loader();
 

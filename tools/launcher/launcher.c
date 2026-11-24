@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <dlfcn.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,13 +89,7 @@ static void init_cangjie_runtime(int arg_count) {
     SetCJCommandLineArgs(arg_count, g_arg_buffer);
 }
 
-static int run_interpreter_in_managed_ctx() {
-    void* entryPoint = engine_get_entrypoint_trampoline();
-    if (entryPoint == NULL) {
-        fprintf(stderr, "Trampoline search failed\n");
-        exit(-1);
-    }
-
+static int run_interpreter_in_managed_ctx(void const *entryPoint) {
     void* fiberHandle = RunCJTask(entryPoint, NULL);
     if (fiberHandle == NULL) {
         fprintf(stderr, "Cangjie task creation failed\n");
@@ -124,12 +119,6 @@ static ParserState print_help(struct Parser *parser) {
     fprintf(stderr, "        which should be loaded with the application.\n");
     fprintf(stderr, "        The paths should be separated with ':' character.\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    --dasm\n");
-    fprintf(stderr, "        Enables CBC disassembly output.\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "    --raw-dasm\n");
-    fprintf(stderr, "        Enables raw CBC disassembly output.\n");
-    fprintf(stderr, "\n");
     fprintf(stderr, "    --help\n");
     fprintf(stderr, "        Show this help message.\n");
     fprintf(stderr, "\n");
@@ -141,7 +130,11 @@ static ParserState parse_cbc_path(struct Parser *parser) {
     char **opt = parser->args;
     char **path = opt + 1;
     if (path < parser->args_end) {
-        engine_set_cbcpath(*path);
+        CbcStatus status = engine_set_cbcpath(*path);
+        if (status != CBC_OK) {
+            fprintf(stderr, "Cannot set cbc path '%s': %d\n", *path, status);
+            return ERROR;
+        }
         parser->args += 2;
         return PARSE;
     } else {
@@ -153,20 +146,76 @@ static int parse_cbc_main(struct Parser *parser) {
     assert(parser->args < parser->args_end);
     char **main = parser->args;
     parser->args += 1;
-    engine_set_main_cbc(*main);
+    CbcStatus status = engine_set_main_cbc(*main);
+    if (status != CBC_OK) {
+        fprintf(stderr, "Cannot set main cbc '%s': %d\n", *main, status);
+        return ERROR;
+    }
     return MAIN_PARSED;
 }
 
-static ParserState enable_dasm(struct Parser *parser) {
-    parser->args++;
-    engine_enable_dasm();
-    return PARSE;
+#ifndef CBC_HELPER_LIB
+#if defined(__APPLE__)
+#define CBC_HELPER_LIB "@rpath/libcbcengine-helper.dylib"
+#else
+#define CBC_HELPER_LIB "libcbcengine-helper.so"
+#endif
+#endif
+
+/// Loads the engine helper library into the global scope so that the cjnative
+/// builtins it provides are visible to the symbol resolver.
+static void load_helper_library(void) {
+    if (dlopen(CBC_HELPER_LIB, RTLD_GLOBAL | RTLD_LAZY) == NULL) {
+        fprintf(stderr, "Warning: cannot load %s: %s\n", CBC_HELPER_LIB, dlerror());
+    }
 }
 
-static ParserState enable_raw_dasm(struct Parser *parser) {
-    parser->args++;
-    engine_enable_raw_dasm();
-    return PARSE;
+/// Loads CBC inputs and initializes the runtime in the order required by the
+/// engine C-API (see `cbc_engine.h`).
+static int start_with_engine(int arg_count) {
+    CbcDlsym resolver;
+    CbcStatus status = engine_preset_in_executable_resolver(&resolver);
+    if (status != CBC_OK) {
+        fprintf(stderr, "Cannot create the executable symbol resolver: %d\n", status);
+        return -1;
+    }
+
+    status = engine_set_symbol_resolver(resolver);
+    if (status != CBC_OK) {
+        fprintf(stderr, "Cannot set the symbol resolver: %d\n", status);
+        return -1;
+    }
+
+    status = engine_load();
+    if (status != CBC_OK) {
+        fprintf(stderr, "Engine load failed: %d\n", status);
+        return -1;
+    }
+
+    init_cangjie_runtime(arg_count);
+
+    status = engine_preset_init_staging(resolver);
+    if (status != CBC_OK) {
+        fprintf(stderr, "Staging initialization failed: %d\n", status);
+        return -1;
+    }
+
+    load_helper_library();
+
+    status = engine_preset_cjnative_builtins(resolver);
+    if (status != CBC_OK) {
+        fprintf(stderr, "Builtins initialization failed: %d\n", status);
+        return -1;
+    }
+
+    CbcFunction main_fn;
+    status = engine_query_main_function(&main_fn);
+    if (status != CBC_OK) {
+        fprintf(stderr, "Main function query failed: %d\n", status);
+        return -1;
+    }
+
+    return run_interpreter_in_managed_ctx(main_fn.code);
 }
 
 static int parse_args_and_start(int argc, char **argv) {
@@ -184,12 +233,16 @@ static int parse_args_and_start(int argc, char **argv) {
     struct Option options[] = {
         {"--cbc-path", &parse_cbc_path},
         {"-cp", &parse_cbc_path},
-        {"--dasm", &enable_dasm},
-        {"--raw-dasm", &enable_raw_dasm},
         {"--help", &print_help},
         {"-h", &print_help},
     };
     struct Option *opt_end = options + (sizeof(options) / sizeof(struct Option));
+
+    CbcStatus envStatus = engine_parse_options(getenv("CBCOPT"));
+    if (envStatus != CBC_OK) {
+        fprintf(stderr, "Cannot parse CBCOPT options: %d\n", envStatus);
+        return -1;
+    }
 
     ParserState state = PARSE;
 dispatch:
@@ -229,10 +282,7 @@ dispatch:
                 cursor++;
             }
 
-            init_cangjie_runtime(arg_count);
-            engine_initialize();
-
-            return run_interpreter_in_managed_ctx();
+            return start_with_engine(arg_count);
         }
         default: return -1;
     }
@@ -241,4 +291,3 @@ dispatch:
 int main(int argc, char *argv[]) {
     return parse_args_and_start(argc, argv);
 }
-

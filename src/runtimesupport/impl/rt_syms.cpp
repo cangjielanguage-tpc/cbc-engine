@@ -16,19 +16,6 @@ DYN_ReadStructFieldFn ReadStructField;
 DYN_WriteGenericFieldFn WriteGeneric;
 DYN_ReadWeakRefFn ReadWeakRef;
 
-// Prolongs lifetime of helper lib handle after finish of Initialize.
-Utils::SharedObject g_helperLibHandle;
-
-static void* LookupSymbol(Utils::SharedObject const& object, char const* symbolName)
-{
-    auto [symbol, error] = object.SearchSym(symbolName);
-    if (symbol == nullptr) {
-        auto& stream = Log::init.Stream(Logging::Level::ERROR);
-        stream << '{' << object.Name() << "} failed to find " << symbolName << ": " << error << Stream::endl;
-    }
-    return symbol;
-}
-
 bool Initialize(DYN_CJNativeInterface* interf)
 {
     auto anySym = reinterpret_cast<void*>(interf->stackGrowStub);
@@ -55,52 +42,25 @@ bool Initialize(DYN_CJNativeInterface* interf)
         return false;
     }
 
-    // TODO: maybe we should add readweakref to runtime interface
-    auto readWeakRef = handle.SearchSym("CJ_MCC_ReadWeakRef").symbol;
-    if (readWeakRef == nullptr) {
-        Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol CJ_MCC_ReadWeakRef" << Stream::endl;
-        return false;
-    }
-
-    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
-    const char* futureExecuteName = "_CNat6FutureIG_E7executeHv";
-    const char* threadHandleSetterName  = "_CNat6Thread24setRuntimeCJThreadHandleHPu";
-
-#if defined(STATIC_HELPER)
-    auto helperHandle = Utils::SharedObject::OpenCurrentExecutable();
-#else
-    #if defined(__APPLE__)
-    std::string_view helperLibName = "@rpath/libcbcengine-helper.dylib";
-    #else
-    std::string_view helperLibName = "libcbcengine-helper.so";
-    #endif
-    auto helperHandle = Utils::SharedObject::Open(helperLibName);
-#endif
-    if (!helperHandle.IsOpened()) {
-        Log::init.Stream(Logging::Level::ERROR) << "failed to open " << helperHandle.Name() << Stream::endl;
-        return false;
-    }
-
-    auto throwerSym = LookupSymbol(helperHandle, throwerName);
-    auto futureExecuteSym = LookupSymbol(helperHandle, futureExecuteName);
-    auto threadHandleSetterSym = LookupSymbol(helperHandle, threadHandleSetterName);
-
-    if (throwerSym == nullptr || futureExecuteSym == nullptr || threadHandleSetterSym == nullptr) {
-        return false;
-    }
-    g_helperLibHandle = std::move(helperHandle);
-
-    Asm::engine_newthread_nret_function             = interf->newCJThreadNoReturn;
-    Asm::engine_read_generic                         = interf->readGenericField;
-    Asm::engine_implicit_exception_thrower           = reinterpret_cast<void (*)(int)>(throwerSym);
-    Asm::engine_future_execute_function              = futureExecuteSym;
-    Asm::engine_set_runtime_cjthread_handle_function = threadHandleSetterSym;
+    Asm::engine_newthread_nret_function = interf->newCJThreadNoReturn;
+    Asm::engine_read_generic            = interf->readGenericField;
 
     WriteGeneric     = interf->writeGenericField;
     WriteStructField = interf->writeStructField;
     ReadStructField  = interf->readStructField;
-    ReadWeakRef      = reinterpret_cast<DYN_ReadWeakRefFn>(readWeakRef);
     return true;
+}
+
+void InitializeStaging(void* readWeakRef)
+{
+    ReadWeakRef = reinterpret_cast<DYN_ReadWeakRefFn>(readWeakRef);
+}
+
+void InstallBuiltins(void* implicitThrower, void* futureExecute, void* setRuntimeCJThreadHandle)
+{
+    Asm::engine_implicit_exception_thrower           = reinterpret_cast<void (*)(int)>(implicitThrower);
+    Asm::engine_future_execute_function              = futureExecute;
+    Asm::engine_set_runtime_cjthread_handle_function = setRuntimeCJThreadHandle;
 }
 
 } // namespace RTSupport

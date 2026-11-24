@@ -64,6 +64,8 @@ public:
     Impl() : fileCounter(0) {}
 
     uint32_t fileCounter;
+    void* resolverCtx = nullptr;
+    SymbolResolveFn resolverFn = nullptr;
     Utils::Vector<CbcFile> files;
     Utils::Vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 };
@@ -93,7 +95,11 @@ std::tuple<Image::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) 
 
 Arena& Session::Allocator() { return arena; }
 
-Loader::Loader() : loader(std::make_unique<Loader::Impl>()) {}
+Loader::Loader(void* resolverCtx, SymbolResolveFn resolverFn) : loader(std::make_unique<Loader::Impl>())
+{
+    loader->resolverCtx = resolverCtx;
+    loader->resolverFn  = resolverFn;
+}
 
 Loader::Loader(Loader&& other) = default;
 Loader::~Loader()              = default;
@@ -146,6 +152,8 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
 
     auto cbcDeps     = reader.ReadS32();
     auto aotDeps     = reader.ReadS32();
+    // TODO: cbc_deps/aot_deps entries in `.cbc` would be removed;
+    //       symbols are resolved through the external resolver instead.
     auto foreignLibs = reader.ReadS32();
     auto coverageId  = reader.ReadULEB();
 
@@ -210,6 +218,8 @@ static std::string UpdateSharedObjName(std::string_view name)
     return res;
 }
 
+// TODO: shared object opening would be removed together with
+//       cbc_deps/aot_deps entries in `.cbc` (see TryReadCbcFile).
 static Utils::Vector<Dependencies> ReadDependencies(
     Loader::Impl* loader,
     std::optional<Offset<String>> (CbcFile::*offsetOf)() const,
@@ -247,7 +257,7 @@ static Utils::Vector<Dependencies> ReadDependencies(
 
         auto ptrs = base;
         if (!deps) {
-            allDeps.EmplaceBack(std::move(ptrs));
+            allDeps.EmplaceBack(std::move(ptrs), loader->resolverCtx, loader->resolverFn);
             continue;
         }
 
@@ -270,7 +280,7 @@ static Utils::Vector<Dependencies> ReadDependencies(
                 depsStr = depsStr.substr(pos + 1);
             }
         }
-        allDeps.EmplaceBack(std::move(ptrs));
+        allDeps.EmplaceBack(std::move(ptrs), loader->resolverCtx, loader->resolverFn);
     }
 
     return allDeps;

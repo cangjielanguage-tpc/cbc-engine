@@ -36,8 +36,6 @@
 ///     CbcFunction main;
 ///     engine_query_main_function(&main);
 ///     void* task = RunCJTask(main.code, args);
-///
-/// FIXME: naming convention?
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,11 +43,30 @@ extern "C" {
 
 typedef enum CbcStatus {
     CBC_OK = 0,
+    /// Null or malformed input parameter.
     CBC_INVALID_ARGUMENT,
+    /// The call is not allowed in the current engine state, e.g. the engine is already loaded.
     CBC_INVALID_STATE,
+    /// The requested term or method cannot be resolved.
     CBC_RESOLUTION_ERROR,
+    /// The requested method query matches several methods.
     CBC_AMBIGUOUS_RESOLUTION_ERROR,
-    CBC_TRAMPOLINES_EXHAUSTED
+    /// The direct-call trampoline pool is exhausted.
+    CBC_TRAMPOLINES_EXHAUSTED,
+    /// The engine is not loaded; `engine_load` has not completed.
+    CBC_NOT_LOADED,
+    /// The main cbc is not set; `engine_set_main_cbc` was skipped.
+    CBC_MAIN_NOT_SET,
+    /// The runtime is not initialized; `interpreter_bridge_init` has not completed.
+    CBC_RUNTIME_NOT_INITIALIZED,
+    /// A cbc file does not exist or cannot be opened.
+    CBC_FILE_NOT_FOUND,
+    /// A symbol lookup performed through the provided resolver failed.
+    CBC_SYMBOL_NOT_FOUND,
+    /// A staging token is not recognized by the engine.
+    CBC_UNKNOWN_TOKEN,
+    /// An OS-level operation failed, e.g. `dlopen` or `dladdr`.
+    CBC_PLATFORM_ERROR
 } CbcStatus;
 
 ////////////////// Configuration stage. //////////////////
@@ -147,7 +164,7 @@ typedef struct CbcFunction {
     struct FunctionHandle* fuh;
 } CbcFunction;
 
-/// Query the function with the given name in the form of "<pkg name>:<func name>".
+/// Query the function with the given name in the form of "<pkg/type name>::<func name>".
 /// If `needTrampoline` is set, the `code` part of `CbcFunction` will contain a ready-to-use trampoline.
 CBC_EXPORT CbcStatus engine_query_function(CbcFunction* rloc, char const* name, int needTrampoline);
 
