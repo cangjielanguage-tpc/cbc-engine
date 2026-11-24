@@ -22,8 +22,11 @@ namespace Asm {
 //   sh    - immediate shift: 1 = imm12 is shifted left by 12
 //   shift - shift type applied to Rm: 0 = LSL, 1 = LSR, 2 = ASR (3 = ROR, not modeled)
 //   imm6  - shift amount: 0..63 for sf=1, 0..31 for sf=0
-//   op2   - data-processing (2 source) selector: 0 = LSL, 1 = LSR, 2 = ASR
-//           (3 = ROR, not modeled)
+//   op2   - low two bits of the data-processing (2 source) opcode: 0 = LSL,
+//           1 = LSR, 2 = ASR (3 = ROR, not modeled); the same field carries the
+//           low bits of the SDIV (3) and UDIV (2) opcodes
+//   op    - operation selector of the data-processing (3 source) forms:
+//           0 = MADD, 1 = MSUB
 //   immr  - bitfield: rotate the source right by immr
 //   imms  - bitfield: keep the low imms+1 bits after the rotation
 //   imm12 - unsigned 12-bit immediate
@@ -41,6 +44,7 @@ namespace Asm {
 //   Rt    - register operand of loads, stores and compare-and-branch
 //   Rt2   - second register operand of a load/store pair
 //   Rm    - register operand 2
+//   Ra    - register operand 3 (the addend or minuend of the multiply forms)
 //   Rn    - register operand 1
 //   Rd    - destination register
 
@@ -70,6 +74,17 @@ using EnableXOperands =
 template <typename D, typename N, typename M>
 using EnableWOperands =
     std::enable_if_t<IsWRegOperand<D>::value && IsWRegOperand<N>::value && IsWRegOperand<M>::value, int>;
+
+// The same for a form with a fourth register operand (the multiply forms).
+template <typename D, typename N, typename M, typename A>
+using EnableXQuad = std::enable_if_t<
+    IsXRegOperand<D>::value && IsXRegOperand<N>::value && IsXRegOperand<M>::value && IsXRegOperand<A>::value,
+    int>;
+
+template <typename D, typename N, typename M, typename A>
+using EnableWQuad = std::enable_if_t<
+    IsWRegOperand<D>::value && IsWRegOperand<N>::value && IsWRegOperand<M>::value && IsWRegOperand<A>::value,
+    int>;
 
 // The register field classes a two-register form reads as <Xd>/<Xn>, and a form
 // that reads its second register as a 32-bit one while writing a 64-bit one
@@ -201,6 +216,14 @@ constexpr Insn DataProc2Source(uint32_t formBits, uint32_t rd, uint32_t rn, uint
         .Finish();
 }
 
+// MADD/MSUB (data-processing, 3 source): sf 00 11011 000 Rm 0 Ra Rn Rd. Op
+// selects the operation: 0 = add the product to the addend, 1 = subtract it.
+constexpr Insn DataProc3Source(uint32_t formBits, uint32_t rd, uint32_t rn, uint32_t rm, uint32_t ra)
+{
+    return (Op { formBits } | Field<16, 5> { rm } | Field<10, 5> { ra } | Field<5, 5> { rn } | Field<0, 5> { rd })
+        .Finish();
+}
+
 // SBFM/BFM/UBFM (bitfield): sf opc 100110 N immr imms Rn Rd. immr and imms are
 // 6-bit fields, but in a 32-bit form only their low 5 bits are meaningful, so
 // the limit is the width-dependent one rather than the field width.
@@ -290,6 +313,18 @@ template <uint32_t Shift, uint32_t Width, uint32_t Scale> constexpr Insn BranchF
     return (Op { word.Bits() } |
             Field<Shift, Width> { static_cast<uint32_t>(delta / Scale) & Field<Shift, Width>::Mask })
         .Finish();
+}
+
+// MOVZ/MOVN/MOVK (move wide immediate): sf opc 100101 hw imm16 Rd. `opc`
+// selects the operation: 0 = MOVN, 2 = MOVZ, 3 = MOVK. `hw` is the halfword
+// slot the immediate lands in, so the shift is 16 times it and a 32-bit form
+// has only the first two slots. The immediate is a plain field: it is not
+// validated against the zero register or anything else, and Rt may be the zero
+// register, whose reads then discard the write.
+constexpr Insn MoveWide(uint32_t formBits, uint32_t rd, uint32_t imm16, uint32_t shift, uint32_t shiftLimit)
+{
+    ASSERT(shift <= shiftLimit && shift % 16 == 0);
+    return (Op { formBits } | Field<21, 2> { shift / 16 } | Field<5, 16> { imm16 } | Field<0, 5> { rd }).Finish();
 }
 
 } // namespace Detail
@@ -844,6 +879,119 @@ template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn 
 template <typename D, typename N, Detail::EnableWPair<D, N> = 0> constexpr Insn Uxth(D dst, N src)
 {
     return Ubfm(dst, src, 0, 15);
+}
+
+// MADD/MSUB (data-processing, 3 source): dst = src * src2 + addend, or for MSUB
+// dst = addend - src * src2, the order the architecture defines. Every register
+// field accepts the zero register (the addend field is what MUL leaves zero), so
+// the four operands are templates constrained to one width. The product is the
+// low half of the exact product: the multiply is the full-width one truncated
+// to the operand width, and SDIV/UDIV below divide those truncated values.
+template <typename D, typename N, typename M, typename A, Detail::EnableXQuad<D, N, M, A> = 0>
+constexpr Insn Madd(D dst, N src, M src2, A addend)
+{
+    return Detail::DataProc3Source(
+        0x9B000000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), Detail::CodeOf(addend)
+    );
+}
+
+template <typename D, typename N, typename M, typename A, Detail::EnableWQuad<D, N, M, A> = 0>
+constexpr Insn Madd(D dst, N src, M src2, A addend)
+{
+    return Detail::DataProc3Source(
+        0x1B000000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), Detail::CodeOf(addend)
+    );
+}
+
+template <typename D, typename N, typename M, typename A, Detail::EnableXQuad<D, N, M, A> = 0>
+constexpr Insn Msub(D dst, N src, M src2, A minuend)
+{
+    return Detail::DataProc3Source(
+        0x9B008000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), Detail::CodeOf(minuend)
+    );
+}
+
+template <typename D, typename N, typename M, typename A, Detail::EnableWQuad<D, N, M, A> = 0>
+constexpr Insn Msub(D dst, N src, M src2, A minuend)
+{
+    return Detail::DataProc3Source(
+        0x1B008000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), Detail::CodeOf(minuend)
+    );
+}
+
+// MUL: the alias of MADD with a zero addend.
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Mul(D dst, N src, M src2)
+{
+    return Madd(dst, src, src2, Xzr);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Mul(D dst, N src, M src2)
+{
+    return Madd(dst, src, src2, Wzr);
+}
+
+// SDIV/UDIV (data-processing, 2 source): dst = src / src2, truncated toward
+// zero (SDIV) or dividing the operands as unsigned values (UDIV). Every
+// register field accepts the zero register, so the three operands are templates
+// constrained to one width. A division by zero yields zero rather than
+// trapping, so a caller that must reject it has to test the divisor itself.
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Sdiv(D dst, N src, M src2)
+{
+    return Detail::DataProc2Source(0x9AC00000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), 3);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Sdiv(D dst, N src, M src2)
+{
+    return Detail::DataProc2Source(0x1AC00000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), 3);
+}
+
+template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0>
+constexpr Insn Udiv(D dst, N src, M src2)
+{
+    return Detail::DataProc2Source(0x9AC00000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), 2);
+}
+
+template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0>
+constexpr Insn Udiv(D dst, N src, M src2)
+{
+    return Detail::DataProc2Source(0x1AC00000, Detail::CodeOf(dst), Detail::CodeOf(src), Detail::CodeOf(src2), 2);
+}
+
+// MOVZ: Rd = imm16 << shift, the other halfwords zero.
+template <typename D, Detail::EnableXReg<D> = 0> constexpr Insn Movz(D dst, uint32_t imm16, uint32_t shift)
+{
+    return Detail::MoveWide(0xD2800000, Detail::CodeOf(dst), imm16, shift, 48);
+}
+
+template <typename D, Detail::EnableWReg<D> = 0> constexpr Insn Movz(D dst, uint32_t imm16, uint32_t shift)
+{
+    return Detail::MoveWide(0x52800000, Detail::CodeOf(dst), imm16, shift, 16);
+}
+
+// MOVN: Rd = ~(imm16 << shift), the other halfwords one.
+template <typename D, Detail::EnableXReg<D> = 0> constexpr Insn Movn(D dst, uint32_t imm16, uint32_t shift)
+{
+    return Detail::MoveWide(0x92800000, Detail::CodeOf(dst), imm16, shift, 48);
+}
+
+template <typename D, Detail::EnableWReg<D> = 0> constexpr Insn Movn(D dst, uint32_t imm16, uint32_t shift)
+{
+    return Detail::MoveWide(0x12800000, Detail::CodeOf(dst), imm16, shift, 16);
+}
+
+// MOVK: Rd = the halfword at `shift` replaced by imm16, the rest unchanged.
+template <typename D, Detail::EnableXReg<D> = 0> constexpr Insn Movk(D dst, uint32_t imm16, uint32_t shift)
+{
+    return Detail::MoveWide(0xF2800000, Detail::CodeOf(dst), imm16, shift, 48);
+}
+
+template <typename D, Detail::EnableWReg<D> = 0> constexpr Insn Movk(D dst, uint32_t imm16, uint32_t shift)
+{
+    return Detail::MoveWide(0x72800000, Detail::CodeOf(dst), imm16, shift, 16);
 }
 
 // Loads and stores. The address operand is Mem(base, #offset) for the

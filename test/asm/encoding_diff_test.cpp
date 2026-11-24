@@ -47,7 +47,7 @@ using namespace Asm;
 
 // A case may not exceed these; exceeding them means the sweep stopped being a
 // sweep and the caps need revisiting rather than the pools growing silently.
-constexpr size_t kSystematicCap = 10000;
+constexpr size_t kSystematicCap = 15000;
 constexpr size_t kExhaustiveCap = 4000000;
 
 // ---------------------------------------------------------------------------
@@ -373,6 +373,8 @@ struct Pool {
     std::vector<int32_t> sampleOffsets;
     std::vector<int32_t> pairImms;
     std::vector<int32_t> samplePairImms;
+    // The 16-bit immediates of the move-wide forms.
+    std::vector<uint32_t> imms16;
 };
 
 std::vector<Triple> TriplesWithDistinctM(const std::vector<int>& regs)
@@ -385,6 +387,19 @@ std::vector<Triple> TriplesWithDistinctM(const std::vector<int>& regs)
         }
     }
     return triples;
+}
+
+// The fourth register of the multiply forms: the first code the triple does not
+// use, so all four fields of the word hold different registers and no field
+// swap can survive.
+int Addend(const Triple& t)
+{
+    for (int code = 0; code <= 30; ++code) {
+        if (code != t.d && code != t.n && code != t.m) {
+            return code;
+        }
+    }
+    return 0;
 }
 
 Pool BoundedPool()
@@ -403,6 +418,7 @@ Pool BoundedPool()
     pool.memTriples = { { 0, 1, 2 }, { 30, 7, 15 } };
     pool.offsets    = { -256, -255, -1, 0, 1, 8, 255 };
     pool.pairImms   = { -64, -1, 0, 1, 63 };
+    pool.imms16     = { 0, 1, 0x7FFF, 0x8000, 0xFFFF };
 
     const std::vector<uint64_t> logical64 = EnumerateLogical(64);
     const std::vector<uint64_t> logical32 = EnumerateLogical(32);
@@ -448,8 +464,8 @@ Pool ExhaustivePool()
             pool.extracts.push_back({ lsb, width });
         }
     }
-    pool.sampleExtracts = { { 0, 64 }, { 8, 8 }, { 63, 1 }, { 31, 32 } };
-    pool.memTriples     = { { 0, 1, 2 }, { 30, 0, 1 }, { 1, 7, 15 }, { 15, 30, 0 } };
+    pool.sampleExtracts   = { { 0, 64 }, { 8, 8 }, { 63, 1 }, { 31, 32 } };
+    pool.memTriples       = { { 0, 1, 2 }, { 30, 0, 1 }, { 1, 7, 15 }, { 15, 30, 0 } };
     pool.sampleMemTriples = { { 7, 2, 30 }, { 2, 15, 7 }, { 30, 15, 1 } };
     for (int32_t offset = -256; offset <= 255; ++offset) {
         pool.offsets.push_back(offset);
@@ -459,6 +475,8 @@ Pool ExhaustivePool()
         pool.pairImms.push_back(imm7);
     }
     pool.samplePairImms = { -64, 0, 63 };
+    pool.imms16         = { 0,      1,      2,      0x00FF, 0x0100, 0x3FFF, 0x4000, 0x7FFE,
+                            0x7FFF, 0x8000, 0x8001, 0xBFFF, 0xC000, 0xFF00, 0xFFFE, 0xFFFF };
     return pool;
 }
 
@@ -487,6 +505,7 @@ Pool RandomPool(std::mt19937& rng, const std::vector<uint64_t>& logical64, const
     pool.memTriples             = { { a, b, b } };
     pool.offsets                = { static_cast<int32_t>(rng() % 512) - 256 };
     pool.pairImms               = { static_cast<int32_t>(rng() % 128) - 64 };
+    pool.imms16                 = { static_cast<uint32_t>(rng() % 65536) };
     return pool;
 }
 
@@ -697,6 +716,107 @@ void EmitShiftBitfieldZeroRegisters(Corpus& corpus)
 }
 
 // ---------------------------------------------------------------------------
+// Multiplies and divides
+// ---------------------------------------------------------------------------
+
+// MADD/MSUB (data-processing, 3 source): the addend is the fourth register, the
+// first code outside the triple, so all four fields differ. MUL is the alias
+// with a zero addend, and SDIV/UDIV take the same three registers as the shifts.
+void EmitMultiply(Corpus& corpus, const Triple& t)
+{
+    const int a          = Addend(t);
+    const std::string xd = Xs(t.d), xn = Xs(t.n), xm = Xs(t.m), xa = Xs(a);
+    const std::string wd = Ws(t.d), wn = Ws(t.n), wm = Ws(t.m), wa = Ws(a);
+    corpus.Add("madd " + xd + ", " + xn + ", " + xm + ", " + xa, Encode::Madd(X(t.d), X(t.n), X(t.m), X(a)));
+    corpus.Add("msub " + xd + ", " + xn + ", " + xm + ", " + xa, Encode::Msub(X(t.d), X(t.n), X(t.m), X(a)));
+    corpus.Add("madd " + wd + ", " + wn + ", " + wm + ", " + wa, Encode::Madd(W(t.d), W(t.n), W(t.m), W(a)));
+    corpus.Add("msub " + wd + ", " + wn + ", " + wm + ", " + wa, Encode::Msub(W(t.d), W(t.n), W(t.m), W(a)));
+    corpus.Add("mul " + xd + ", " + xn + ", " + xm, Encode::Mul(X(t.d), X(t.n), X(t.m)));
+    corpus.Add("mul " + wd + ", " + wn + ", " + wm, Encode::Mul(W(t.d), W(t.n), W(t.m)));
+    corpus.Add("sdiv " + xd + ", " + xn + ", " + xm, Encode::Sdiv(X(t.d), X(t.n), X(t.m)));
+    corpus.Add("udiv " + xd + ", " + xn + ", " + xm, Encode::Udiv(X(t.d), X(t.n), X(t.m)));
+    corpus.Add("sdiv " + wd + ", " + wn + ", " + wm, Encode::Sdiv(W(t.d), W(t.n), W(t.m)));
+    corpus.Add("udiv " + wd + ", " + wn + ", " + wm, Encode::Udiv(W(t.d), W(t.n), W(t.m)));
+}
+
+// The register fields of the multiply and divide forms accept the zero
+// register, which the pool of real registers cannot reach.
+void EmitMultiplyZeroRegisters(Corpus& corpus)
+{
+    corpus.Add("mul xzr, x1, x2", Encode::Mul(Xzr, X1, X2));
+    corpus.Add("mul x0, xzr, x2", Encode::Mul(X0, Xzr, X2));
+    corpus.Add("mul x0, x1, xzr", Encode::Mul(X0, X1, Xzr));
+    corpus.Add("mul wzr, w1, w2", Encode::Mul(Wzr, W1, W2));
+    corpus.Add("madd xzr, x1, x2, x3", Encode::Madd(Xzr, X1, X2, X3));
+    corpus.Add("madd x0, xzr, x2, x3", Encode::Madd(X0, Xzr, X2, X3));
+    corpus.Add("madd x0, x1, x2, xzr", Encode::Madd(X0, X1, X2, Xzr));
+    corpus.Add("madd wzr, w1, w2, wzr", Encode::Madd(Wzr, W1, W2, Wzr));
+    corpus.Add("msub xzr, x1, x2, x3", Encode::Msub(Xzr, X1, X2, X3));
+    corpus.Add("msub x0, x1, xzr, xzr", Encode::Msub(X0, X1, Xzr, Xzr));
+    corpus.Add("sdiv xzr, x1, x2", Encode::Sdiv(Xzr, X1, X2));
+    corpus.Add("sdiv x0, xzr, x2", Encode::Sdiv(X0, Xzr, X2));
+    corpus.Add("sdiv w0, w1, wzr", Encode::Sdiv(W0, W1, Wzr));
+    corpus.Add("udiv x0, x1, xzr", Encode::Udiv(X0, X1, Xzr));
+    corpus.Add("udiv wzr, wzr, wzr", Encode::Udiv(Wzr, Wzr, Wzr));
+}
+
+// ---------------------------------------------------------------------------
+// Move-wide immediates
+// ---------------------------------------------------------------------------
+
+// The halfword slots the move-wide immediate can land in. The 32-bit form has
+// only the two low ones, so the slot list also stands for the width limit.
+std::vector<uint32_t> WideShifts() { return { 0, 16, 32, 48 }; }
+
+std::vector<uint32_t> NarrowShifts() { return { 0, 16 }; }
+
+// The "lsl #16" operand of a move-wide, omitted in its low slot as the
+// assemblers' own output does.
+std::string SlotClause(uint32_t shift) { return shift == 0 ? std::string {} : ", lsl #" + std::to_string(shift); }
+
+void EmitMoveWideFor(Corpus& corpus, int d, uint32_t imm)
+{
+    const std::string value = Hex(imm);
+    const std::string xd = Xs(d), wd = Ws(d);
+    for (uint32_t shift : WideShifts()) {
+        const std::string clause = SlotClause(shift);
+        corpus.Add("movz " + xd + ", #" + value + clause, Encode::Movz(X(d), imm, shift));
+        corpus.Add("movn " + xd + ", #" + value + clause, Encode::Movn(X(d), imm, shift));
+        corpus.Add("movk " + xd + ", #" + value + clause, Encode::Movk(X(d), imm, shift));
+    }
+    for (uint32_t shift : NarrowShifts()) {
+        const std::string clause = SlotClause(shift);
+        corpus.Add("movz " + wd + ", #" + value + clause, Encode::Movz(W(d), imm, shift));
+        corpus.Add("movn " + wd + ", #" + value + clause, Encode::Movn(W(d), imm, shift));
+        corpus.Add("movk " + wd + ", #" + value + clause, Encode::Movk(W(d), imm, shift));
+    }
+}
+
+// The zero register in the destination of a move-wide: field 31 means XZR/WZR
+// here, never SP, so the zero-register operand types are what the forms take.
+void EmitMoveWideZeroRegisters(Corpus& corpus)
+{
+    corpus.Add("movz xzr, #0x1234", Encode::Movz(Xzr, 0x1234, 0));
+    corpus.Add("movn xzr, #0x1234, lsl #32", Encode::Movn(Xzr, 0x1234, 32));
+    corpus.Add("movk xzr, #0, lsl #48", Encode::Movk(Xzr, 0, 48));
+    corpus.Add("movz wzr, #0xffff, lsl #16", Encode::Movz(Wzr, 0xFFFF, 16));
+    corpus.Add("movn wzr, #1", Encode::Movn(Wzr, 1, 0));
+    corpus.Add("movk wzr, #0x8000", Encode::Movk(Wzr, 0x8000, 0));
+}
+
+// The move-wide forms take one register, so the sweep is over the plain
+// registers and the immediate pool rather than over triples.
+void EmitMoveWide(Corpus& corpus, const Pool& pool)
+{
+    for (int d : pool.branchRegs) {
+        for (uint32_t imm : pool.imms16) {
+            EmitMoveWideFor(corpus, d, imm);
+        }
+    }
+    EmitMoveWideZeroRegisters(corpus);
+}
+
+// ---------------------------------------------------------------------------
 // Loads and stores
 // ---------------------------------------------------------------------------
 
@@ -780,15 +900,25 @@ struct PairForm {
 };
 
 const PairForm kPairForms[] = {
-    { "ldp", false, 8,
+    { "ldp",
+      false,
+      8,
       [](int rt, int rt2, int base, int32_t off) { return Encode::Ldp(X(rt), X(rt2), Mem(X(base), off)); } },
-    { "ldp", true, 4,
+    { "ldp",
+      true,
+      4,
       [](int rt, int rt2, int base, int32_t off) { return Encode::Ldp(W(rt), W(rt2), Mem(X(base), off)); } },
-    { "stp", false, 8,
+    { "stp",
+      false,
+      8,
       [](int rt, int rt2, int base, int32_t off) { return Encode::Stp(X(rt), X(rt2), Mem(X(base), off)); } },
-    { "stp", true, 4,
+    { "stp",
+      true,
+      4,
       [](int rt, int rt2, int base, int32_t off) { return Encode::Stp(W(rt), W(rt2), Mem(X(base), off)); } },
-    { "ldpsw", false, 4,
+    { "ldpsw",
+      false,
+      4,
       [](int rt, int rt2, int base, int32_t off) { return Encode::Ldpsw(X(rt), X(rt2), Mem(X(base), off)); } },
 };
 
@@ -812,8 +942,9 @@ struct IndexShape {
 };
 
 const IndexShape kIndexShapes[] = {
-    { IndexExtend::Lsl, false },  { IndexExtend::Lsl, true },  { IndexExtend::Sxtx, false }, { IndexExtend::Sxtx, true },
-    { IndexExtend::Uxtw, false }, { IndexExtend::Uxtw, true }, { IndexExtend::Sxtw, false }, { IndexExtend::Sxtw, true },
+    { IndexExtend::Lsl, false },  { IndexExtend::Lsl, true },   { IndexExtend::Sxtx, false },
+    { IndexExtend::Sxtx, true },  { IndexExtend::Uxtw, false }, { IndexExtend::Uxtw, true },
+    { IndexExtend::Sxtw, false }, { IndexExtend::Sxtw, true },
 };
 
 struct IndexForm {
@@ -855,14 +986,13 @@ std::string IndexText(IndexExtend extend, bool scaled, uint32_t elementSize)
     if (extend == IndexExtend::Lsl && !scaled) {
         return {};
     }
-    const char* name = extend == IndexExtend::Sxtx ? "sxtx" : (extend == IndexExtend::Lsl ? "lsl" : (extend == IndexExtend::Uxtw ? "uxtw" : "sxtw"));
+    const char* name = extend == IndexExtend::Sxtx
+                           ? "sxtx"
+                           : (extend == IndexExtend::Lsl ? "lsl" : (extend == IndexExtend::Uxtw ? "uxtw" : "sxtw"));
     return std::string { ", " } + name + (scaled ? " #" + std::to_string(AccessShift(elementSize)) : "");
 }
 
-bool IsWordIndex(IndexExtend extend)
-{
-    return extend == IndexExtend::Uxtw || extend == IndexExtend::Sxtw;
-}
+bool IsWordIndex(IndexExtend extend) { return extend == IndexExtend::Uxtw || extend == IndexExtend::Sxtw; }
 
 template <typename Base, typename Index> MemIndex MemFor(Base base, Index index, IndexExtend extend, bool scaled)
 {
@@ -1119,6 +1249,17 @@ void EmitShiftBitfield(Corpus& corpus, const Pool& pool)
     EmitShiftBitfieldZeroRegisters(corpus);
 }
 
+void EmitMultiplyDivide(Corpus& corpus, const Pool& pool)
+{
+    for (const Triple& t : pool.triples) {
+        EmitMultiply(corpus, t);
+    }
+    for (const Triple& t : pool.sampleTriples) {
+        EmitMultiply(corpus, t);
+    }
+    EmitMultiplyZeroRegisters(corpus);
+}
+
 Corpus BuildCorpus(const std::vector<Pool>& pools)
 {
     Corpus corpus;
@@ -1126,6 +1267,8 @@ Corpus BuildCorpus(const std::vector<Pool>& pools)
         EmitAddSub(corpus, pool);
         EmitLogical(corpus, pool);
         EmitShiftBitfield(corpus, pool);
+        EmitMultiplyDivide(corpus, pool);
+        EmitMoveWide(corpus, pool);
         EmitLoadStore(corpus, pool);
         EmitBranches(corpus, pool);
     }

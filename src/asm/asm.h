@@ -462,6 +462,120 @@ public:
         Emit(Encode::Uxth(dst, src));
     }
 
+    // MADD/MSUB: dst = src * src2 + the fourth register, or MSUB's
+    // dst = the fourth register - src * src2. Every operand may be the zero
+    // register, so they are templates constrained to one width. MUL is the alias
+    // with a zero addend, and SDIV/UDIV divide: signed (truncated toward zero)
+    // or unsigned. A division by zero yields zero rather than trapping, so a
+    // caller that must reject it has to test the divisor.
+    template <typename D, typename N, typename M, typename A, Detail::EnableXQuad<D, N, M, A> = 0>
+    void Madd(D dst, N src, M src2, A addend)
+    {
+        Emit(Encode::Madd(dst, src, src2, addend));
+    }
+
+    template <typename D, typename N, typename M, typename A, Detail::EnableWQuad<D, N, M, A> = 0>
+    void Madd(D dst, N src, M src2, A addend)
+    {
+        Emit(Encode::Madd(dst, src, src2, addend));
+    }
+
+    template <typename D, typename N, typename M, typename A, Detail::EnableXQuad<D, N, M, A> = 0>
+    void Msub(D dst, N src, M src2, A minuend)
+    {
+        Emit(Encode::Msub(dst, src, src2, minuend));
+    }
+
+    template <typename D, typename N, typename M, typename A, Detail::EnableWQuad<D, N, M, A> = 0>
+    void Msub(D dst, N src, M src2, A minuend)
+    {
+        Emit(Encode::Msub(dst, src, src2, minuend));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0> void Mul(D dst, N src, M src2)
+    {
+        Emit(Encode::Mul(dst, src, src2));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0> void Mul(D dst, N src, M src2)
+    {
+        Emit(Encode::Mul(dst, src, src2));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0> void Sdiv(D dst, N src, M src2)
+    {
+        Emit(Encode::Sdiv(dst, src, src2));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0> void Sdiv(D dst, N src, M src2)
+    {
+        Emit(Encode::Sdiv(dst, src, src2));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableXOperands<D, N, M> = 0> void Udiv(D dst, N src, M src2)
+    {
+        Emit(Encode::Udiv(dst, src, src2));
+    }
+
+    template <typename D, typename N, typename M, Detail::EnableWOperands<D, N, M> = 0> void Udiv(D dst, N src, M src2)
+    {
+        Emit(Encode::Udiv(dst, src, src2));
+    }
+
+    // MOVZ/MOVN/MOVK: one 16-bit immediate into one halfword slot, with the
+    // other halfwords zeroed, one, or unchanged, respectively. `shift` names the
+    // slot: 0, 16, 32 or 48 for the 64-bit form and 0 or 16 for the 32-bit one.
+    // None of the three touches the flags, and the destination may be the zero
+    // register, whose write is discarded.
+    template <typename D, Detail::EnableXReg<D> = 0> void Movz(D dst, uint32_t imm16, uint32_t shift = 0)
+    {
+        Emit(Encode::Movz(dst, imm16, shift));
+    }
+
+    template <typename D, Detail::EnableWReg<D> = 0> void Movz(D dst, uint32_t imm16, uint32_t shift = 0)
+    {
+        Emit(Encode::Movz(dst, imm16, shift));
+    }
+
+    template <typename D, Detail::EnableXReg<D> = 0> void Movn(D dst, uint32_t imm16, uint32_t shift = 0)
+    {
+        Emit(Encode::Movn(dst, imm16, shift));
+    }
+
+    template <typename D, Detail::EnableWReg<D> = 0> void Movn(D dst, uint32_t imm16, uint32_t shift = 0)
+    {
+        Emit(Encode::Movn(dst, imm16, shift));
+    }
+
+    template <typename D, Detail::EnableXReg<D> = 0> void Movk(D dst, uint32_t imm16, uint32_t shift = 0)
+    {
+        Emit(Encode::Movk(dst, imm16, shift));
+    }
+
+    template <typename D, Detail::EnableWReg<D> = 0> void Movk(D dst, uint32_t imm16, uint32_t shift = 0)
+    {
+        Emit(Encode::Movk(dst, imm16, shift));
+    }
+
+    // MOV (register): dst = src. Between two general registers this is ORR with
+    // a zero source; with SP on either side it is ADD of zero, because ORR
+    // cannot read SP and ADD's operand position that ORR uses for the zero
+    // register is the one SP is read from. Neither form touches the flags.
+    void Mov(XReg dst, XReg src) { Emit(Encode::Orr(dst, Xzr, src)); }
+
+    void Mov(WReg dst, WReg src) { Emit(Encode::Orr(dst, Wzr, src)); }
+
+    void Mov(XReg dst, SpReg src) { Emit(Encode::Add(dst, src, 0)); }
+
+    void Mov(SpReg dst, XReg src) { Emit(Encode::Add(dst, src, 0)); }
+
+    // MOV (immediate): dst = imm, as the fewest move-wide instructions that
+    // produce it — one to four words, and one or two for the 32-bit form, which
+    // zero-extends into the upper half of the destination register.
+    void Mov(XReg dst, uint64_t imm) { EmitMoveWide(dst, imm, 4); }
+
+    void Mov(WReg dst, uint32_t imm) { EmitMoveWide(dst, imm, 2); }
+
     // Loads and stores. The address operand is Mem(base, #offset) for the
     // immediate forms and Mem(base, index[, extend][, Scaled]) for the
     // register-offset ones. The access size and the signedness come from the
@@ -695,7 +809,7 @@ public:
         Emit(Encode::Ldpsw(rt, rt2, mem));
     }
 
-    // NOP: does nothing, and is named here so the emitter never needs a raw word.
+    // NOP: does nothing.
     void Nop() { Emit(Encode::Nop()); }
 
     // Control flow. Methods that name a label record a fixup: the word is
@@ -769,6 +883,71 @@ public:
 private:
     // Writes one encoded word. Encoders are the usual source of words.
     void Emit(Insn insn) { storage_.Write(insn); }
+
+    // The 16-bit halfword of `imm` that halfword slot `slot` holds.
+    static constexpr uint32_t Halfword(uint64_t imm, uint32_t slot)
+    {
+        return static_cast<uint32_t>((imm >> (16 * slot)) & 0xFFFF);
+    }
+
+    // The MOV immediate pseudo. Only MOVZ/MOVN clear or fill a slot they do not
+    // name (zeroing the others, or complementing them to ones), so the first
+    // instruction has to seed the register and the slots the seed got wrong are
+    // then patched with MOVK:
+    //
+    //   MOVZ #imm16, lsl #16k   slot k = imm16, the rest 0
+    //   MOVN #imm16, lsl #16k   slot k = ~imm16, the rest 0xFFFF
+    //   MOVK #imm16, lsl #16k   slot k = imm16, the rest untouched
+    //
+    // A MOVZ seed therefore needs a MOVK for every nonzero halfword, a MOVN seed
+    // one for every halfword that is not all ones; the seed is counted in its own
+    // total rather than added to it. The cheaper seed is used, a tie going to
+    // MOVZ because a seed of zeros does not rely on the remaining slots being
+    // overwritten. Zero words of that total means the seed alone is the value:
+    // `imm` is zero or all ones, and the seed is the immediate zero. Slots are
+    // filled from the low half up.
+    template <typename D> void EmitMoveWide(D dst, uint64_t imm, uint32_t halves)
+    {
+        unsigned zeros = 0;
+        unsigned ones  = 0;
+        for (uint32_t slot = 0; slot < halves; ++slot) {
+            const uint32_t half  = Halfword(imm, slot);
+            zeros               += half == 0 ? 1u : 0u;
+            ones                += half == 0xFFFF ? 1u : 0u;
+        }
+        const unsigned movzCount = halves - zeros == 0 ? 1 : halves - zeros;
+        const unsigned movnCount = halves - ones == 0 ? 1 : halves - ones;
+        const bool useMovn       = movnCount < movzCount;
+
+        // The slots the seed itself gets right are the ones it already produced,
+        // so they take no MOVK and the first slot to emit seeds the register.
+        bool seeded = false;
+        for (uint32_t slot = 0; slot < halves; ++slot) {
+            const uint32_t half = Halfword(imm, slot);
+            if (useMovn ? half == 0xFFFF : half == 0) {
+                continue;
+            }
+            const uint32_t imm16 = useMovn ? (~half & 0xFFFF) : half;
+            const uint32_t shift = 16 * slot;
+            if (!seeded) {
+                if (useMovn) {
+                    Emit(Encode::Movn(dst, imm16, shift));
+                } else {
+                    Emit(Encode::Movz(dst, imm16, shift));
+                }
+                seeded = true;
+                continue;
+            }
+            Emit(Encode::Movk(dst, imm16, shift));
+        }
+        if (!seeded) {
+            if (useMovn) {
+                Emit(Encode::Movn(dst, 0, 0));
+            } else {
+                Emit(Encode::Movz(dst, 0, 0));
+            }
+        }
+    }
 
     // Records the site a branch word is about to be written at, then writes it.
     void EmitFixup(Insn word, FixupKind kind, Label target)
