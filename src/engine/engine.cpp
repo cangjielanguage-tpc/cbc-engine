@@ -13,6 +13,7 @@
 #include "utils/heap.h"
 #include <cstdint>
 #include <cstring>
+#include <dlfcn.h>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -289,6 +290,31 @@ Engine& Loader::Build()
     auto libc = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenLibc());
     foreignBase.EmplaceBack(libc);
     foreignBase.EmplaceBack(executable);
+
+    // The engine's own image participates in foreign-symbol resolution: the
+    // std.core @C externs that std.core.chir declares without a body (e.g. the
+    // atexit list hooks) are implemented by the engine itself (see
+    // runtimesupport/impl/std_core_hooks.cpp), so they are found even when no
+    // AOT std library is loaded. dladdr can fail when the engine is linked
+    // statically (unit tests); the executable is already in the base then.
+    Dl_info engineInfo{};
+    auto engineImageName = std::string_view("/proc/self/exe");
+    if (dladdr(reinterpret_cast<void*>(&GetEngineInstance), &engineInfo) != 0 &&
+        engineInfo.dli_fname != nullptr) {
+        engineImageName = std::string_view(engineInfo.dli_fname);
+    }
+    auto engineObjectName = std::string(engineImageName);
+    auto alreadyInBase    = [&]() {
+        for (auto& obj : foreignBase) {
+            if (obj->Name() == engineObjectName) {
+                return true;
+            }
+        }
+        return false;
+    }();
+    if (!alreadyInBase) {
+        foreignBase.EmplaceBack(std::make_shared<Utils::SharedObject>(Utils::SharedObject::Open(engineImageName)));
+    }
 
     auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
     auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);
