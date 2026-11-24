@@ -41,7 +41,10 @@ bool IsSupportedBody(
 );
 
 std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
-    const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions, uint32_t frameShift
+    const Interpretation::Code& code,
+    const std::vector<RuntimeInstruction>& instructions,
+    uint32_t frameShift,
+    uint32_t literalBase
 );
 
 } // namespace Cbc

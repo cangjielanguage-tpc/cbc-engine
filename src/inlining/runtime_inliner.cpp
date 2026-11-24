@@ -15,6 +15,7 @@
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 namespace Cbc {
@@ -37,6 +38,7 @@ struct PreparedInlining {
     std::vector<PreparedInlineSite> sites;
     std::vector<RewrittenCodeEdit> edits;
     std::vector<BranchPatch> branchPatches;
+    std::vector<const Interpretation::LiteralTable*> literalTables;
     uint32_t bytecodeSize;
 };
 
@@ -57,7 +59,8 @@ InlineFrameCode MakeInlineFrameCode(const ExecBytecodeInfo& caller, const ExecBy
 std::optional<PreparedInlineSite> PrepareSite(
     const InlineCallSite& site,
     const ExecBytecodeInfo& caller,
-    const std::vector<RuntimeInstruction>& callerInstructions
+    const std::vector<RuntimeInstruction>& callerInstructions,
+    uint32_t literalBase
 )
 {
     const auto instruction = std::lower_bound(
@@ -67,9 +70,10 @@ std::optional<PreparedInlineSite> PrepareSite(
         [](const auto& candidate, uint32_t offset) { return candidate.offset < offset; }
     );
     if (instruction == callerInstructions.end() || instruction->offset != site.runtimeCallSiteOffset ||
-        instruction->opcode != RT::Opcode::DIRECT_CALL_2I || instruction->size != RT::B3xi12::SIZE) {
+        instruction->opcode != RT::Opcode::DIRECT_CALL_2I) {
         return std::nullopt;
     }
+    ASSERT(instruction->size == RT::B3xi12::SIZE);
     const auto cbcOffset = caller.offsetsIndex.FindContainingCbcOffset(site.runtimeCallSiteOffset);
     if (!cbcOffset.has_value() || cbcOffset.value() != site.cbcCallSiteOffset || site.calleeFuh == nullptr) {
         return std::nullopt;
@@ -89,7 +93,7 @@ std::optional<PreparedInlineSite> PrepareSite(
 
     auto* callee        = site.expectedCalleeBytecode;
     auto* currentCallee = site.calleeFuh->bytecode.load();
-    if (callee == nullptr || currentCallee != callee || callee->version != site.expectedCalleeVersion ||
+    if (currentCallee != callee || callee->version != site.expectedCalleeVersion ||
         callee->ownerFuh != site.calleeFuh) {
         return std::nullopt;
     }
@@ -106,7 +110,7 @@ std::optional<PreparedInlineSite> PrepareSite(
     if (!IsSupportedBody(callee->code, calleeInstructions)) {
         return std::nullopt;
     }
-    auto body = RelocateInlineBody(callee->code, calleeInstructions, caller.staticFrameSize);
+    auto body = RelocateInlineBody(callee->code, calleeInstructions, caller.staticFrameSize, literalBase);
     if (!body.has_value()) {
         return std::nullopt;
     }
@@ -141,11 +145,34 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
     preparedSites.reserve(plan.callSites.size());
     edits.reserve(plan.callSites.size());
 
+    std::vector<const Interpretation::LiteralTable*> literalTables { source->code.literals };
+    std::unordered_map<const Interpretation::LiteralTable*, uint32_t> literalBases { { source->code.literals, 0 } };
+    auto literalCount = source->code.literals->size();
+    ASSERT(literalCount <= RT::LIT_TABLE_SIZE);
+
     uint32_t previousEnd    = 0;
     uint32_t inlineAreaSize  = 0;
     int64_t newBytecodeSize = static_cast<int64_t>(source->code.bytecodeSize);
     for (const auto& site : plan.callSites) {
-        auto prepared = PrepareSite(site, *source, callerInstructions);
+        if (site.expectedCalleeBytecode == nullptr) {
+            return std::nullopt;
+        }
+        const auto* table = site.expectedCalleeBytecode->code.literals;
+        const auto tableSize = table->size();
+        uint32_t literalBase = 0;
+        if (tableSize != 0) {
+            const auto [base, inserted] = literalBases.try_emplace(table, literalCount);
+            if (inserted) {
+                if (literalCount + tableSize > RT::LIT_TABLE_SIZE) {
+                    return std::nullopt;
+                }
+                literalTables.push_back(table);
+                literalCount += tableSize;
+            }
+            literalBase = base->second;
+        }
+
+        auto prepared = PrepareSite(site, *source, callerInstructions, literalBase);
         if (!prepared.has_value()) {
             return std::nullopt;
         }
@@ -188,6 +215,7 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
         .sites         = std::move(preparedSites),
         .edits         = std::move(edits),
         .branchPatches = std::move(*branchPatches),
+        .literalTables = std::move(literalTables),
         .bytecodeSize  = static_cast<uint32_t>(newBytecodeSize),
     };
 }
@@ -271,14 +299,24 @@ RelocatedMetadata RelocateMetadata(const PreparedInlining& prepared)
     };
 }
 
-Interpretation::LiteralTable* CloneLiterals(const Interpretation::LiteralTable& source, Memory::Heap& heap)
+Interpretation::LiteralTable* CloneLiterals(
+    const std::vector<const Interpretation::LiteralTable*>& tables, Memory::Heap& heap
+)
 {
-    const auto allocationSize = sizeof(Interpretation::LiteralTable) + source._byteSize;
+    size_t byteSize = 0;
+    for (const auto* table : tables) {
+        byteSize += table->_byteSize;
+    }
+    const auto allocationSize = sizeof(Interpretation::LiteralTable) + byteSize;
     auto* clone =
         static_cast<Interpretation::LiteralTable*>(heap.Allocate(allocationSize, alignof(Interpretation::LiteralTable))
         );
-    clone->_byteSize = source._byteSize;
-    std::memcpy(clone->_table, source._table, source._byteSize);
+    clone->_byteSize = byteSize;
+    auto* out = clone->_table;
+    for (const auto* table : tables) {
+        std::memcpy(out, table->_table, table->_byteSize);
+        out += table->_byteSize;
+    }
     return clone;
 }
 
@@ -321,7 +359,7 @@ InlineResult Rebuild(const InlinePlan& plan, Memory::Heap& heap)
     auto* source      = prepared->source;
     auto* newBytecode = EmitBytecode(*prepared, heap);
     auto metadata     = RelocateMetadata(*prepared);
-    auto* literals    = CloneLiterals(*source->code.literals, heap);
+    auto* literals    = CloneLiterals(prepared->literalTables, heap);
 
     return ExecBytecodeInfo {
         .code =

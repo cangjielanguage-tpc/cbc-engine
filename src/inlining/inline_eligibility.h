@@ -30,7 +30,6 @@ enum class InlineRejectionReason {
     EXCEPTION_REGIONS,
     UNSUPPORTED_ABI,
     UNSUPPORTED_INSTRUCTION,
-    LITERALS,
 };
 
 InlineRejectionReason CheckInlineEligibility(

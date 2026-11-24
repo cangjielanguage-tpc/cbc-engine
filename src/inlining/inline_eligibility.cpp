@@ -4,7 +4,6 @@
 #include "inlining/runtime_bytecode.h"
 #include "inlining/runtime_frame.h"
 #include "interpreter/function_handle.h"
-#include "interpreter/literals.h"
 #include "utils/ostream.h"
 
 namespace Cbc {
@@ -56,9 +55,6 @@ InlineRejectionReason CheckInlineEligibility(
         return InlineRejectionReason::UNSUPPORTED_INSTRUCTION;
     }
     const auto& calleeCode = expectedCalleeBytecode->code;
-    if (calleeCode.literals->size() != 0) {
-        return InlineRejectionReason::LITERALS;
-    }
     if (!IsSupportedBody(calleeCode, DecodeRuntimeBytecode(calleeCode))) {
         return InlineRejectionReason::UNSUPPORTED_INSTRUCTION;
     }
@@ -78,7 +74,6 @@ Stream::Output& operator<<(Stream::Output& out, InlineRejectionReason reason)
         case InlineRejectionReason::EXCEPTION_REGIONS:       return out << "callee has exception regions";
         case InlineRejectionReason::UNSUPPORTED_ABI:         return out << "callee has unsupported ABI";
         case InlineRejectionReason::UNSUPPORTED_INSTRUCTION: return out << "callee contains an unsupported instruction";
-        case InlineRejectionReason::LITERALS:                return out << "callee uses a literal table";
     }
     return out << "unknown";
 }

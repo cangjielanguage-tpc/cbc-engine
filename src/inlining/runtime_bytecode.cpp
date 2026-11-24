@@ -3,6 +3,7 @@
 #include "cbc/emitter/encoding_rt.h"
 #include "cbc/emitter/segment.h"
 #include "engine/decode/decoder.h"
+#include "interpreter/literals.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 
@@ -173,23 +174,30 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         case Opcode::STORE_LONG_DERIVED:
         case Opcode::STORE_LONG_DERIVED_F:
             return RT::B7xrrri32::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
-        // These operands need literal-table remapping, including literal branch targets.
+        case Opcode::BINI32L:
+        case Opcode::BINI64L:
+        case Opcode::SCCI32L:
+        case Opcode::SCCI64L:
+            return RT::B4xi12rr::Decode(reader).xi12.imm12 < code.literals->size();
+        case Opcode::BCCL32I:
+        case Opcode::BCCL64I:
+            return RT::B5xi12ri12::Decode(reader).ri12.imm12 < code.literals->size();
+        case Opcode::LOAD_ADDR: {
+            const auto op = RT::B4xri16::Decode(reader);
+            return op.xr.imm.LDK() != Format::LoadAccessKind::LD_REF && op.imm16.imm < code.literals->size();
+        }
+        case Opcode::STORE_ADDR: {
+            const auto op = RT::B4xri16::Decode(reader);
+            return op.xr.imm.STK() != Format::StoreAccessKind::ST_REF && op.imm16.imm < code.literals->size();
+        }
+        // Branch deltas stored in literals need to be recomputed after rewriting.
         case Opcode::BCC16L:
         case Opcode::BCC32L:
         case Opcode::BCC64L:
         case Opcode::BCCI32L:
         case Opcode::BCCI64L:
-        case Opcode::BCCL32I:
-        case Opcode::BCCL64I:
         case Opcode::BCCL32L:
-        case Opcode::BCCL64L:
-        case Opcode::BINI32L:
-        case Opcode::BINI64L:
-        case Opcode::SCCI32L:
-        case Opcode::SCCI64L:
-        case Opcode::LOAD_ADDR:
-        case Opcode::STORE_ADDR:
-            return false;
+        case Opcode::BCCL64L: return false;
         // Calls, allocations, safepoints and exceptional control flow need inline metadata.
         case Opcode::NEWOBJ:
         case Opcode::NEWOBJ_PINNED:
@@ -289,7 +297,9 @@ std::optional<int64_t> BranchTarget(const Interpretation::Code& code, const Runt
             break;
         }
         case RT::Opcode::BCCI32I:
-        case RT::Opcode::BCCI64I: {
+        case RT::Opcode::BCCI64I:
+        case RT::Opcode::BCCL32I:
+        case RT::Opcode::BCCL64I: {
             const auto branch = RT::B5xi12ri12::Decode(reader);
             delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(branch.xi12.imm12, 12));
             break;
@@ -348,7 +358,8 @@ void EmitRelocatedInstruction(
     Emitter::Segment& output,
     const Interpretation::Code& code,
     const RuntimeInstruction& instruction,
-    uint32_t frameShift
+    uint32_t frameShift,
+    uint32_t literalBase
 )
 {
     auto* begin = code.bytecode + instruction.offset;
@@ -361,6 +372,29 @@ void EmitRelocatedInstruction(
     };
     using Opcode = RT::Opcode;
     switch (instruction.opcode) {
+        case Opcode::BINI32L:
+        case Opcode::BINI64L:
+        case Opcode::SCCI32L:
+        case Opcode::SCCI64L: {
+            auto op = RT::B4xi12rr::Decode(reader);
+            op.xi12.imm12 = static_cast<uint16_t>(op.xi12.imm12 + literalBase);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::BCCL32I:
+        case Opcode::BCCL64I: {
+            auto op = RT::B5xi12ri12::Decode(reader);
+            op.ri12.imm12 = static_cast<uint16_t>(op.ri12.imm12 + literalBase);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::LOAD_ADDR:
+        case Opcode::STORE_ADDR: {
+            auto op = RT::B4xri16::Decode(reader);
+            op.imm16.imm += literalBase;
+            Encode(output, op);
+            break;
+        }
         case Opcode::LOAD_FRAME:
         case Opcode::LOAD_FRAME_F:
         case Opcode::STORE_FRAME:
@@ -480,6 +514,8 @@ bool FitsBranchDelta(RT::Opcode opcode, int64_t delta)
         case RT::Opcode::BCC64I:
         case RT::Opcode::BCCI32I:
         case RT::Opcode::BCCI64I:
+        case RT::Opcode::BCCL32I:
+        case RT::Opcode::BCCL64I:
         case RT::Opcode::BRANCH_IS_REF: return MathUtils::IsNBitsSigned(delta, 12);
         case RT::Opcode::JMP32:         return MathUtils::IsNBitsSigned(delta, 32);
         default:                        return false;
@@ -533,6 +569,8 @@ void ApplyBranchPatches(uint8_t* bytecode, uint32_t bytecodeSize, const std::vec
             case RT::Opcode::BCC64I:
             case RT::Opcode::BCCI32I:
             case RT::Opcode::BCCI64I:
+            case RT::Opcode::BCCL32I:
+            case RT::Opcode::BCCL64I:
             case RT::Opcode::BRANCH_IS_REF: {
                 ASSERT(bytecodeSize - patch.offset >= sizeof(uint8_t) + sizeof(uint16_t));
                 uint16_t encoded;
@@ -557,10 +595,6 @@ bool IsSupportedBody(
     const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions
 )
 {
-    if (code.literals->size() != 0) {
-        return false;
-    }
-
     if (instructions.empty() || instructions.back().opcode != RT::Opcode::RET) {
         return false;
     }
@@ -578,16 +612,20 @@ bool IsSupportedBody(
 }
 
 std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
-    const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions, uint32_t frameShift
+    const Interpretation::Code& code,
+    const std::vector<RuntimeInstruction>& instructions,
+    uint32_t frameShift,
+    uint32_t literalBase
 )
 {
     ASSERT(!instructions.empty() && instructions.back().opcode == RT::Opcode::RET);
+    ASSERT(literalBase + code.literals->size() <= RT::LIT_TABLE_SIZE);
     Emitter::Segment output;
     std::vector<RewrittenCodeEdit> edits;
     for (size_t i = 0; i + 1 < instructions.size(); ++i) {
         const auto& instruction = instructions[i];
         const auto begin        = output.Pos();
-        EmitRelocatedInstruction(output, code, instruction, frameShift);
+        EmitRelocatedInstruction(output, code, instruction, frameShift, literalBase);
         const auto size = static_cast<uint32_t>(output.Pos() - begin);
         if (size != instruction.size) {
             edits.push_back({ instruction.offset, instruction.offset + instruction.size, size });

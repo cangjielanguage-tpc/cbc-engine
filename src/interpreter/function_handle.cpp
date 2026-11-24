@@ -259,17 +259,13 @@ ExecBytecodeInfo* FunctionHandleManager::RebuildAndPublish(Session& session, con
     auto* fuh              = plan.callerFuh;
     auto* expectedBytecode = plan.expectedBytecode;
     auto expectedVersion   = plan.expectedVersion;
-    auto* snapshot         = fuh->bytecode.load();
-    if (snapshot != expectedBytecode || snapshot->version != expectedVersion) {
-        return nullptr;
-    }
-    ASSERT(expectedVersion != std::numeric_limits<uint64_t>::max());
 
     auto& heap = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rebuild(plan, heap);
     if (!bytecode.has_value()) {
         return nullptr;
     }
+    ASSERT(expectedVersion != std::numeric_limits<uint64_t>::max());
     auto rebuilt = std::unique_ptr<ExecBytecodeInfo>(
         new(std::nothrow) ExecBytecodeInfo(std::move(bytecode.value()))
     );
