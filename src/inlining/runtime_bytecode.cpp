@@ -34,125 +34,6 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
     using Opcode = RT::Opcode;
     Decoder::ByteReader reader(code.bytecode + instruction.offset, code.bytecode, code.bytecode + code.bytecodeSize);
     switch (instruction.opcode) {
-        case Opcode::RET:
-        case Opcode::NOP:
-        case Opcode::MOV:
-        case Opcode::MOVI:
-        case Opcode::MOVI2F:
-        case Opcode::MOVF2I:
-        case Opcode::BIN32:
-        case Opcode::BIN64:
-        case Opcode::BINI32I:
-        case Opcode::BINI64I:
-        case Opcode::SBIN8:
-        case Opcode::SBIN16:
-        case Opcode::SBIN32:
-        case Opcode::SBIN64:
-        case Opcode::SBINIMM8:
-        case Opcode::SBINIMM16:
-        case Opcode::SBINIMM32:
-        case Opcode::SBINIMM64:
-        case Opcode::SBINIMM8W:
-        case Opcode::SBINIMM16W:
-        case Opcode::SBINIMM32W:
-        case Opcode::SBINIMM64W:
-        case Opcode::FMOV:
-        case Opcode::FMOVI16:
-        case Opcode::FMOVI32:
-        case Opcode::FMOVI64:
-        case Opcode::FBIN16:
-        case Opcode::FBIN32:
-        case Opcode::FBIN64:
-        case Opcode::FUN16:
-        case Opcode::FUN32:
-        case Opcode::FUN64:
-        case Opcode::FMATHUN16:
-        case Opcode::FMATHUN32:
-        case Opcode::FMATHUN64:
-        case Opcode::FPOWI32:
-        case Opcode::FPOWI64:
-        case Opcode::SCC32:
-        case Opcode::SCC64:
-        case Opcode::FSCC16:
-        case Opcode::FSCC32:
-        case Opcode::FSCC64:
-        case Opcode::SCCI32I:
-        case Opcode::SCCI64I:
-        case Opcode::CONVERT:
-        case Opcode::BFXS:
-        case Opcode::BFXZ:
-        case Opcode::LOAD_FRAME:
-        case Opcode::LOAD_FRAME_F:
-        case Opcode::STORE_FRAME:
-        case Opcode::STORE_FRAME_F:
-        case Opcode::LOAD_LONG_FRAME:
-        case Opcode::LOAD_LONG_FRAME_F:
-        case Opcode::STORE_LONG_FRAME:
-        case Opcode::STORE_LONG_FRAME_F:
-        case Opcode::STORE_FRAME_IMM_1:
-        case Opcode::STORE_FRAME_IMM_2:
-        case Opcode::STORE_FRAME_IMM_4:
-        case Opcode::STORE_FRAME_IMM_8:
-        case Opcode::COPY_TYPESLOT:
-        case Opcode::COPY_TYPESLOT_GENERIC:
-        case Opcode::ZERO_FRAME:
-        case Opcode::BCC16I:
-        case Opcode::BCC32I:
-        case Opcode::BCC64I:
-        case Opcode::BCCI32I:
-        case Opcode::BCCI64I:
-        case Opcode::JMP32:
-        case Opcode::BRANCH_IS_REF: return true;
-        // Register-relative records, metadata reads and native-only operations.
-        case Opcode::LOAD_REC:
-        case Opcode::STORE_REC:
-        case Opcode::LOAD_LONG_REC:
-        case Opcode::STORE_LONG_REC:
-        case Opcode::LOAD_REC_F:
-        case Opcode::STORE_REC_F:
-        case Opcode::LOAD_LONG_REC_F:
-        case Opcode::STORE_LONG_REC_F:
-        case Opcode::COPY_LOCAL:
-        case Opcode::COPY_LOCAL_GENERIC:
-        case Opcode::TYPE_ARG:
-        case Opcode::OFFSET:
-        case Opcode::LEA_GENERIC:
-        case Opcode::INDEX:
-        case Opcode::INDEX_GENERIC:
-        case Opcode::CONST_INDEX_GENERIC:
-        case Opcode::INITCLOSURE:
-        case Opcode::INITCLOSURE_SRET:
-        case Opcode::INIT_NONE_GENERIC_OPT0:
-        case Opcode::LOG:
-        case Opcode::ATOMIC_FETCH_ADD_8:
-        case Opcode::ATOMIC_FETCH_ADD_16:
-        case Opcode::ATOMIC_FETCH_ADD_32:
-        case Opcode::ATOMIC_FETCH_ADD_64:
-        case Opcode::ATOMIC_FETCH_SUB_8:
-        case Opcode::ATOMIC_FETCH_SUB_16:
-        case Opcode::ATOMIC_FETCH_SUB_32:
-        case Opcode::ATOMIC_FETCH_SUB_64:
-        case Opcode::ATOMIC_FETCH_AND_8:
-        case Opcode::ATOMIC_FETCH_AND_16:
-        case Opcode::ATOMIC_FETCH_AND_32:
-        case Opcode::ATOMIC_FETCH_AND_64:
-        case Opcode::ATOMIC_FETCH_OR_8:
-        case Opcode::ATOMIC_FETCH_OR_16:
-        case Opcode::ATOMIC_FETCH_OR_32:
-        case Opcode::ATOMIC_FETCH_OR_64:
-        case Opcode::ATOMIC_FETCH_XOR_8:
-        case Opcode::ATOMIC_FETCH_XOR_16:
-        case Opcode::ATOMIC_FETCH_XOR_32:
-        case Opcode::ATOMIC_FETCH_XOR_64:
-        case Opcode::CAS_8:
-        case Opcode::CAS_16:
-        case Opcode::CAS_32:
-        case Opcode::CAS_64:
-        case Opcode::ATOMIC_SWAP_8:
-        case Opcode::ATOMIC_SWAP_16:
-        case Opcode::ATOMIC_SWAP_32:
-        case Opcode::ATOMIC_SWAP_64:
-            return true;
         // Reference access in these families calls into the managed runtime.
         case Opcode::LOAD_OBJ:
         case Opcode::LOAD_OBJ_F:
@@ -174,30 +55,10 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         case Opcode::STORE_LONG_DERIVED:
         case Opcode::STORE_LONG_DERIVED_F:
             return RT::B7xrrri32::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
-        case Opcode::BINI32L:
-        case Opcode::BINI64L:
-        case Opcode::SCCI32L:
-        case Opcode::SCCI64L:
-            return RT::B4xi12rr::Decode(reader).xi12.imm12 < code.literals->size();
-        case Opcode::BCCL32I:
-        case Opcode::BCCL64I:
-            return RT::B5xi12ri12::Decode(reader).ri12.imm12 < code.literals->size();
-        case Opcode::LOAD_ADDR: {
-            const auto op = RT::B4xri16::Decode(reader);
-            return op.xr.imm.LDK() != Format::LoadAccessKind::LD_REF && op.imm16.imm < code.literals->size();
-        }
-        case Opcode::STORE_ADDR: {
-            const auto op = RT::B4xri16::Decode(reader);
-            return op.xr.imm.STK() != Format::StoreAccessKind::ST_REF && op.imm16.imm < code.literals->size();
-        }
-        // Branch deltas stored in literals need to be recomputed after rewriting.
-        case Opcode::BCC16L:
-        case Opcode::BCC32L:
-        case Opcode::BCC64L:
-        case Opcode::BCCI32L:
-        case Opcode::BCCI64L:
-        case Opcode::BCCL32L:
-        case Opcode::BCCL64L: return false;
+        case Opcode::LOAD_ADDR:
+            return RT::B4xri16::Decode(reader).xr.imm.LDK() != Format::LoadAccessKind::LD_REF;
+        case Opcode::STORE_ADDR:
+            return RT::B4xri16::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
         // Calls, allocations, safepoints and exceptional control flow need inline metadata.
         case Opcode::NEWOBJ:
         case Opcode::NEWOBJ_PINNED:
@@ -278,45 +139,87 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         case Opcode::HALT:
         case Opcode::OPCODE_NUM:
             return false;
+        default:
+            return true;
     }
-    return false;
 }
 
-std::optional<int64_t> BranchTarget(const Interpretation::Code& code, const RuntimeInstruction& instruction)
+std::optional<RT::Opcode> LiteralBranchOpcode(RT::Opcode opcode)
+{
+    using Opcode = RT::Opcode;
+    switch (opcode) {
+        case Opcode::BCC16I:
+        case Opcode::BCC16L: return Opcode::BCC16L;
+        case Opcode::BCC32I:
+        case Opcode::BCC32L: return Opcode::BCC32L;
+        case Opcode::BCC64I:
+        case Opcode::BCC64L: return Opcode::BCC64L;
+        case Opcode::BCCI32I:
+        case Opcode::BCCI32L: return Opcode::BCCI32L;
+        case Opcode::BCCI64I:
+        case Opcode::BCCI64L: return Opcode::BCCI64L;
+        case Opcode::BCCL32I:
+        case Opcode::BCCL32L: return Opcode::BCCL32L;
+        case Opcode::BCCL64I:
+        case Opcode::BCCL64L: return Opcode::BCCL64L;
+        default: return std::nullopt;
+    }
+}
+
+struct BranchDestination {
+    int64_t offset;
+    std::optional<uint32_t> literalIndex;
+};
+
+std::optional<BranchDestination> BranchTarget(
+    const Interpretation::Code& code, const RuntimeInstruction& instruction
+)
 {
     auto* const end = code.bytecode + code.bytecodeSize;
     Decoder::ByteReader reader(code.bytecode + instruction.offset, code.bytecode, end);
 
-    int64_t delta;
+    uint32_t operand;
     switch (instruction.opcode) {
         case RT::Opcode::BCC16I:
         case RT::Opcode::BCC32I:
-        case RT::Opcode::BCC64I: {
-            const auto branch = RT::B4xi12rr::Decode(reader);
-            delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(branch.xi12.imm12, 12));
+        case RT::Opcode::BCC64I:
+        case RT::Opcode::BCC16L:
+        case RT::Opcode::BCC32L:
+        case RT::Opcode::BCC64L:
+            operand = RT::B4xi12rr::Decode(reader).xi12.imm12;
             break;
-        }
         case RT::Opcode::BCCI32I:
         case RT::Opcode::BCCI64I:
+        case RT::Opcode::BCCI32L:
+        case RT::Opcode::BCCI64L:
         case RT::Opcode::BCCL32I:
-        case RT::Opcode::BCCL64I: {
-            const auto branch = RT::B5xi12ri12::Decode(reader);
-            delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(branch.xi12.imm12, 12));
+        case RT::Opcode::BCCL64I:
+        case RT::Opcode::BCCL32L:
+        case RT::Opcode::BCCL64L:
+            operand = RT::B5xi12ri12::Decode(reader).xi12.imm12;
             break;
-        }
-        case RT::Opcode::JMP32: {
-            const auto branch = RT::B5i32::Decode(reader);
-            delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(branch.imm32.imm, 32));
+        case RT::Opcode::JMP32:
+            operand = RT::B5i32::Decode(reader).imm32.imm;
             break;
-        }
-        case RT::Opcode::BRANCH_IS_REF: {
-            const auto branch = RT::B3xi12::Decode(reader);
-            delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(branch.xi12.imm12, 12));
+        case RT::Opcode::BRANCH_IS_REF:
+            operand = RT::B3xi12::Decode(reader).xi12.imm12;
             break;
-        }
         default: return std::nullopt;
     }
-    return static_cast<int64_t>(instruction.offset) + instruction.size + delta;
+    const auto branchEnd = static_cast<int64_t>(instruction.offset) + instruction.size;
+    if (LiteralBranchOpcode(instruction.opcode) == instruction.opcode) {
+        if (operand >= code.literals->size()) {
+            return std::nullopt;
+        }
+        const auto delta = code.literals->at(operand).i64;
+        if (delta < -branchEnd || delta > std::numeric_limits<uint32_t>::max() - branchEnd) {
+            return std::nullopt;
+        }
+        return BranchDestination { branchEnd + delta, operand };
+    }
+    const auto bits = instruction.opcode == RT::Opcode::JMP32 ? 32 : 12;
+    const auto delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(operand, bits));
+    return BranchDestination { branchEnd + delta, std::nullopt };
 }
 
 bool IsInstructionBoundary(const std::vector<RuntimeInstruction>& instructions, int64_t offset)
@@ -340,7 +243,7 @@ bool IsSupportedBranch(
 )
 {
     const auto target = BranchTarget(code, instruction);
-    return target.has_value() && IsInstructionBoundary(instructions, *target);
+    return target.has_value() && IsInstructionBoundary(instructions, target->offset);
 }
 
 RT::Opcode LongFrameOpcode(RT::Opcode opcode)
@@ -377,13 +280,17 @@ void EmitRelocatedInstruction(
         case Opcode::SCCI32L:
         case Opcode::SCCI64L: {
             auto op = RT::B4xi12rr::Decode(reader);
+            ASSERT(op.xi12.imm12 < code.literals->size());
             op.xi12.imm12 = static_cast<uint16_t>(op.xi12.imm12 + literalBase);
             Encode(output, op);
             break;
         }
         case Opcode::BCCL32I:
-        case Opcode::BCCL64I: {
+        case Opcode::BCCL64I:
+        case Opcode::BCCL32L:
+        case Opcode::BCCL64L: {
             auto op = RT::B5xi12ri12::Decode(reader);
+            ASSERT(op.ri12.imm12 < code.literals->size());
             op.ri12.imm12 = static_cast<uint16_t>(op.ri12.imm12 + literalBase);
             Encode(output, op);
             break;
@@ -391,6 +298,7 @@ void EmitRelocatedInstruction(
         case Opcode::LOAD_ADDR:
         case Opcode::STORE_ADDR: {
             auto op = RT::B4xri16::Decode(reader);
+            ASSERT(op.imm16.imm < code.literals->size());
             op.imm16.imm += literalBase;
             Encode(output, op);
             break;
@@ -525,7 +433,9 @@ bool FitsBranchDelta(RT::Opcode opcode, int64_t delta)
 std::optional<std::vector<BranchPatch>> PrepareBranchPatches(
     const Interpretation::Code& code,
     const std::vector<RuntimeInstruction>& instructions,
-    const std::vector<RewrittenCodeEdit>& edits
+    const std::vector<RewrittenCodeEdit>& edits,
+    uint32_t literalBase,
+    std::vector<Interpretation::Literal>& literals
 )
 {
     std::vector<BranchPatch> patches;
@@ -535,24 +445,42 @@ std::optional<std::vector<BranchPatch>> PrepareBranchPatches(
         }
 
         const auto oldTarget = BranchTarget(code, instruction);
-        if (!oldTarget.has_value() || !IsInstructionBoundary(instructions, *oldTarget)) {
+        if (!oldTarget.has_value() || !IsInstructionBoundary(instructions, oldTarget->offset)) {
             return std::nullopt;
         }
         const auto newOffset = RelocateRewrittenPosition(instruction.offset, edits);
-        const auto newTarget = RelocateRewrittenPosition(static_cast<uint32_t>(*oldTarget), edits);
+        const auto newTarget = RelocateRewrittenPosition(static_cast<uint32_t>(oldTarget->offset), edits);
         if (!newOffset.has_value() || !newTarget.has_value()) {
             return std::nullopt;
         }
 
         const auto newEnd = static_cast<int64_t>(*newOffset) + instruction.size;
         const auto delta  = static_cast<int64_t>(*newTarget) - newEnd;
-        if (!FitsBranchDelta(instruction.opcode, delta)) {
-            return std::nullopt;
+        auto newOpcode = instruction.opcode;
+        auto operand = delta;
+        if (oldTarget->literalIndex.has_value() || !FitsBranchDelta(instruction.opcode, delta)) {
+            const auto literalOpcode = LiteralBranchOpcode(instruction.opcode);
+            if (!literalOpcode.has_value()) {
+                return std::nullopt;
+            }
+            newOpcode = *literalOpcode;
+            if (oldTarget->literalIndex.has_value() &&
+                delta == oldTarget->offset - (static_cast<int64_t>(instruction.offset) + instruction.size)) {
+                operand = literalBase + *oldTarget->literalIndex;
+            } else {
+                if (literals.size() >= RT::LIT_TABLE_SIZE) {
+                    return std::nullopt;
+                }
+                // The old literal may also be used by other instructions.
+                operand = static_cast<int64_t>(literals.size());
+                literals.push_back({ .i64 = delta });
+            }
         }
         patches.push_back(BranchPatch {
-            .opcode = instruction.opcode,
-            .offset = *newOffset,
-            .delta  = delta,
+            .opcode    = instruction.opcode,
+            .newOpcode = newOpcode,
+            .offset    = *newOffset,
+            .operand   = operand,
         });
     }
     return patches;
@@ -563,26 +491,34 @@ void ApplyBranchPatches(uint8_t* bytecode, uint32_t bytecodeSize, const std::vec
     for (const auto& patch : patches) {
         ASSERT(patch.offset < bytecodeSize);
         ASSERT(bytecode[patch.offset] == static_cast<uint8_t>(patch.opcode));
-        switch (patch.opcode) {
+        bytecode[patch.offset] = static_cast<uint8_t>(patch.newOpcode);
+        switch (patch.newOpcode) {
             case RT::Opcode::BCC16I:
             case RT::Opcode::BCC32I:
             case RT::Opcode::BCC64I:
+            case RT::Opcode::BCC16L:
+            case RT::Opcode::BCC32L:
+            case RT::Opcode::BCC64L:
             case RT::Opcode::BCCI32I:
             case RT::Opcode::BCCI64I:
+            case RT::Opcode::BCCI32L:
+            case RT::Opcode::BCCI64L:
             case RT::Opcode::BCCL32I:
             case RT::Opcode::BCCL64I:
+            case RT::Opcode::BCCL32L:
+            case RT::Opcode::BCCL64L:
             case RT::Opcode::BRANCH_IS_REF: {
                 ASSERT(bytecodeSize - patch.offset >= sizeof(uint8_t) + sizeof(uint16_t));
                 uint16_t encoded;
                 std::memcpy(&encoded, bytecode + patch.offset + sizeof(uint8_t), sizeof(encoded));
                 encoded =
-                    static_cast<uint16_t>((encoded & 0xfU) | ((static_cast<uint16_t>(patch.delta) & 0xfffU) << 4U));
+                    static_cast<uint16_t>((encoded & 0xfU) | ((static_cast<uint16_t>(patch.operand) & 0xfffU) << 4U));
                 std::memcpy(bytecode + patch.offset + sizeof(uint8_t), &encoded, sizeof(encoded));
                 break;
             }
             case RT::Opcode::JMP32: {
                 ASSERT(bytecodeSize - patch.offset >= sizeof(uint8_t) + sizeof(uint32_t));
-                const auto encoded = static_cast<uint32_t>(static_cast<int32_t>(patch.delta));
+                const auto encoded = static_cast<uint32_t>(static_cast<int32_t>(patch.operand));
                 std::memcpy(bytecode + patch.offset + sizeof(uint8_t), &encoded, sizeof(encoded));
                 break;
             }
@@ -615,7 +551,8 @@ std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
     const Interpretation::Code& code,
     const std::vector<RuntimeInstruction>& instructions,
     uint32_t frameShift,
-    uint32_t literalBase
+    uint32_t literalBase,
+    std::vector<Interpretation::Literal>& literals
 )
 {
     ASSERT(!instructions.empty() && instructions.back().opcode == RT::Opcode::RET);
@@ -632,13 +569,11 @@ std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
         }
     }
     auto body = output.Finish();
-    if (!edits.empty()) {
-        const auto patches = PrepareBranchPatches(code, instructions, edits);
-        if (!patches.has_value()) {
-            return std::nullopt;
-        }
-        ApplyBranchPatches(body.Data(), body.Size(), *patches);
+    const auto patches = PrepareBranchPatches(code, instructions, edits, literalBase, literals);
+    if (!patches.has_value()) {
+        return std::nullopt;
     }
+    ApplyBranchPatches(body.Data(), body.Size(), *patches);
     return body;
 }
 

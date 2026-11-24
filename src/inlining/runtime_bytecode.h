@@ -3,6 +3,7 @@
 #include "cbc/isa_rt.h"
 #include "cbc/offsets_index.h"
 #include "interpreter/code.h"
+#include "interpreter/literals.h"
 
 #include <cstdint>
 #include <optional>
@@ -18,8 +19,9 @@ struct RuntimeInstruction {
 
 struct BranchPatch {
     RT::Opcode opcode;
+    RT::Opcode newOpcode;
     uint32_t offset;
-    int64_t delta;
+    int64_t operand;
 };
 
 std::vector<RuntimeInstruction> DecodeRuntimeBytecode(const Interpretation::Code& code);
@@ -31,7 +33,9 @@ bool FitsBranchDelta(RT::Opcode opcode, int64_t delta);
 std::optional<std::vector<BranchPatch>> PrepareBranchPatches(
     const Interpretation::Code& code,
     const std::vector<RuntimeInstruction>& instructions,
-    const std::vector<RewrittenCodeEdit>& edits
+    const std::vector<RewrittenCodeEdit>& edits,
+    uint32_t literalBase,
+    std::vector<Interpretation::Literal>& literals
 );
 
 void ApplyBranchPatches(uint8_t* bytecode, uint32_t bytecodeSize, const std::vector<BranchPatch>& patches);
@@ -44,7 +48,8 @@ std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
     const Interpretation::Code& code,
     const std::vector<RuntimeInstruction>& instructions,
     uint32_t frameShift,
-    uint32_t literalBase
+    uint32_t literalBase,
+    std::vector<Interpretation::Literal>& literals
 );
 
 } // namespace Cbc

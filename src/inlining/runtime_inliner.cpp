@@ -38,7 +38,7 @@ struct PreparedInlining {
     std::vector<PreparedInlineSite> sites;
     std::vector<RewrittenCodeEdit> edits;
     std::vector<BranchPatch> branchPatches;
-    std::vector<const Interpretation::LiteralTable*> literalTables;
+    std::vector<Interpretation::Literal> literals;
     uint32_t bytecodeSize;
 };
 
@@ -54,13 +54,39 @@ struct InlineFrameCode {
     Utils::Vector<uint8_t> restore;
 };
 
-InlineFrameCode MakeInlineFrameCode(const ExecBytecodeInfo& caller, const ExecBytecodeInfo& callee);
+InlineFrameCode MakeInlineFrameCode(const ExecBytecodeInfo& caller, const ExecBytecodeInfo& callee)
+{
+    Emitter::Emitter entry;
+    Emitter::Emitter restore;
+    auto offset = -static_cast<int64_t>(caller.staticFrameSize);
+
+    // Use the ordinary callee's I/F save order in the area below the caller's static frame.
+    for (auto regs = callee.savedIRegs; !regs.IsEmpty();) {
+        const auto reg = IReg::From(regs.ExtractReg());
+        offset -= STACK_SLOT_SIZE;
+        entry.StoreFrame(Format::StoreAccessKind::ST_64, reg, static_cast<int32_t>(offset));
+        restore.LoadFrame(Format::LoadAccessKind::LD_64, reg, static_cast<int32_t>(offset));
+    }
+    for (auto regs = callee.savedFRegs; !regs.IsEmpty();) {
+        const auto reg = FReg::From(regs.ExtractReg());
+        offset -= STACK_SLOT_SIZE;
+        entry.StoreFrame(Format::StoreAccessKind::ST_F64, reg, static_cast<int32_t>(offset));
+        restore.LoadFrame(Format::LoadAccessKind::LD_F64, reg, static_cast<int32_t>(offset));
+    }
+
+    const auto bottom = -static_cast<int64_t>(caller.staticFrameSize) - callee.staticFrameSize;
+    if (bottom < offset) {
+        entry.ZeroFrame(static_cast<int32_t>(bottom), static_cast<uint32_t>(offset - bottom));
+    }
+    return { entry.FinishWithoutFixups(), restore.FinishWithoutFixups() };
+}
 
 std::optional<PreparedInlineSite> PrepareSite(
     const InlineCallSite& site,
     const ExecBytecodeInfo& caller,
     const std::vector<RuntimeInstruction>& callerInstructions,
-    uint32_t literalBase
+    uint32_t literalBase,
+    std::vector<Interpretation::Literal>& literals
 )
 {
     const auto instruction = std::lower_bound(
@@ -110,7 +136,7 @@ std::optional<PreparedInlineSite> PrepareSite(
     if (!IsSupportedBody(callee->code, calleeInstructions)) {
         return std::nullopt;
     }
-    auto body = RelocateInlineBody(callee->code, calleeInstructions, caller.staticFrameSize, literalBase);
+    auto body = RelocateInlineBody(callee->code, calleeInstructions, caller.staticFrameSize, literalBase, literals);
     if (!body.has_value()) {
         return std::nullopt;
     }
@@ -124,6 +150,15 @@ std::optional<PreparedInlineSite> PrepareSite(
         .entryCode      = std::move(frameCode.entry),
         .restoreCode    = std::move(frameCode.restore),
     };
+}
+
+void AppendLiteralTable(std::vector<Interpretation::Literal>& literals, const Interpretation::LiteralTable& table)
+{
+    if (table.size() != 0) {
+        const auto base = literals.size();
+        literals.resize(base + table.size());
+        std::memcpy(literals.data() + base, table._table, table.size() * Interpretation::LITERAL_SIZE);
+    }
 }
 
 std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
@@ -145,10 +180,10 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
     preparedSites.reserve(plan.callSites.size());
     edits.reserve(plan.callSites.size());
 
-    std::vector<const Interpretation::LiteralTable*> literalTables { source->code.literals };
+    std::vector<Interpretation::Literal> literals;
+    ASSERT(source->code.literals->size() <= RT::LIT_TABLE_SIZE);
+    AppendLiteralTable(literals, *source->code.literals);
     std::unordered_map<const Interpretation::LiteralTable*, uint32_t> literalBases { { source->code.literals, 0 } };
-    auto literalCount = source->code.literals->size();
-    ASSERT(literalCount <= RT::LIT_TABLE_SIZE);
 
     uint32_t previousEnd    = 0;
     uint32_t inlineAreaSize  = 0;
@@ -161,18 +196,17 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
         const auto tableSize = table->size();
         uint32_t literalBase = 0;
         if (tableSize != 0) {
-            const auto [base, inserted] = literalBases.try_emplace(table, literalCount);
+            const auto [base, inserted] = literalBases.try_emplace(table, static_cast<uint32_t>(literals.size()));
             if (inserted) {
-                if (literalCount + tableSize > RT::LIT_TABLE_SIZE) {
+                if (tableSize > RT::LIT_TABLE_SIZE - literals.size()) {
                     return std::nullopt;
                 }
-                literalTables.push_back(table);
-                literalCount += tableSize;
+                AppendLiteralTable(literals, *table);
             }
             literalBase = base->second;
         }
 
-        auto prepared = PrepareSite(site, *source, callerInstructions, literalBase);
+        auto prepared = PrepareSite(site, *source, callerInstructions, literalBase, literals);
         if (!prepared.has_value()) {
             return std::nullopt;
         }
@@ -200,7 +234,7 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
         preparedSites.push_back(std::move(*prepared));
     }
 
-    auto branchPatches = PrepareBranchPatches(source->code, callerInstructions, edits);
+    auto branchPatches = PrepareBranchPatches(source->code, callerInstructions, edits, 0, literals);
     if (!branchPatches.has_value()) {
         return std::nullopt;
     }
@@ -215,7 +249,7 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
         .sites         = std::move(preparedSites),
         .edits         = std::move(edits),
         .branchPatches = std::move(*branchPatches),
-        .literalTables = std::move(literalTables),
+        .literals      = std::move(literals),
         .bytecodeSize  = static_cast<uint32_t>(newBytecodeSize),
     };
 }
@@ -300,51 +334,19 @@ RelocatedMetadata RelocateMetadata(const PreparedInlining& prepared)
 }
 
 Interpretation::LiteralTable* CloneLiterals(
-    const std::vector<const Interpretation::LiteralTable*>& tables, Memory::Heap& heap
+    const std::vector<Interpretation::Literal>& literals, Memory::Heap& heap
 )
 {
-    size_t byteSize = 0;
-    for (const auto* table : tables) {
-        byteSize += table->_byteSize;
-    }
+    const auto byteSize = literals.size() * Interpretation::LITERAL_SIZE;
     const auto allocationSize = sizeof(Interpretation::LiteralTable) + byteSize;
     auto* clone =
         static_cast<Interpretation::LiteralTable*>(heap.Allocate(allocationSize, alignof(Interpretation::LiteralTable))
         );
     clone->_byteSize = byteSize;
-    auto* out = clone->_table;
-    for (const auto* table : tables) {
-        std::memcpy(out, table->_table, table->_byteSize);
-        out += table->_byteSize;
+    if (byteSize != 0) {
+        std::memcpy(clone->_table, literals.data(), byteSize);
     }
     return clone;
-}
-
-InlineFrameCode MakeInlineFrameCode(const ExecBytecodeInfo& caller, const ExecBytecodeInfo& callee)
-{
-    Emitter::Emitter entry;
-    Emitter::Emitter restore;
-    auto offset = -static_cast<int64_t>(caller.staticFrameSize);
-
-    // Use the ordinary callee's I/F save order in the area below the caller's static frame.
-    for (auto regs = callee.savedIRegs; !regs.IsEmpty();) {
-        const auto reg = IReg::From(regs.ExtractReg());
-        offset -= STACK_SLOT_SIZE;
-        entry.StoreFrame(Format::StoreAccessKind::ST_64, reg, static_cast<int32_t>(offset));
-        restore.LoadFrame(Format::LoadAccessKind::LD_64, reg, static_cast<int32_t>(offset));
-    }
-    for (auto regs = callee.savedFRegs; !regs.IsEmpty();) {
-        const auto reg = FReg::From(regs.ExtractReg());
-        offset -= STACK_SLOT_SIZE;
-        entry.StoreFrame(Format::StoreAccessKind::ST_F64, reg, static_cast<int32_t>(offset));
-        restore.LoadFrame(Format::LoadAccessKind::LD_F64, reg, static_cast<int32_t>(offset));
-    }
-
-    const auto bottom = -static_cast<int64_t>(caller.staticFrameSize) - callee.staticFrameSize;
-    if (bottom < offset) {
-        entry.ZeroFrame(static_cast<int32_t>(bottom), static_cast<uint32_t>(offset - bottom));
-    }
-    return { entry.FinishWithoutFixups(), restore.FinishWithoutFixups() };
 }
 
 } // namespace
@@ -359,7 +361,7 @@ InlineResult Rebuild(const InlinePlan& plan, Memory::Heap& heap)
     auto* source      = prepared->source;
     auto* newBytecode = EmitBytecode(*prepared, heap);
     auto metadata     = RelocateMetadata(*prepared);
-    auto* literals    = CloneLiterals(prepared->literalTables, heap);
+    auto* literals    = CloneLiterals(prepared->literals, heap);
 
     return ExecBytecodeInfo {
         .code =
