@@ -1238,7 +1238,7 @@ Cbc::CbcTypeKind Cbc::ArgTypeTraits<Engine::Term>::Kind(Engine::Term const& term
         case TK::I64:     return CbcTypeKind::I64;
         case TK::UADDR:   return CbcTypeKind::U64;
         case TK::IADDR:   return CbcTypeKind::I64;
-        case TK::F16:     return CbcTypeKind::F16;
+        case TK::F16:     return CbcTypeKind::I32;
         case TK::F32:     return CbcTypeKind::F32;
         case TK::F64:     return CbcTypeKind::F64;
         case TK::UCHAR32: return CbcTypeKind::U32;
