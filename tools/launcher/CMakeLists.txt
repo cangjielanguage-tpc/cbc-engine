@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(launcher C)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT DEFINED CANGJIE_HOME)
   message(FATAL_ERROR "CANGJIE_HOME must be defined (path to the cangjie toolchain)")
