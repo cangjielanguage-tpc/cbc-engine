@@ -32,6 +32,15 @@ private:
 /// To prevent deadlocks on recursive queries, safe implementation of `TypeInfoManager` is passed explicitly.
 std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term);
 
+/// Fills `Interpretation::builtinTypeInfos` with engine-built type infos of the primitive types.
+/// Built the same way as the other engine-provided type infos (VArray, Tuple, ...), so it does
+/// not query the AOT runtime and succeeds at any initialization point, even when no AOT library
+/// is loaded yet.
+///
+/// Must be called once during engine initialization, before any emitter or interpreter run:
+/// the emitter reads the array at emit time to bake type info pointers into bytecode.
+void InitBuiltinTypeInfos();
+
 /// Reconstruct term based on TypeInfo being provided.
 /// Expects that `ti` is not CBC provided!
 Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti);
