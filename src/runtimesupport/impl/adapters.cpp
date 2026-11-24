@@ -44,7 +44,7 @@ static void* GetAddressOfDirectCallTrampoline(int i)
     return start + i * DIRECT_CALL_TRAMPOLINE_SIZE;
 }
 
-void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh)
+void* Adapters::TryGetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh)
 {
     std::lock_guard guard(g_directCallFuhsMutex);
     int i = 0;
@@ -54,12 +54,21 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
         }
     }
     if (i == TRAMPOLINE_COUNT) {
-        FATAL("Too many direct call links");
+        return nullptr;
     }
     directCallFuhsCount++;
 
     Asm::engine_universal_direct_function_handles[i] = fuh;
     return GetAddressOfDirectCallTrampoline(i);
+}
+
+void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh)
+{
+    auto trampoline = TryGetDirectCallTrampoline(fuh);
+    if (trampoline == nullptr) {
+        FATAL("Too many direct call links");
+    }
+    return trampoline;
 }
 
 extern "C" [[noreturn]] void engine_unsupported_c2i_static_virtual_call(int slot)

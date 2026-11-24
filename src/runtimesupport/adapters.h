@@ -11,6 +11,8 @@ struct Adapters {
     static void* GenericC2ICallInstance();
     static void* IregOnlyC2ICallInstance();
     static void* GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh);
+    /// Same as `GetDirectCallTrampoline`, but returns null when the trampoline pool is exhausted.
+    static void* TryGetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh);
     static void* GetDynCallTrampoline(int fuhIdx, bool sret, bool isStatic = false);
     static void* C2ICall(Interpretation::AbiInfo info);
 };

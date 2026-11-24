@@ -26,6 +26,7 @@
     #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
+    #define engine_future_execute_function _engine_future_execute_function
     #define engine_set_runtime_cjthread_handle_function _engine_set_runtime_cjthread_handle_function
     #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
     #define engine_tls_function _engine_tls_function
@@ -127,6 +128,7 @@ declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
+declare_hidden engine_future_execute_function
 declare_hidden engine_set_runtime_cjthread_handle_function
 declare_hidden engine_throw_out_of_interpreter
 declare_hidden engine_implicit_exception_thrower
@@ -172,6 +174,8 @@ engine_cjthread_specific_offset:
 engine_stack_grow_stub:
   .skip 8
 engine_i2n_stub:
+  .skip 8
+engine_future_execute_function:
   .skip 8
 engine_set_runtime_cjthread_handle_function:
   .skip 8
@@ -804,22 +808,11 @@ CFI_LABEL .Lspawn_future_success
 // TLS_REG can be changed after context-switch
 CFI_LABEL .Lthunk_op_ThrowImplicit
 CFI_LABEL .Lengine_throw_implicit_exception
-  // jumped from .Linterpreter_call without return address to return.
-  // The resolver (C code) returns the interpreted thrower's direct call
-  // trampoline; tail-call it with the kind as the first argument - same
-  // layout as a native thrower. The interpreted thrower always throws, so
-  // execution never comes back.
-  // kind is stashed in x22, which is callee-saved and dead in the thunk
-  // (interpreter state lives in x19/x20/x21 and frame slots), so it survives
-  // the C resolver call and is reloaded below.
-  mov   x22, x0
+  // jumped from .Linterpreter_call without return address to return
   adrp  x9, Page(engine_implicit_exception_thrower)
   ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
   blr   x9
-  mov   x9, x0 // trampoline
-  mov   x0, x22 // kind -> 1st argument of the tail call
-  br    x9
-  brk   #0 // should not return, as exception is thrown by the interpreted thrower
+  brk   #0 // should not return, as exception is thrown inside call
 
 CFI_LABEL .Lthunk_op_None
 CFI_LABEL .Lend_interpretation

@@ -88,6 +88,8 @@ set_target_properties(cbc-preload PROPERTIES
   C_STANDARD 11
 )
 
+target_include_directories(cbc-preload PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../include")
+
 if(NOT APPLE)
   target_link_options(cbc-preload PRIVATE
     "-Wl,-z,noexecstack"
