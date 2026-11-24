@@ -84,14 +84,6 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
     auto taggedHandle = fhm.AcquireTagged(session, methodId);
     if (auto* dynFuh = std::get_if<DynamicFunctionHandle*>(&taggedHandle)) {
         auto fuh = *dynFuh;
-        auto res = fhm.Prepare(session, fuh);
-        if (!res.success) {
-            FATAL(
-                "Failure during preparation of helper method %.*s",
-                static_cast<int>(methodName.size()),
-                methodName.data()
-            );
-        }
         return fuh;
     } else {
         FATAL(

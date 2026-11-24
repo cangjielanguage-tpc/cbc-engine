@@ -18,7 +18,6 @@
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/image/io/filesystem.h"
-#include "engine/image/reader.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
 #include "interpreter/ectype.h"
@@ -295,55 +294,45 @@ CbcStatus FillQueryResult(
     return CBC_OK;
 }
 
-/// Finds a method by the "<pkg name>:<func name>" query.
-/// The enclosing type is either the `<pkg name>` prefix or the whole query
-/// (some layouts store package level functions in a type named "<pkg>:<func>").
+/// Finds a method by the type name and the function name.
+/// The type name is the full name of the enclosing type and may itself contain
+/// colons (e.g. "std.core:Future"); package level functions are stored in a
+/// type named after the package (e.g. "$P$<pkg name>").
 std::optional<Image::Identifier<Image::MethodDefinition>> FindMethodByName(
-    Engine::Session& session, std::string_view name, CbcStatus* status
+    Engine::Session& session, std::string_view typeName, std::string_view funcName, CbcStatus* status
 )
 {
     auto& engine = Engine::GetEngineInstance();
 
-    auto colon = name.find(':');
-    if (colon == std::string_view::npos || colon == 0 || colon + 1 == name.size()) {
-        LOG_ERROR(RTSupport::Log::rt, "malformed function query {}, expected \"<pkg name>:<func name>\"", name);
-        *status = CBC_INVALID_ARGUMENT;
+    auto type = engine.FindType(session, typeName);
+    if (!type.has_value()) {
+        LOG_ERROR(RTSupport::Log::rt, "type not found {}", typeName);
+        *status = CBC_RESOLUTION_ERROR;
         return std::nullopt;
     }
 
-    auto methodName = name.substr(colon + 1);
+    auto typeDef = Decode::Read(session, type.value());
 
-    std::string_view typeNames[] = { name.substr(0, colon), name };
-
-    for (auto typeName : typeNames) {
-        auto type = engine.FindType(session, typeName);
-        if (!type.has_value()) {
-            continue;
-        }
-
-        auto typeDef = Decode::Read(session, type.value());
-
-        int count                                                        = 0;
-        std::optional<Image::Identifier<Image::MethodDefinition>> found  = std::nullopt;
-        for (auto m : Decode::Reader::FindBucket(session, typeDef.GetMethods(), methodName)) {
-            count++;
-            found = m;
-        }
-
-        if (count > 1) {
-            LOG_ERROR(RTSupport::Log::rt, "ambiguous function query {}", name);
-            *status = CBC_AMBIGUOUS_RESOLUTION_ERROR;
-            return std::nullopt;
-        }
-        if (count == 1) {
-            *status = CBC_OK;
-            return found;
-        }
+    int count                                                       = 0;
+    std::optional<Image::Identifier<Image::MethodDefinition>> found = std::nullopt;
+    for (auto m : Decode::Reader::FindBucket(session, typeDef.GetMethods(), funcName)) {
+        count++;
+        found = m;
     }
 
-    LOG_ERROR(RTSupport::Log::rt, "function not found {}", name);
-    *status = CBC_RESOLUTION_ERROR;
-    return std::nullopt;
+    if (count > 1) {
+        LOG_ERROR(RTSupport::Log::rt, "ambiguous function query {}:{}", typeName, funcName);
+        *status = CBC_AMBIGUOUS_RESOLUTION_ERROR;
+        return std::nullopt;
+    }
+    if (count == 0) {
+        LOG_ERROR(RTSupport::Log::rt, "function not found {}:{}", typeName, funcName);
+        *status = CBC_RESOLUTION_ERROR;
+        return std::nullopt;
+    }
+
+    *status = CBC_OK;
+    return found;
 }
 
 } // namespace
@@ -443,9 +432,12 @@ CBC_EXPORT CbcStatus engine_set_symbol_resolver(CbcDlsym dlsym)
 
 CBC_EXPORT CbcStatus engine_load() { return LoadEngine(); }
 
-CBC_EXPORT CbcStatus engine_query_function(CbcFunction* rloc, char const* name, int needTrampoline)
+CBC_EXPORT CbcStatus engine_query_function(
+    CbcFunction* rloc, char const* typeName, char const* funcName, int needTrampoline
+)
 {
-    if (rloc == nullptr || name == nullptr) {
+    if (rloc == nullptr || typeName == nullptr || typeName[0] == '\0' || funcName == nullptr ||
+        funcName[0] == '\0') {
         return CBC_INVALID_ARGUMENT;
     }
     std::lock_guard guard(g_InitializationGuard);
@@ -457,8 +449,8 @@ CBC_EXPORT CbcStatus engine_query_function(CbcFunction* rloc, char const* name, 
     Engine::Session session(engine);
     EnsureHelpersPrepared(session);
 
-    CbcStatus status    = CBC_OK;
-    auto method = FindMethodByName(session, name, &status);
+    CbcStatus status = CBC_OK;
+    auto method = FindMethodByName(session, typeName, funcName, &status);
     if (!method.has_value()) {
         return status;
     }
@@ -521,12 +513,10 @@ CBC_EXPORT CbcStatus engine_lib_initialize_builtins(CjBuiltins* builtins)
     if (builtins == nullptr) {
         return CBC_INVALID_ARGUMENT;
     }
-    // The builtins are invoked from hand-written assembly, so the `code` part is mandatory.
-    if (builtins->implicitThrower.code == nullptr || builtins->futureExecute.code == nullptr ||
-        builtins->setRuntimeCJThreadHandle.code == nullptr) {
-        return CBC_INVALID_ARGUMENT;
-    }
     std::lock_guard guard(g_InitializationGuard);
+    // Entries with a null `code` are skipped: the builtin stays unavailable and
+    // executing the operation that requires it is a fatal error. Previously
+    // installed builtins are not overwritten.
     RTSupport::InstallBuiltins(
         builtins->implicitThrower.code,
         builtins->futureExecute.code,

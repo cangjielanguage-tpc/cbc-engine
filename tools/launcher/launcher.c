@@ -8,15 +8,10 @@
 
 #include "cbc_engine.h"
 #include "cj-interface.h"
+#include "engine-common.h"
 
 #define MAX_ARGS 1024
 char *g_arg_buffer[MAX_ARGS]; // global args buffer
-
-#ifndef INTERPRETER_LIB
-#define INTERPRETER_LIB "libcbcengine.so"
-#endif
-
-char const *interpreter_lib = INTERPRETER_LIB;
 
 extern int   InitCJRuntime(struct RuntimeParam *param);
 extern enum RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
@@ -114,6 +109,10 @@ static ParserState print_help(struct Parser *parser) {
     fprintf(stderr, "    CBC file which contains \"main\" function\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "[options]:\n");
+    fprintf(stderr, "    -c\n");
+    fprintf(stderr, "        Resolve builtin helpers from the loaded CBC images\n");
+    fprintf(stderr, "        instead of the native helper library.\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "    --cbc-path <cbc-library-path>\n");
     fprintf(stderr, "        Paths to CBC libraries or directories which contain CBC libraries\n");
     fprintf(stderr, "        which should be loaded with the application.\n");
@@ -122,7 +121,18 @@ static ParserState print_help(struct Parser *parser) {
     fprintf(stderr, "    --help\n");
     fprintf(stderr, "        Show this help message.\n");
     fprintf(stderr, "\n");
+    fprintf(stderr, "CBCOPT environment variable:\n");
+    fprintf(stderr, "    Space-separated key=value options, e.g. 'cbc.path=<dir>'.\n");
+    fprintf(stderr, "\n");
     return HELP_PRINTED;
+}
+
+static int g_cbc_only_builtins = 0;
+
+static ParserState parse_cbc_only(struct Parser *parser) {
+    g_cbc_only_builtins = 1;
+    parser->args += 1;
+    return PARSE;
 }
 
 static ParserState parse_cbc_path(struct Parser *parser) {
@@ -154,19 +164,68 @@ static int parse_cbc_main(struct Parser *parser) {
     return MAIN_PARSED;
 }
 
-#ifndef CBC_HELPER_LIB
 #if defined(__APPLE__)
-#define CBC_HELPER_LIB "@rpath/libcbcengine-helper.dylib"
+#define LIB(str) "lib" str ".dylib"
 #else
-#define CBC_HELPER_LIB "libcbcengine-helper.so"
-#endif
+#define LIB(str) "lib" str ".so"
 #endif
 
-/// Loads the engine helper library into the global scope so that the cjnative
-/// builtins it provides are visible to the symbol resolver.
-static void load_helper_library(void) {
-    if (dlopen(CBC_HELPER_LIB, RTLD_GLOBAL | RTLD_LAZY) == NULL) {
-        fprintf(stderr, "Warning: cannot load %s: %s\n", CBC_HELPER_LIB, dlerror());
+static char const* std_libraries[] = {
+    LIB("cangjie-std-argopt"),
+    LIB("cangjie-std-ast"),
+    LIB("cangjie-std-binary"),
+    LIB("cangjie-std-collection.concurrent"),
+    LIB("cangjie-std-collection"),
+    LIB("cangjie-std-concurrent"),
+    LIB("cangjie-std-core"),
+    LIB("cangjie-std-convert"),
+    LIB("cangjie-std-core"),
+    LIB("cangjie-std-crypto.cipher"),
+    LIB("cangjie-std-crypto.digest"),
+    LIB("cangjie-std-crypto"),
+    LIB("cangjie-std-database"),
+    LIB("cangjie-std-database.sql"),
+    LIB("cangjie-std-deriving.api"),
+    LIB("cangjie-std-deriving.builtins"),
+    LIB("cangjie-std-deriving.impl"),
+    LIB("cangjie-std-deriving.resolve"),
+    LIB("cangjie-std-deriving"),
+    LIB("cangjie-std-env"),
+    LIB("cangjie-std-fs"),
+    LIB("cangjie-std-interop"),
+    LIB("cangjie-std-io"),
+    LIB("cangjie-std-math.numeric"),
+    LIB("cangjie-std-math"),
+    LIB("cangjie-std-net"),
+    LIB("cangjie-std-objectpool"),
+    LIB("cangjie-std-overflow"),
+    LIB("cangjie-std-posix"),
+    LIB("cangjie-std-process"),
+    LIB("cangjie-std-random"),
+    LIB("cangjie-std-reflect"),
+    LIB("cangjie-std-ref"),
+    LIB("cangjie-std-regex"),
+    LIB("cangjie-std-runtime"),
+    LIB("cangjie-std-sort"),
+    LIB("cangjie-std-sync"),
+    LIB("cangjie-std-time"),
+    LIB("cangjie-std-unicode"),
+    LIB("cangjie-std-unittest.common"),
+    LIB("cangjie-std-unittest.diff"),
+    LIB("cangjie-std-unittest.mock.internal"),
+    LIB("cangjie-std-unittest.mock.mockmacro"),
+    LIB("cangjie-std-unittest.mock"),
+    LIB("cangjie-std-unittest.prop_test"),
+    LIB("cangjie-std-unittest"),
+    LIB("cangjie-std-unittest.testmacro"),
+};
+
+/// Loads std libraries into the global scope so any stdlib symbol are visible to the symbol resolver implicitly.
+static void load_stdlibs(void) {
+    for (size_t i = 0; i < sizeof(std_libraries) / sizeof(std_libraries[0]); i++) {
+        if (dlopen(std_libraries[i], RTLD_GLOBAL | RTLD_LAZY) == NULL) {
+            fprintf(stderr, "Warning: cannot load %s: %s\n", std_libraries[i], dlerror());
+        }
     }
 }
 
@@ -200,9 +259,12 @@ static int start_with_engine(int arg_count) {
         return -1;
     }
 
-    load_helper_library();
-
-    status = engine_preset_cjnative_builtins(resolver);
+    if (g_cbc_only_builtins) {
+        status = engine_preset_cbc_builtins();
+    } else {
+        load_stdlibs();
+        status = engine_preset_cjnative_builtins(resolver);
+    }
     if (status != CBC_OK) {
         fprintf(stderr, "Builtins initialization failed: %d\n", status);
         return -1;
@@ -233,6 +295,7 @@ static int parse_args_and_start(int argc, char **argv) {
     struct Option options[] = {
         {"--cbc-path", &parse_cbc_path},
         {"-cp", &parse_cbc_path},
+        {"-c", &parse_cbc_only},
         {"--help", &print_help},
         {"-h", &print_help},
     };

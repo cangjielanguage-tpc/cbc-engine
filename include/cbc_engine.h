@@ -164,9 +164,12 @@ typedef struct CbcFunction {
     struct FunctionHandle* fuh;
 } CbcFunction;
 
-/// Query the function with the given name in the form of "<pkg/type name>::<func name>".
+/// Query the function with the given type and function names.
+/// The type name is the full name of the enclosing type and may itself contain
+/// colons (e.g. "std.core:Future"); package level functions are stored in a
+/// type named after the package (e.g. "$P$<pkg name>").
 /// If `needTrampoline` is set, the `code` part of `CbcFunction` will contain a ready-to-use trampoline.
-CBC_EXPORT CbcStatus engine_query_function(CbcFunction* rloc, char const* name, int needTrampoline);
+CBC_EXPORT CbcStatus engine_query_function(CbcFunction* rloc, char const* typeName, char const* funcName, int needTrampoline);
 
 /// The special version of `engine_query_function`, where the engine itself computes the actual `name` of the queried function.
 CBC_EXPORT CbcStatus engine_query_main_function(CbcFunction* rloc);
@@ -180,6 +183,8 @@ typedef struct CjBuiltins {
 } CjBuiltins;
 
 /// Initialize functionality and data provided by the std library for cbcengine to use.
+/// Entries with a null `code` are skipped: the corresponding builtin stays unavailable
+/// and executing the operation that requires it is a fatal error.
 CBC_EXPORT CbcStatus engine_lib_initialize_builtins(CjBuiltins* builtins);
 
 ////////////////// Post initialization. //////////////////
@@ -190,7 +195,14 @@ CBC_EXPORT CbcStatus engine_apply_hotfix_patches();
 ////////////////// Convenience wrappers. //////////////////
 
 /// Preset builtins initializer for cjnative AOT compiled stdlib.
+/// All three builtins must be resolvable, otherwise CBC_SYMBOL_NOT_FOUND is returned.
 CBC_EXPORT CbcStatus engine_preset_cjnative_builtins(CbcDlsym resolver);
+
+/// Preset builtins initializer that resolves the builtins from the loaded CBC images
+/// with `engine_query_function` (no AOT libraries involved). Builtins missing from the
+/// images are skipped (see `engine_lib_initialize_builtins`); malformed queries and
+/// engine state errors are reported.
+CBC_EXPORT CbcStatus engine_preset_cbc_builtins(void);
 
 /// Preset staging initialization that uses provided symbol resolver.
 CBC_EXPORT CbcStatus engine_preset_init_staging(CbcDlsym resolver);

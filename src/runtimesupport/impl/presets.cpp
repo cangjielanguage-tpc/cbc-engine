@@ -50,17 +50,53 @@ CBC_EXPORT CbcStatus engine_preset_cjnative_builtins(CbcDlsym resolver)
         return sym;
     };
 
-    auto thrower            = find("_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl");
     auto futureExecute      = find("_CNat6FutureIG_E7executeHv");
     auto threadHandleSetter = find("_CNat6Thread24setRuntimeCJThreadHandleHPu");
-    if (thrower == nullptr || futureExecute == nullptr || threadHandleSetter == nullptr) {
+
+    CbcFunction thrower{};
+    auto status = engine_query_function(&thrower, "$P$cangjie.runtime.cbcengine.helper", "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl", true);
+
+    if (status != CBC_OK || futureExecute == nullptr || threadHandleSetter == nullptr) {
         return CBC_SYMBOL_NOT_FOUND;
     }
 
     CjBuiltins builtins {};
-    builtins.implicitThrower.code           = thrower;
+    builtins.implicitThrower.code           = thrower.code;
     builtins.futureExecute.code             = futureExecute;
     builtins.setRuntimeCJThreadHandle.code  = threadHandleSetter;
+    return engine_lib_initialize_builtins(&builtins);
+}
+
+CBC_EXPORT CbcStatus engine_preset_cbc_builtins(void)
+{
+    CjBuiltins builtins {};
+    struct BuiltinQuery {
+        char const* typeName;
+        char const* funcName;
+        void** slot;
+        char const* label;
+    };
+    const BuiltinQuery queries[] = {
+        {"$P$cangjie.runtime.cbcengine.helper", "throwImplicitException", &builtins.implicitThrower.code, "implicit exception thrower"},
+        {"std.core:Future", "execute", &builtins.futureExecute.code, "Future.execute"},
+        {"std.core:Thread", "setRuntimeCJThreadHandle", &builtins.setRuntimeCJThreadHandle.code, "Thread.setRuntimeCJThreadHandle"},
+    };
+
+    for (auto const& query : queries) {
+        CbcFunction fn {};
+        CbcStatus status = engine_query_function(&fn, query.typeName, query.funcName, 1);
+        if (status == CBC_RESOLUTION_ERROR) {
+            // The builtin is not provided by the loaded CBC images; it stays
+            // unavailable and the operations that require it cannot be executed.
+            LOG_ERROR(RTSupport::Log::rt, "cbc builtin {} not found in cbc images: {}:{}", query.label, query.typeName, query.funcName);
+            continue;
+        }
+        if (status != CBC_OK) {
+            return status;
+        }
+        *query.slot = fn.code;
+    }
+
     return engine_lib_initialize_builtins(&builtins);
 }
 

@@ -40,7 +40,10 @@ if(NOT EXISTS "${CBCENGINE_LIB}")
   message(FATAL_ERROR "cbcengine lib not found at: ${CBCENGINE_LIB}")
 endif()
 
-add_executable(launcher launcher.c)
+add_executable(launcher
+  launcher.c
+  engine-common.c
+)
 
 target_include_directories(launcher PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../include")
 
@@ -50,8 +53,6 @@ target_link_libraries(launcher PRIVATE
   m
   c
 )
-
-target_compile_definitions(launcher PRIVATE "INTERPRETER_LIB=\"${CMAKE_SHARED_LIBRARY_PREFIX}cbcengine${CMAKE_SHARED_LIBRARY_SUFFIX}\"")
 
 # Final-layout rpaths baked at link time (BUILD_WITH_INSTALL_RPATH). The
 # packed toolchain places the launcher in runtime/lib/<arch>/bin with the

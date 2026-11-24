@@ -6,7 +6,7 @@
  * initialization path used by the hotfix flow: it intercepts
  * CJ_MRT_CjRuntimeInit (the runtime initialization call made by the binary
  * entry point), forwards it to the real implementation, then initializes the
- * CBC engine and the CBC interpreter — the same sequence the launcher performs
+ * CBC engine and the CBC interpreter - the same sequence the launcher performs
  * (see the documented sequence in cbc_engine.h).
  *
  * The engine configuration (cbc.path, etc.) is provided through the CBCOPT
@@ -76,10 +76,6 @@ static void cbc_preload_init_engine(void) {
     if (status != CBC_OK) {
         fprintf(stderr, "[cbc-preload] staging initialization failed: %d\n", status);
         return;
-    }
-
-    if (dlopen(CBC_HELPER_LIB, RTLD_GLOBAL | RTLD_LAZY) == NULL) {
-        fprintf(stderr, "[cbc-preload] warning: cannot load %s: %s\n", CBC_HELPER_LIB, dlerror());
     }
 
     status = g_engine.preset_cjnative_builtins(resolver);
