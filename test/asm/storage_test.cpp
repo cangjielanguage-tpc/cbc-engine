@@ -10,6 +10,7 @@
 #include "asm/code_storage.h"
 #include "asm/encoding.h"
 #include "asm/operands.h"
+#include "asm_test_support.h"
 
 namespace {
 
@@ -36,7 +37,7 @@ TEST(CodeStorage, HoldsOneWordPerInstruction)
     storage.Write(Asm::Encode::Sub(X0, X0, X1));
 
     ASSERT_EQ(storage.Position(), 8u);
-    ASSERT_EQ(storage.Words().Size(), 2u);
+    ASSERT_EQ(WordCount(storage.Bytes()), 2u);
 }
 
 TEST(CodeStorage, PatchReplacesOneWordAndKeepsTheRest)
@@ -46,15 +47,15 @@ TEST(CodeStorage, PatchReplacesOneWordAndKeepsTheRest)
     storage.Write(Asm::Encode::Sub(X0, X0, X1));
     storage.Write(Asm::Encode::Ret(X30));
 
-    const auto before = storage.Words();
-    ASSERT_EQ(before[1], Asm::Encode::Sub(X0, X0, X1).Bits());
+    const auto before = storage.Bytes();
+    ASSERT_EQ(WordAt(before, 1), Asm::Encode::Sub(X0, X0, X1).Bits());
 
     storage.Patch(4, Asm::Encode::Add(X0, X0, X1));
 
-    const auto after = storage.Words();
-    ASSERT_EQ(after[0], before[0]);
-    ASSERT_EQ(after[1], Asm::Encode::Add(X0, X0, X1).Bits());
-    ASSERT_EQ(after[2], before[2]);
+    const auto after = storage.Bytes();
+    ASSERT_EQ(WordAt(after, 0), WordAt(before, 0));
+    ASSERT_EQ(WordAt(after, 1), Asm::Encode::Add(X0, X0, X1).Bits());
+    ASSERT_EQ(WordAt(after, 2), WordAt(before, 2));
     ASSERT_EQ(storage.Position(), 12u);
 }
 
@@ -69,8 +70,8 @@ TEST(CodeStorage, GrowthKeepsEarlierWordsPatchable)
     storage.Patch(0, Asm::Encode::Sub(X0, X0, X1));
 
     ASSERT_EQ(storage.Position(), 1001u * 4u);
-    ASSERT_EQ(storage.Words()[0], Asm::Encode::Sub(X0, X0, X1).Bits());
-    ASSERT_EQ(storage.Words()[1000], Asm::Encode::Add(X2, X2, 1).Bits());
+    ASSERT_EQ(WordAt(storage.Bytes(), 0), Asm::Encode::Sub(X0, X0, X1).Bits());
+    ASSERT_EQ(WordAt(storage.Bytes(), 1000), Asm::Encode::Add(X2, X2, 1).Bits());
 }
 
 TEST(CodeStorage, MoveTransfersTheWords)
@@ -82,9 +83,9 @@ TEST(CodeStorage, MoveTransfersTheWords)
 
     // The words follow the move; the moved-from storage is left empty.
     ASSERT_EQ(source.Position(), 0u);
-    ASSERT_EQ(source.Words().Size(), 0u);
+    ASSERT_EQ(WordCount(source.Bytes()), 0u);
     ASSERT_EQ(moved.Position(), 4u);
-    ASSERT_EQ(moved.Words()[0], Asm::Encode::Add(X0, X1, X1).Bits());
+    ASSERT_EQ(WordAt(moved.Bytes(), 0), Asm::Encode::Add(X0, X1, X1).Bits());
 }
 
 TEST(CodeStorage, FinalizePublishesTheWrittenWords)
@@ -98,13 +99,13 @@ TEST(CodeStorage, FinalizePublishesTheWrittenWords)
     ASSERT_TRUE(segment.Ok());
     ASSERT_NE(segment.Code(), nullptr);
     ASSERT_EQ(segment.Size(), 8u);
-    ASSERT_EQ(segment.Words().Size(), 2u);
-    ASSERT_EQ(segment.Words()[0], Asm::Encode::Add(X0, X0, X1).Bits());
-    ASSERT_EQ(segment.Words()[1], Asm::Encode::Ret(X30).Bits());
+    ASSERT_EQ(WordCount(segment.Bytes()), 2u);
+    ASSERT_EQ(WordAt(segment.Bytes(), 0), Asm::Encode::Add(X0, X0, X1).Bits());
+    ASSERT_EQ(WordAt(segment.Bytes(), 1), Asm::Encode::Ret(X30).Bits());
 
     // The storage has published all it had: it holds no words anymore.
     ASSERT_EQ(storage.Position(), 0u);
-    ASSERT_EQ(storage.Words().Size(), 0u);
+    ASSERT_EQ(WordCount(storage.Bytes()), 0u);
 }
 
 TEST(CodeStorage, EmptyFinalizePublishesNothing)
@@ -130,13 +131,13 @@ TEST(CodeSegment, MoveTransfersTheMapping)
     ASSERT_FALSE(source.Ok());
     ASSERT_EQ(source.Size(), 0u);
     ASSERT_EQ(moved.Size(), 8u);
-    ASSERT_EQ(moved.Words()[0], Asm::Encode::Add(X0, X0, X1).Bits());
+    ASSERT_EQ(WordAt(moved.Bytes(), 0), Asm::Encode::Add(X0, X0, X1).Bits());
 
     CodeSegment assigned;
     assigned = std::move(moved);
 
     ASSERT_FALSE(moved.Ok());
-    ASSERT_EQ(assigned.Words().Size(), 2u);
+    ASSERT_EQ(WordCount(assigned.Bytes()), 2u);
 }
 
 TEST(CodeSegment, ExecutesPublishedWords)
@@ -149,7 +150,7 @@ TEST(CodeSegment, ExecutesPublishedWords)
     storage.Write(Asm::Encode::Ret(X30));
 
     const CodeSegment segment = storage.Finalize();
-    auto add = reinterpret_cast<BinaryFunction>(segment.Code());
+    auto add                  = reinterpret_cast<BinaryFunction>(segment.Code());
     ASSERT_EQ(add(40, 2), 42);
 #endif
 }
@@ -165,7 +166,7 @@ TEST(CodeSegment, ExecutesWordsPatchedBeforePublication)
     storage.Patch(0, Asm::Encode::Sub(X0, X0, X1));
 
     const CodeSegment segment = storage.Finalize();
-    auto sub = reinterpret_cast<BinaryFunction>(segment.Code());
+    auto sub                  = reinterpret_cast<BinaryFunction>(segment.Code());
     ASSERT_EQ(sub(40, 2), 38);
 #endif
 }
@@ -183,7 +184,7 @@ TEST(CodeSegment, OutlivesTheSegmentItWasMovedFrom)
     CodeSegment moved;
     {
         CodeSegment source = std::move(published);
-        moved = std::move(source);
+        moved              = std::move(source);
     } // the intermediate owner releases nothing: the mapping followed the moves
 
     auto add = reinterpret_cast<BinaryFunction>(moved.Code());

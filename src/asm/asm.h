@@ -867,12 +867,13 @@ public:
     // Bytes emitted so far.
     uint32_t Position() const { return storage_.Position(); }
 
-    // The written words, for inspection; the view does not survive finalization.
-    Utils::Span<const uint32_t> Words() const { return storage_.Words(); }
+    // The written instruction bytes, for inspection; the view does not survive
+    // finalization.
+    Utils::Span<const uint8_t> Bytes() const { return storage_.Bytes(); }
 
-    // Resolves the branches recorded against labels, then publishes the words as
+    // Resolves the branches recorded against labels, then publishes the bytes as
     // an executable segment and spends the storage: the segment owns the code,
-    // and the assembler may not take more words afterwards. A branch to an
+    // and the assembler may not take more bytes afterwards. A branch to an
     // unbound label is a fatal error.
     auto Finalize()
     {

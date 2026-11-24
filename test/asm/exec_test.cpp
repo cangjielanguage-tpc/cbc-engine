@@ -10,6 +10,7 @@
 #include "asm/encoding.h"
 #include "asm/labels.h"
 #include "asm/operands.h"
+#include "asm_test_support.h"
 
 namespace {
 
@@ -83,20 +84,22 @@ TEST(AssemblerFinalize, ResolvesBranchesBeforePublishing)
     assembler.Sub(X2, X2, 1);
     assembler.Cbnz(X2, loop);
     // The branch word is emitted with an empty offset.
-    ASSERT_EQ(assembler.Words()[1], Asm::Encode::Cbnz(X2).Bits());
+    ASSERT_EQ(WordAt(assembler.Bytes(), 1), Asm::Encode::Cbnz(X2).Bits());
 
     assembler.Cbnz(X2, loop);
     const CodeSegment segment = assembler.Finalize();
 
     ASSERT_TRUE(segment.Ok());
-    ASSERT_EQ(segment.Words().Size(), 3u);
+    ASSERT_EQ(WordCount(segment.Bytes()), 3u);
     ASSERT_EQ(
-        segment.Words()[1], Asm::Encode::ApplyFixup(Asm::Encode::Cbnz(X2), Asm::FixupKind::CmpBranch19, -4).Bits()
+        WordAt(segment.Bytes(), 1),
+        Asm::Encode::ApplyFixup(Asm::Encode::Cbnz(X2), Asm::FixupKind::CmpBranch19, -4).Bits()
     );
     ASSERT_EQ(
-        segment.Words()[2], Asm::Encode::ApplyFixup(Asm::Encode::Cbnz(X2), Asm::FixupKind::CmpBranch19, -8).Bits()
+        WordAt(segment.Bytes(), 2),
+        Asm::Encode::ApplyFixup(Asm::Encode::Cbnz(X2), Asm::FixupKind::CmpBranch19, -8).Bits()
     );
-    ASSERT_NE(segment.Words()[1], segment.Words()[2]);
+    ASSERT_NE(WordAt(segment.Bytes(), 1), WordAt(segment.Bytes(), 2));
 }
 
 // The assembler methods are the API the callers use; each must emit exactly the
@@ -262,8 +265,8 @@ TEST(AssemblerMethods, EmitTheEncodersWords)
     for (const Sample& sample : samples) {
         Assembler<CodeStorage> assembler;
         sample.emit(assembler);
-        ASSERT_EQ(assembler.Words().Size(), 1u) << sample.text;
-        ASSERT_EQ(assembler.Words()[0], sample.encoded.Bits()) << sample.text;
+        ASSERT_EQ(WordCount(assembler.Bytes()), 1u) << sample.text;
+        ASSERT_EQ(WordAt(assembler.Bytes(), 0), sample.encoded.Bits()) << sample.text;
     }
 }
 
@@ -323,10 +326,10 @@ TEST(AssemblerMethods, ChoosesTheFewestMoveWideWords)
         } else {
             assembler.Mov(X0, sample.imm);
         }
-        const Utils::Span<const uint32_t> words = assembler.Words();
-        ASSERT_EQ(words.Size(), sample.words.size()) << sample.text;
+        const Utils::Span<const uint8_t> bytes = assembler.Bytes();
+        ASSERT_EQ(WordCount(bytes), sample.words.size()) << sample.text;
         for (size_t i = 0; i < sample.words.size(); ++i) {
-            ASSERT_EQ(words[i], sample.words[i]) << sample.text << " word " << i;
+            ASSERT_EQ(WordAt(bytes, i), sample.words[i]) << sample.text << " word " << i;
         }
     }
 }

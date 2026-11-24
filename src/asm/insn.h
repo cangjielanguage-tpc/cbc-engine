@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 
 #include "utils/assertion.h"
@@ -10,18 +11,33 @@ namespace Detail {
 struct Op;
 }
 
-// One encoded aarch64 instruction word. Words are produced by the encoders and
-// consumed by storage; Bits() is the only way to read the underlying value.
+// One encoded aarch64 instruction word, held as its four bytes in target byte
+// order (little-endian). The encoders produce it and storage writes it out;
+// Bytes() is the underlying representation and Bits() reconstructs the word for
+// the consumers that reason about the encoding rather than the bytes.
 class Insn {
 public:
-    constexpr uint32_t Bits() const { return bits_; }
+    static constexpr uint32_t Size = 4;
+
+    constexpr uint32_t Bits() const
+    {
+        return static_cast<uint32_t>(bytes_[0]) | (static_cast<uint32_t>(bytes_[1]) << 8) |
+               (static_cast<uint32_t>(bytes_[2]) << 16) | (static_cast<uint32_t>(bytes_[3]) << 24);
+    }
+
+    constexpr const std::array<uint8_t, Size>& Bytes() const { return bytes_; }
 
 private:
     friend struct Detail::Op;
 
-    constexpr explicit Insn(uint32_t bits) : bits_ { bits } {}
+    constexpr explicit Insn(uint32_t bits)
+        : bytes_ { static_cast<uint8_t>(bits),
+                   static_cast<uint8_t>(bits >> 8),
+                   static_cast<uint8_t>(bits >> 16),
+                   static_cast<uint8_t>(bits >> 24) }
+    {}
 
-    uint32_t bits_;
+    std::array<uint8_t, Size> bytes_;
 };
 
 namespace Detail {
