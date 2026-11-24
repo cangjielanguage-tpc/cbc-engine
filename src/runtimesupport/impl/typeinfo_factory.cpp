@@ -44,6 +44,22 @@ static constexpr std::string_view CORE_FUTURE_TYPE_NAME = "std.core:Future";
 
 static constexpr std::string_view STD_REF_WEAK_REF_TYPE_NAME = "std.ref:WeakRef";
 
+// CJNative's template ABI is not exposed by RuntimeTypes.h.
+struct TypeTemplate {
+    const char* name;
+    int8_t type;
+    int8_t flag;
+    uint16_t fieldNum;
+    uint16_t typeArgNum;
+    uint16_t uuid;
+    void** fieldFns;
+    void* superFn;
+    void* finalizer;
+    void* info;
+    void** extensionDatas;
+    uint16_t validInheritNum;
+};
+
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
 // Common allocation unit of the engine-built type infos.
@@ -65,7 +81,7 @@ static TiWrapper* AllocTiWrapper()
 }
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
-static void* QueryTypeTemplate(Engine::Session& session, char const* typeName);
+static void* QueryTypeTemplate(Engine::Session& session, char const* typeName, bool optional = false);
 
 static char* ConstructTypeInfoName(std::string_view str)
 {
@@ -790,44 +806,64 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
         if (builder.isAot) {
             builder.typeArgsNum = builder.type == TYPE_KIND_VARRAY ? 0 : typeArgsNum;
+            bool synthetic = builder.type == TYPE_KIND_RAWARRAY || builder.type == TYPE_KIND_VARRAY ||
+                builder.type == TYPE_KIND_TUPLE || builder.type == TYPE_KIND_CPOINTER;
             std::string name(builder.aotTypeDefName);
-            auto typeTemplate = QueryTypeTemplate(session, name.c_str());
+            auto typeTemplate = QueryTypeTemplate(session, name.c_str(), synthetic);
 
-            // FIXME: use RTTypes.h
-            struct TypeTemplate {
-                char* name;
-                int8_t type;
-                int8_t flag;
-                uint16_t fieldNum;
-                uint16_t typeArgNum;
-                uint16_t uuid;
-                void** fieldFns;
-                void* superFn;
-                void* finalizer;
-                void* info;
-                void** extensionDatas;
-                uint16_t validInheritNum;
-            };
+            // The AOT type templates of the synthetic builtin kinds (RawArray,
+            // VArray, Tuple, CPointer) exist only in the AOT std library. When
+            // std.core is compiled to CBC that library is not loaded, so the
+            // template query fails; the layout is fully built from the term
+            // itself, so fall back to the same defaults the VArray path uses.
+            bool noTemplate = typeTemplate == nullptr && synthetic;
+            if (noTemplate) {
+                // As for VArray, do not advertise runtime generic arguments:
+                // CJNative would otherwise dereference the absent template
+                // while assigning the TypeInfo UUID. CBC retains the arguments
+                // in its term cache; RawArray/CPointer also have component TI.
+                builder.typeArgsNum             = 0;
+                builder.typeTemplateOrFinalizer = nullptr;
+                builder.validInheritNum         = (1 << 15);
+                builder.extDefs                 = nullptr;
+                // Unlike VArray, CJNative registers RawArray and CPointer by
+                // template identity even with zero runtime type arguments.
+                // These templates have no methods or extension data.
+                static char rawArrayName[] = "RawArray";
+                static char cPointerName[] = "CPointer";
+                static TypeTemplate rawArrayTemplate { rawArrayName, TYPE_KIND_RAWARRAY, 0, 0, 1, 0,
+                    nullptr, nullptr, nullptr, nullptr, nullptr, 0 };
+                static TypeTemplate cPointerTemplate { cPointerName, TYPE_KIND_CPOINTER, 0, 0, 1, 0,
+                    nullptr, nullptr, nullptr, nullptr, nullptr, 0 };
+                if (builder.type == TYPE_KIND_RAWARRAY) {
+                    builder.typeTemplateOrFinalizer = &rawArrayTemplate;
+                } else if (builder.type == TYPE_KIND_CPOINTER) {
+                    builder.typeTemplateOrFinalizer = &cPointerTemplate;
+                }
+            } else {
+                if (typeTemplate == nullptr) {
+                    return std::nullopt;
+                }
+                auto tt = (TypeTemplate*)typeTemplate;
 
-            auto tt = (TypeTemplate*)typeTemplate;
+                if (tt->type == TYPE_KIND_TEMP_ENUM) {
+                    // Workaround for #159.
+                    // `TEMP_ENUM` tag is needed for cjnative reflection support.
+                    // In other cases, `TEMP_ENUM` behaves exactly as usual classes.
+                    ASSERT(TYPE_KIND_CLASS == builder.type);
+                    builder.type = TYPE_KIND_TEMP_ENUM;
+                }
 
-            if (tt->type == TYPE_KIND_TEMP_ENUM) {
-                // Workaround for #159.
-                // `TEMP_ENUM` tag is needed for cjnative reflection support.
-                // In other cases, `TEMP_ENUM` behaves exactly as usual classes.
-                ASSERT(TYPE_KIND_CLASS == builder.type);
-                builder.type = TYPE_KIND_TEMP_ENUM;
+                if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
+                    ASSERT(tt->typeArgNum == typeArgsNum);
+                    ASSERT(tt->type == builder.type);
+                    ASSERT(tt->fieldNum == builder.fieldNum);
+                }
+
+                builder.typeTemplateOrFinalizer = typeTemplate;
+                builder.validInheritNum         = builder.type == TYPE_KIND_VARRAY ? (1 << 15) : tt->validInheritNum;
+                builder.extDefs = builder.type == TYPE_KIND_VARRAY ? nullptr : (DYN_ExtensionData**)tt->extensionDatas;
             }
-
-            if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
-                ASSERT(tt->typeArgNum == typeArgsNum);
-                ASSERT(tt->type == builder.type);
-                ASSERT(tt->fieldNum == builder.fieldNum);
-            }
-
-            builder.typeTemplateOrFinalizer = typeTemplate;
-            builder.validInheritNum         = builder.type == TYPE_KIND_VARRAY ? (1 << 15) : tt->validInheritNum;
-            builder.extDefs = builder.type == TYPE_KIND_VARRAY ? nullptr : (DYN_ExtensionData**)tt->extensionDatas;
         }
     }
 
@@ -897,7 +933,7 @@ static bool QuerySubterms(
 }
 
 // Can return null!
-static void* QueryTypeTemplate(Engine::Session& session, char const* typeName)
+static void* QueryTypeTemplate(Engine::Session& session, char const* typeName, bool optional)
 {
     auto typeTemplate = g_CJNativeInterfaceInstance.typeTemplate(typeName);
     if (!typeTemplate) {
@@ -905,7 +941,7 @@ static void* QueryTypeTemplate(Engine::Session& session, char const* typeName)
         // So we need to try to find it with just dlsym.
 
         typeTemplate = (DYN_TypeInfo*)FindTypeSymbol(session, typeName, ".tt");
-        if (typeTemplate == nullptr) {
+        if (typeTemplate == nullptr && !optional) {
             Log::typeinfo.Log(Logging::Level::ERROR, [&session, &typeName](Stream::Output& out) {
                 Stream::ResolvingOutput stream(session, out);
                 stream << "failed to query template " << typeName << Stream::endl;
