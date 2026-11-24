@@ -229,7 +229,9 @@
     X(STORE_FRAME_IMM_1, StoreFrameImm, "st.frame.imm.1 $0stk $1U8 $2U32")                                             \
     X(STORE_FRAME_IMM_2, StoreFrameImm, "st.frame.imm.2 $0stk $1U16 $2U32")                                            \
     X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                            \
-    X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")
+    X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")                                            \
+    X(TYPESIZE, B2rr, "size.g $0ir $1ir")                                                                             \
+    X(TYPEALIGN, B2rr, "align.g $0ir $1ir")
 
 namespace Cbc {
 namespace RT {

@@ -191,6 +191,20 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("st.raw.mem.{} {}, [{} + {}]", stk, Fmt(src, stk.IsFloat()), base, offset);
     }
 
+    void TypeSize(IReg dst, IReg ti) override
+    {
+        stream.PrintLn("size.g {} {}", dst, ti);
+    }
+
+    void TypeAlign(IReg dst, IReg ti) override
+    {
+        stream.PrintLn("align.g {} {}", dst, ti);
+    }
+
+    void TypeSizeSig(IReg dst, uint32_t typeId) override { stream.PrintLn("size {}, @{}", dst, typeId); }
+
+    void TypeAlignSig(IReg dst, uint32_t typeId) override { stream.PrintLn("align {}, @{}", dst, typeId); }
+
     void LoadStatic(AnyReg r, uint32_t field) override { stream.PrintLn("ld.static R{} {}", r, field); }
 
     void StoreStatic(AnyReg r, uint32_t field) override { stream.PrintLn("st.static R{} {}", r, field); }

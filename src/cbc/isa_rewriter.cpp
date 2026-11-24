@@ -1179,6 +1179,34 @@ struct IsaRewriter : public IsaParser {
         emit.StoreRec(stk, src, base, offset);
     }
 
+    void TypeSize(IReg dst, IReg ti) override { emit.TypeSize(dst, ti); }
+
+    void TypeAlign(IReg dst, IReg ti) override { emit.TypeAlign(dst, ti); }
+
+private:
+    void TypeSizeAlignSig(IReg dst, uint32_t typeId, bool isSize)
+    {
+        auto type = resolver.Query(Index<Type>(typeId));
+        if (!type.has_value()) {
+            Fail("Failed to resolve type for size/align query");
+            return;
+        }
+        ASSERT(!type->term.IsGeneric());
+        auto ti = type->GetTypeInfo();
+        if (!ti.has_value()) {
+            errStream << "Failed to get type info of " << *type << Stream::endl;
+            Fail("Failed to get type info for size/align query");
+            return;
+        }
+        auto value = isSize ? RTSupport::MetaInfo::GetTypeSize(*ti) : RTSupport::MetaInfo::GetAlign(*ti);
+        emit.MovImm(Format::Width::W64, dst, value);
+    }
+
+public:
+    void TypeSizeSig(IReg dst, uint32_t typeId) override { TypeSizeAlignSig(dst, typeId, true); }
+
+    void TypeAlignSig(IReg dst, uint32_t typeId) override { TypeSizeAlignSig(dst, typeId, false); }
+
     void LoadStatic(AnyReg r, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
