@@ -3,6 +3,10 @@
 
 #define CBC_EXPORT __attribute__((visibility("default"), used))
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 /// This file define C-API exposed to the cbc engine library users.
 
 #ifdef __cplusplus
@@ -26,6 +30,14 @@ CBC_EXPORT void engine_initialize();
 ///
 /// The string passed is expected to live as long, as engine lives.
 CBC_EXPORT void engine_set_main_cbc(char const* main_cbc);
+
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS
+struct InterpreterParam;
+
+/// Initialize the interpreter and run any package initializers in the main executable in metadata order.
+/// Call after InitCJRuntime succeeds. Returns a runtime error code.
+CBC_EXPORT int init_cbc_interpreter(const struct InterpreterParam* param);
+#endif
 
 /// Enable CBC disassembly output.
 CBC_EXPORT void engine_enable_dasm();

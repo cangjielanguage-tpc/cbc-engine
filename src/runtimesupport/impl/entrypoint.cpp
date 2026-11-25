@@ -2,6 +2,13 @@
 
 #include <dlfcn.h>
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS
+#include <atomic>
+#endif
 #include <mutex>
 #include <string_view>
 #include <type_traits>
@@ -36,6 +43,9 @@ DYN_CJNativeInterface g_CJNativeInterfaceInstance;
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS
+static std::atomic_bool g_InterpreterInitialized{false};
+#endif
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
@@ -306,6 +316,13 @@ CBC_EXPORT int interpreter_bridge_init(
     const char** options
 );
 
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS
+CBC_EXPORT bool is_interpreter_initialized()
+{
+    return g_InterpreterInitialized.load(std::memory_order_acquire);
+}
+#endif
+
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
@@ -400,6 +417,9 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
     Asm::engine_i2n_stub                  = g_CJNativeInterfaceInstance.i2nStub;
 
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS
+    g_InterpreterInitialized.store(true, std::memory_order_release);
+#endif
     if (g_mainCbc.empty()) {
         PerformPatching();
     }
