@@ -188,7 +188,8 @@ void CallStager::StageForeignStructArg(
         }
         case CAbiPassBy::REF: {
             // Stage placing struct after all args and consume location for reference.
-            copies.PushBack(ForeignStructCopy { srcAddr, abi.Consume(CbcTypeKind::I64), size });
+            auto target = varArgPos ? abi.ConsumeVarArg(CbcTypeKind::I64) : abi.Consume(CbcTypeKind::I64);
+            copies.PushBack(ForeignStructCopy { srcAddr, target, size });
             break;
         }
     }
@@ -239,7 +240,8 @@ ForeignStagingResult CallStager::StageForeign(
 
         if (params[j].isVArray) {
             // VArrays are always passed by reference.
-            moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx++]);
+            auto target = isVarArg ? abi.ConsumeVarArg(CbcTypeKind::I64) : abi.Consume(CbcTypeKind::I64);
+            moves.AddMove(target, args[idx++]);
         } else if (params[j].kind == CbcTypeKind::REC) {
             // Pass struct argument by value.
             StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi, structCopies);
