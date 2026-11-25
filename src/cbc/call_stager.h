@@ -22,7 +22,6 @@ struct MethodSignature;
 
 namespace Cbc {
 
-/// One argument of a managed call, in ABI order.
 struct ManagedArg {
     enum class Role {
         Sret,
@@ -45,8 +44,6 @@ struct TailParamInfo {
     Format::LoadAccessKind ldk;
 };
 
-/// Declared parameter of a foreign (C ABI) signature: a scalar kind, or a
-/// by-value record with its flattened layout.
 struct ForeignParam {
     ForeignParam() = default;
 
@@ -65,7 +62,6 @@ struct ManagedCallSignature {
     int funcVarCount = 0;
 };
 
-/// Foreign (C ABI) call: may use varargs and pass records by value.
 struct ForeignCallSignature {
     Utils::Vector<ForeignParam> params;
     bool isVarArg = false;
@@ -96,11 +92,9 @@ struct ForeignStagingResult {
 
 class CallStager {
 public:
-    /// `desc` selects the ABI; defaults to the host platform.
-    CallStager(MoveEmitter& moveEmitter, const AbiAssigner::PlatformDescription& desc, CAbi cAbi)
+    CallStager(MoveEmitter& moveEmitter, const AbiAssigner::PlatformDescription& desc)
         : moveEmitter(moveEmitter),
-          desc(desc),
-          cAbi(cAbi)
+          desc(desc)
     {}
 
     StagingResult StageManaged(
@@ -133,7 +127,7 @@ private:
         size_t argCount, const CallAbiFlags& flags, const ForeignCallSignature& sig, StagingResult& result
     );
 
-    bool StageForeignStructArg(
+    void StageForeignStructArg(
         Location srcAddr,
         const ForeignParam& param,
         bool varArgPos,
@@ -146,7 +140,6 @@ private:
 
     MoveEmitter& moveEmitter;
     AbiAssigner::PlatformDescription desc;
-    CAbi cAbi;
 };
 
 /// Arguments of a managed call in ABI order: sret, receiver, parameters,
@@ -158,7 +151,6 @@ Utils::Vector<ManagedArg> ManagedArgSequence(
 
 ManagedCallSignature MakeManagedCallSignature(const Resolution::MethodSignature& sig);
 
-/// Signature of a method from its raw signature term (ret type excluded from params).
 ManagedCallSignature MakeManagedCallSignature(Engine::Term signature);
 
 std::optional<ForeignCallSignature> MakeForeignCallSignature(

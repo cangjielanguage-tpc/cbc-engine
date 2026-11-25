@@ -25,6 +25,7 @@ public:
         int sretIrIdx;
         bool onlyOnStackVarargs;
         bool compactStackSlots;
+        CAbi cAbi;
 
         template <Platform p> static PlatformDescription FromTraits()
         {
@@ -33,7 +34,8 @@ public:
                                        PlatformTraits<p>::SRET_SHIFTS,
                                        0,
                                        PlatformTraits<p>::ONLY_ONSTACK_VARARGS,
-                                       PlatformTraits<p>::COMPACT_STACK_SLOTS };
+                                       PlatformTraits<p>::COMPACT_STACK_SLOTS,
+                                       PlatformTraits<p>::C_ABI };
             if constexpr (!PlatformTraits<p>::SRET_SHIFTS) {
                 desc.sretIrIdx = static_cast<int>(PlatformTraits<p>::SRET_REG);
             }

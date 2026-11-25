@@ -214,7 +214,7 @@ struct IsaRewriter : public IsaParser {
     Emitter::Emitter& emit;
     FrameLayout& frameLayout;
     RewriterMoveEmitter moveEmitter { frameLayout, emit };
-    CallStager stager { moveEmitter, AbiAssigner::PlatformDescription::FromTraits<HOST_PLATFORM>(), HostTraits::C_ABI };
+    CallStager stager { moveEmitter, AbiAssigner::PlatformDescription::FromTraits<HOST_PLATFORM>() };
     Utils::Vector<TailParamInfo> tailParams;
     size_t bytecodeSize;
     uint32_t maxParamPassingSize = 0;

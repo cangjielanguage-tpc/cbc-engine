@@ -18,7 +18,6 @@ constexpr uint32_t kFrameSize = 0x1000;
 /// new platform touches a single switch.
 struct PlatformInfo {
     AbiAssigner::PlatformDescription desc;
-    CAbi abi;
     int intRegs;
     int fregs;
 };
@@ -28,17 +27,14 @@ static PlatformInfo InfoFor(Platform p)
     switch (p) {
         case Platform::LINUX_X64:
             return { AbiAssigner::PlatformDescription::FromTraits<Platform::LINUX_X64>(),
-                     CAbi::SYSV,
                      PlatformTraits<Platform::LINUX_X64>::IR_PARAM_COUNT,
                      PlatformTraits<Platform::LINUX_X64>::FR_PARAM_COUNT };
         case Platform::LINUX_AARCH64:
             return { AbiAssigner::PlatformDescription::FromTraits<Platform::LINUX_AARCH64>(),
-                     CAbi::AAPCS64,
                      PlatformTraits<Platform::LINUX_AARCH64>::IR_PARAM_COUNT,
                      PlatformTraits<Platform::LINUX_AARCH64>::FR_PARAM_COUNT };
         case Platform::DARWIN_AARCH64:
             return { AbiAssigner::PlatformDescription::FromTraits<Platform::DARWIN_AARCH64>(),
-                     CAbi::DARWIN_AARCH64,
                      PlatformTraits<Platform::DARWIN_AARCH64>::IR_PARAM_COUNT,
                      PlatformTraits<Platform::DARWIN_AARCH64>::FR_PARAM_COUNT };
     }
@@ -48,11 +44,11 @@ static PlatformInfo InfoFor(Platform p)
 struct StagerTest : public testing::TestWithParam<Platform> {
     FrameLayout layout { {}, {}, kFrameSize };
     RegsAndSlots sink;
-    CallStager stager { sink, Info().desc, Info().abi };
+    CallStager stager { sink, Info().desc };
 
     PlatformInfo Info() const { return InfoFor(GetParam()); }
 
-    CAbi CAbiOf() const { return Info().abi; }
+    CAbi CAbiOf() const { return Info().desc.cAbi; }
 
     int IntRegCount() const { return Info().intRegs; }
 
@@ -741,9 +737,7 @@ TEST_P(StagerTest, MutReceiverWithSRet)
 }
 
 // ---------------------------------------------------------------------------
-// Darwin compact stack slots: expected to fail until the engine packs named
-// stack arguments by natural size instead of one 8-byte slot each.
-// See docs/darwin-abi-plan.md, phases 1-3.
+// Darwin compact stack slots.
 // ---------------------------------------------------------------------------
 
 TEST_P(StagerTest, CompactSlotsFitSmallArgs)

@@ -153,10 +153,10 @@ std::optional<CAbiStructPlan> CallStager::StageForeignStructRet(
     if (!flags.isSRet) {
         return std::nullopt;
     }
-    return ClassifyCAbiStructRet(cAbi, sig.retFields, sig.retSize);
+    return ClassifyCAbiStructRet(desc.cAbi, sig.retFields, sig.retSize);
 }
 
-bool CallStager::StageForeignStructArg(
+void CallStager::StageForeignStructArg(
     Location srcAddr,
     const ForeignParam& param,
     bool varArgPos,
@@ -167,7 +167,7 @@ bool CallStager::StageForeignStructArg(
 {
     auto size = param.flatSize;
     auto plan = ClassifyCAbiStruct(
-        cAbi, param.fields, size, varArgPos, desc.onlyOnStackVarargs, abi.FreeIRegs(), abi.FreeFRegs()
+        desc.cAbi, param.fields, size, varArgPos, desc.onlyOnStackVarargs, abi.FreeIRegs(), abi.FreeFRegs()
     );
     switch (plan.passBy) {
         case CAbiPassBy::EMPTY: break;
@@ -192,7 +192,6 @@ bool CallStager::StageForeignStructArg(
             break;
         }
     }
-    return true;
 }
 
 ForeignStagingResult CallStager::StageForeign(
@@ -243,9 +242,7 @@ ForeignStagingResult CallStager::StageForeign(
             moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx++]);
         } else if (params[j].kind == CbcTypeKind::REC) {
             // Pass struct argument by value.
-            if (!StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi, structCopies)) {
-                return { 0, 0, Fail("failed to stage by-value struct argument") };
-            }
+            StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi, structCopies);
         } else if (!isVarArg) {
             moves.AddMove(abi.Consume(params[j].kind), args[idx++]);
         } else {
