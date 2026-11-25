@@ -41,10 +41,11 @@ CBC_EXPORT CbcStatus engine_preset_cjnative_builtins(CbcDlsym resolver)
         return CBC_INVALID_ARGUMENT;
     }
 
-    char buffer[CBC_FIND_SYM_ERR_MAX_LEN];
+    char buffer[CBC_FIND_SYM_ERR_MAX_LEN + 1];
     auto find = [&](char const* name) -> void* {
         void* sym = resolver.find(resolver.ctx, name, buffer);
         if (sym == nullptr) {
+            buffer[CBC_FIND_SYM_ERR_MAX_LEN] = 0;
             LOG_ERROR(RTSupport::Log::rt, "builtin symbol {} not found: {}", name, buffer);
         }
         return sym;

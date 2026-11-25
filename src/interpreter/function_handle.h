@@ -118,7 +118,7 @@ public:
     TaggedFunctionHandle AcquireTagged(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef);
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
-    PreparationResult Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+    ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
 
     DynamicFunctionHandle* GetHelper(Helper helper);
 

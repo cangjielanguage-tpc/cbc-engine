@@ -460,20 +460,13 @@ FUNC_START perform_2i_call
   ldr   x9, [x0, #FUNCTION_HANDLE_BYTECODE_OFFSET]
   cbnz  x9, .Lhave_bytecode
 
-  sub sp, sp, #16
-  mov x1, sp
-
   // function handle is already on x0
   bl    engine_prepare_bytecode
 
-  cbz x0, .Lafter_patch
-
-  // FUH patching:
+  // Unconditionally update `fuh` with returned value, almost always it is the same as old value,
+  // except cases of failures during preparation procedure.
   str x0, [x29, #-FUH_SLOT_OFFSET]
-
-CFI_LABEL .Lafter_patch
-  ldr x9, [sp]
-  add sp, sp, #16
+  ldr   x9, [x0, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
 CFI_LABEL .Lhave_bytecode
 

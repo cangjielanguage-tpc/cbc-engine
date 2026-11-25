@@ -110,8 +110,7 @@ static ParserState print_help(struct Parser *parser) {
     fprintf(stderr, "\n");
     fprintf(stderr, "[options]:\n");
     fprintf(stderr, "    -c\n");
-    fprintf(stderr, "        Resolve builtin helpers from the loaded CBC images\n");
-    fprintf(stderr, "        instead of the native helper library.\n");
+    fprintf(stderr, "        Pure CBC mode of execution, without CJN AOT code.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    --cbc-path <cbc-library-path>\n");
     fprintf(stderr, "        Paths to CBC libraries or directories which contain CBC libraries\n");

@@ -53,7 +53,7 @@ FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = 
     FATAL("Helper method %.*s was not found", static_cast<int>(methodName.size()), methodName.data());
 }
 
-std::unordered_map<Helper, std::string> helperNames = {
+std::pair<Helper, std::string> helperNames[] = {
     { Helper::ThrowAbstractMethodCallError, "throwAbstractMethodCallError" },
     { Helper::ThrowSymbolResolutionError, "throwSymbolResolutionError" },
 };
@@ -186,12 +186,12 @@ FunctionHandle* FunctionHandleManager::Acquire(Session& session, Image::Identifi
     }
 }
 
-PreparationResult FunctionHandleManager::Prepare(Session& session, DynamicFunctionHandle* fuh)
+ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFunctionHandle* fuh)
 {
     std::lock_guard guard(fuh->lock);
 
     if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
-        return PreparationResult::Success(bytecode, fuh);
+        return bytecode;
     }
 
     auto& logger = Interpretation::Log::preparation;
@@ -206,9 +206,7 @@ PreparationResult FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
     if (!bytecode.has_value()) {
-        auto dynFuh   = GetHelper(Helper::ThrowSymbolResolutionError);
-        auto byteCode = dynFuh->bytecode.load();
-        return PreparationResult::Fail(byteCode, dynFuh);
+        return nullptr;
     }
 
     auto bc = new (std::nothrow) ExecBytecodeInfo(bytecode.value());
@@ -218,7 +216,7 @@ PreparationResult FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     // ensure `bc` content writes completes before publication.
     std::atomic_thread_fence(std::memory_order_seq_cst);
     fuh->bytecode.store(bc, std::memory_order_relaxed);
-    return PreparationResult::Success(bc, fuh);
+    return bc;
 }
 
 void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)

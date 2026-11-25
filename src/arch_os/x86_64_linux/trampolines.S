@@ -466,21 +466,13 @@ FUNC_START perform_2i_call
   test  rax, rax
   jnz   .Lhave_bytecode
 
-  add rsp, -16
-  mov rsi, rsp
-
   // function handle is already on rdi
   call  engine_prepare_bytecode
 
-  test rax, rax
-  jz .Lafter_patch
-
-  // FUH patching:
-  mov [rbp - FUH_SLOT_OFFSET], rax
-
-.Lafter_patch:
-  mov rax, [rsp]
-  add rsp, 16
+  // Unconditionally update `fuh` with returned value, almost always it is the same as old value,
+  // except cases of failures during preparation procedure.
+  mov   [rbp - FUH_SLOT_OFFSET], rax
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
 .Lhave_bytecode:
 

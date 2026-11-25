@@ -111,17 +111,6 @@ static CbcStatus LoadEngine()
         }
     }
 
-    constexpr auto intrinsicsFileName = "/cbc-intrinsics.cbc";
-    auto intrinsicsDir                = EngineLibraryDirectory();
-    if (!intrinsicsDir.empty()) {
-        auto intrinsicsPath = intrinsicsDir + std::string(intrinsicsFileName);
-        if (auto file = IO::TryOpenFile(intrinsicsPath)) {
-            loader.Load(std::move(*file), intrinsicsPath);
-        } else {
-            FATAL("engine load: cannot find path to intrinsics. given path: %s", intrinsicsPath.c_str());
-        }
-    }
-
     loader.Build();
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end engine init" << Stream::endl; });
