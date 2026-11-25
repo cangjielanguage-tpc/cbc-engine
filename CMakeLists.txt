@@ -321,6 +321,8 @@ if(NOT APPLE)
     "-Wl,-z,noexecstack"
     "-Wl,-z,relro"
     "-Wl,-z,now"
+    # Native stdFFI lives in <SDK>/lib; the engine is in runtime/lib/<arch>.
+    "-Wl,-rpath,$ORIGIN/../../../lib"
   )
 else()
   # rt_syms.cpp dlopens "@rpath/libcbcengine-helper.dylib"; libcbcengine.dylib
@@ -336,6 +338,7 @@ else()
   if(APPLE)
     target_link_options(cbcengine PRIVATE
       "-Wl,-rpath,@loader_path"
+      "-Wl,-rpath,@loader_path/../../../lib"
       "-Wl,-rpath,@loader_path/../../../../stdx/dynamic/stdx"
     )
   else()

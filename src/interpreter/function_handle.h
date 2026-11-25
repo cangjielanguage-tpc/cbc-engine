@@ -122,6 +122,8 @@ public:
 
     DynamicFunctionHandle* GetHelper(Helper helper);
 
+    /// Acquire helper handles without preparing bodies that can require TypeInfos.
+    void FindHelpers(Engine::Session& session);
     void FindAndPrepareHelpers(Engine::Session& session);
 
     // Acquires a function pointer that could be invoked from compiled code

@@ -41,6 +41,14 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
 /// the emitter reads the array at emit time to bake type info pointers into bytecode.
 void InitBuiltinTypeInfos();
 
+/// Register loaded CBC Any/Object and initialize still-null native core-type caches.
+/// Call after acquiring helper handles, before preparing bodies or running code.
+void InitCoreTypeInfoMetadata(Engine::Session& session);
+
+/// Attach CBC extension metadata to the early-allocated primitive type infos.
+/// Call after loading all CBC images and acquiring helper handles, before preparing bodies.
+void InitBuiltinTypeInfoMetadata(Engine::Session& session);
+
 /// Reconstruct term based on TypeInfo being provided.
 /// Expects that `ti` is not CBC provided!
 Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti);

@@ -80,8 +80,33 @@ static TiWrapper* AllocTiWrapper()
     return wrapper;
 }
 
-static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
 static void* QueryTypeTemplate(Engine::Session& session, char const* typeName, bool optional = false);
+
+static std::optional<Interpretation::BuiltinType> GetBuiltinType(Engine::TermKind kind)
+{
+    using namespace Interpretation;
+    switch (kind) {
+        case Engine::TermKind::UNIT:    return BUILTIN_UNIT;
+        case Engine::TermKind::BOOLEAN: return BUILTIN_BOOLEAN;
+        case Engine::TermKind::U8:      return BUILTIN_U8;
+        case Engine::TermKind::I8:      return BUILTIN_I8;
+        case Engine::TermKind::U16:     return BUILTIN_U16;
+        case Engine::TermKind::I16:     return BUILTIN_I16;
+        case Engine::TermKind::U32:     return BUILTIN_U32;
+        case Engine::TermKind::I32:     return BUILTIN_I32;
+        case Engine::TermKind::U64:     return BUILTIN_U64;
+        case Engine::TermKind::I64:     return BUILTIN_I64;
+        case Engine::TermKind::UADDR:   return BUILTIN_UADDR;
+        case Engine::TermKind::IADDR:   return BUILTIN_IADDR;
+        case Engine::TermKind::F16:     return BUILTIN_F16;
+        case Engine::TermKind::F32:     return BUILTIN_F32;
+        case Engine::TermKind::F64:     return BUILTIN_F64;
+        case Engine::TermKind::UCHAR32: return BUILTIN_RUNE;
+        case Engine::TermKind::BSTRING: return BUILTIN_CSTRING;
+        case Engine::TermKind::NOTHING: return BUILTIN_NOTHING;
+        default:                       return std::nullopt;
+    }
+}
 
 static char* ConstructTypeInfoName(std::string_view str)
 {
@@ -186,6 +211,18 @@ struct TypeInfoBuilder {
 
     void Identify()
     {
+        if (auto builtin = GetBuiltinType(term.GetKind())) {
+            // Keep the early-allocated primitive's ABI shape; only its method
+            // metadata depends on the CBC images loaded later.
+            auto shape   = UnpackTypeInfo(Interpretation::builtinTypeInfos[*builtin]);
+            type         = shape->type;
+            align        = shape->align;
+            instanceSize = shape->instanceSize;
+            gctib        = shape->gctib;
+            uuid         = shape->uuid;
+            needExtDefs  = true;
+            return;
+        }
         switch (term.GetKind()) {
             case Engine::TermKind::CANGJIE_ARRAY:
                 type           = TYPE_KIND_RAWARRAY;
@@ -288,7 +325,7 @@ struct TypeInfoBuilder {
             ASSERTION(false, "neither of instance or component size was set");
         }
 
-        result->uuid            = 0;
+        result->uuid            = uuid;
         result->gctib           = gctib;
         result->align           = align;
         result->typeArgsNum     = typeArgsNum;
@@ -453,14 +490,25 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto wrapper = AllocTiWrapper();
-    if (!wrapper) {
-        return std::nullopt;
+    CbcTypeInfo* currentTypeInfo;
+    if (auto builtin = GetBuiltinType(term.GetKind())) {
+        // NEWBOX and emitted code retain these pointers, so enrich the original
+        // allocation rather than replacing it with a second primitive TypeInfo.
+        currentTypeInfo = reinterpret_cast<CbcTypeInfo*>(Interpretation::builtinTypeInfos[*builtin].Raw());
+    } else {
+        auto wrapper = AllocTiWrapper();
+        if (!wrapper) {
+            return std::nullopt;
+        }
+        currentTypeInfo = &wrapper->info;
     }
-    auto currentTypeInfo = &wrapper->info;
 
     TypeInfoBuilder builder(currentTypeInfo, session, term);
-    {
+    if (auto builtin = GetBuiltinType(term.GetKind())) {
+        // Use the native primitive name (in particular CString, not the term
+        // printer's BString spelling) for runtime UUID registration.
+        builder.name = ConstructTypeInfoName(UnpackTypeInfo(Interpretation::builtinTypeInfos[*builtin])->typeInfoName);
+    } else {
         Stream::StringBuffer stringBuffer;
         Engine::Term(term).GetName(session, stringBuffer, /* hasDebugPrefix = */ false);
 
@@ -518,6 +566,19 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
         auto mt = *optMT;
 
+        if (GetBuiltinType(term.GetKind())) {
+            auto native = g_CJNativeInterfaceInstance.typeInfo(builder.name);
+            if (native != nullptr && native != &currentTypeInfo->base) {
+                // Runtime descriptor caches are UUID-keyed. CBC trampolines
+                // require our dataMT tail and must not reach native TypeInfos.
+                if (mt->EntryCount() != 0 || mt->InterfaceCount() != 0 || mt->ClassCount() != 0) {
+                    FATAL("cannot install CBC primitive metadata for %s: native type metadata is already registered",
+                        builder.name);
+                }
+                return TypeInfo(currentTypeInfo);
+            }
+        }
+
         auto extDefCount        = mt->ClassCount() + mt->InterfaceCount();
         builder.validInheritNum = extDefCount;
 
@@ -535,10 +596,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         Utils::Vector<FuncDesc> funcDescs;
         funcDescs.Resize(entryCount);
 
-        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
-        builder.flatMethods = Alloc<OuterTIFuncUnion>(2 * entryCount);
+        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(std::max(1, entryCount));
+        builder.flatMethods = Alloc<OuterTIFuncUnion>(std::max(1, 2 * entryCount));
         builder.extDefs     = Alloc<DYN_ExtensionData*>(extDefCount + 1);
-        builder.flatExtDefs = Alloc<DYN_ExtensionData>(extDefCount);
+        builder.flatExtDefs = Alloc<DYN_ExtensionData>(std::max(1, extDefCount));
 
         if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
             return std::nullopt;
@@ -616,6 +677,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         for (auto st : mt->Interfaces()) {
             prepareExtDef(builder.flatExtDefs[extDefIndex++], st);
         }
+        if (resolutionFailed) {
+            return std::nullopt;
+        }
     } else if (builder.isLambda) {
         auto& manager = Engine::MethodTableManager::Of(session);
         auto optMT    = manager.GetMethodTable(session, term);
@@ -687,7 +751,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         Utils::Vector<uint32_t> refFieldOffs;
 
-        auto acquireFieldTi = [&acquireTypeInfo](Engine::Term term) {
+        auto acquireFieldTi = [&acquireTypeInfo, &session](Engine::Term term) {
             if (term.GetKind() == Engine::TermKind::BOX) {
                 // Boxed fields in AOT code are represented as
                 // special TypeInfo that has `CLASS` kind and
@@ -704,7 +768,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                 // So we will use Object to represent such fields,
                 // since we do not (and will not) support reflection using
                 // TypeInfo/TypeTemplate machinery.
-                return QueryTypeInfoAOTByName("std.core:Object");
+                auto object = Engine::TermManager::Of(session).NewAotTerm(session, "std.core:Object", {}, true);
+                return acquireTypeInfo(object);
             }
             return acquireTypeInfo(term);
         };
@@ -779,7 +844,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.fieldOffsets = nullptr;
         builder.align        = 8;
         builder.instanceSize = 8;
-    } else {
+    } else if (!GetBuiltinType(term.GetKind())) {
         builder.fieldNum     = 0;
         builder.fields       = nullptr;
         builder.fieldOffsets = nullptr;
@@ -868,16 +933,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     }
 
     return TypeInfo(builder.Build());
-}
-
-static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
-{
-    auto res = g_CJNativeInterfaceInstance.typeInfo(str);
-    if (res != nullptr) {
-        return TypeInfo(res);
-    } else {
-        return std::nullopt;
-    }
 }
 
 char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
@@ -1100,9 +1155,8 @@ static TypeInfo CreateBuiltinTypeInfo(BuiltinTypeInfoSpec const& spec)
         FATAL("failed to allocate type info for the builtin type %s", spec.name);
     }
 
-    // Zero initialization gives the AOT std-core shape of a primitive type info:
-    // flag = 0, fieldNum = 0, gctib = 0, uuid = 0, validInheritNum = 0, and null
-    // fields/typeArgs/extension data/method table.
+    // Allocate the ABI shape before CBC loading. Extension/method metadata is
+    // installed by InitBuiltinTypeInfoMetadata once the images are available.
     auto info = &wrapper->info;
     *info     = CbcTypeInfo{};
 
@@ -1128,6 +1182,17 @@ void InitBuiltinTypeInfos()
     }
 }
 
+void InitBuiltinTypeInfoMetadata(Engine::Session& session)
+{
+    auto& manager = Engine::TypeInfoManager::Of(session);
+    for (uint16_t kind = 0; kind < Engine::Term::FIRST_NON_PRIMITIVE; ++kind) {
+        auto termKind = static_cast<Engine::TermKind>(kind);
+        if (GetBuiltinType(termKind) && !manager.AcquireTypeInfo(session, Engine::Term::Predefined(termKind))) {
+            FATAL("failed to build primitive extension metadata for term kind %u", kind);
+        }
+    }
+}
+
 std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
     Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
@@ -1139,6 +1204,9 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
 
     auto createTypeInfo = [&]() -> std::optional<TypeInfo> {
         using namespace Interpretation;
+        if (GetBuiltinType(term.GetKind())) {
+            return CreateTypeInfoDyn(session, manager, term);
+        }
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
             case Engine::TermKind::UNION_ENUM:
@@ -1155,25 +1223,6 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
 
             case Engine::TermKind::FUNCTIONAL: return QueryFunctional(session, manager, term);
-
-            case Engine::TermKind::UNIT:    return builtinTypeInfos[BUILTIN_UNIT];
-            case Engine::TermKind::BOOLEAN: return builtinTypeInfos[BUILTIN_BOOLEAN];
-            case Engine::TermKind::U8:      return builtinTypeInfos[BUILTIN_U8];
-            case Engine::TermKind::I8:      return builtinTypeInfos[BUILTIN_I8];
-            case Engine::TermKind::U16:     return builtinTypeInfos[BUILTIN_U16];
-            case Engine::TermKind::I16:     return builtinTypeInfos[BUILTIN_I16];
-            case Engine::TermKind::U32:     return builtinTypeInfos[BUILTIN_U32];
-            case Engine::TermKind::I32:     return builtinTypeInfos[BUILTIN_I32];
-            case Engine::TermKind::U64:     return builtinTypeInfos[BUILTIN_U64];
-            case Engine::TermKind::I64:     return builtinTypeInfos[BUILTIN_I64];
-            case Engine::TermKind::UADDR:   return builtinTypeInfos[BUILTIN_UADDR];
-            case Engine::TermKind::IADDR:   return builtinTypeInfos[BUILTIN_IADDR];
-            case Engine::TermKind::F16:     return builtinTypeInfos[BUILTIN_F16];
-            case Engine::TermKind::F32:     return builtinTypeInfos[BUILTIN_F32];
-            case Engine::TermKind::F64:     return builtinTypeInfos[BUILTIN_F64];
-            case Engine::TermKind::UCHAR32: return builtinTypeInfos[BUILTIN_RUNE];
-            case Engine::TermKind::BSTRING: return builtinTypeInfos[BUILTIN_CSTRING];
-            case Engine::TermKind::NOTHING: return builtinTypeInfos[BUILTIN_NOTHING];
 
             case Engine::TermKind::PACKED_TUPLE_HACK: {
                 FATAL("Should not reach here: packed tuple");
