@@ -106,7 +106,11 @@ static void EnsureEngineInitialized()
         }
     }
 
-    loader.Build();
+    auto& engine = loader.Build();
+    Engine::Session session(engine);
+    Interpretation::FunctionHandleManager::Of(engine).FindHelpers(session);
+    RTSupport::InitCoreTypeInfoMetadata(session);
+    RTSupport::InitBuiltinTypeInfoMetadata(session);
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end engine init" << Stream::endl; });
 

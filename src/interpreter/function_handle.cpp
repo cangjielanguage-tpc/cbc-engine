@@ -70,7 +70,7 @@ DynamicFunctionHandle* FunctionHandleManager::GetHelper(Helper helper)
     return handle;
 }
 
-static DynamicFunctionHandle* FindAndPrepareHelper(
+static DynamicFunctionHandle* FindHelper(
     Session& session, FunctionHandleManager& fhm, std::string_view methodName
 )
 {
@@ -82,9 +82,34 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
     UNWRAP_OPT_NORETURN(methodId, method, [&]() { HelperWasNotFound(methodName); });
 
     auto taggedHandle = fhm.AcquireTagged(session, methodId);
-    if (auto* dynFuh = std::get_if<DynamicFunctionHandle*>(&taggedHandle)) {
-        auto fuh = *dynFuh;
-        auto res = fhm.Prepare(session, fuh);
+    auto* dynFuh      = std::get_if<DynamicFunctionHandle*>(&taggedHandle);
+    if (dynFuh == nullptr) {
+        FATAL(
+            "Helper method %.*s was found in AOT code instead of cbc",
+            static_cast<int>(methodName.size()),
+            methodName.data()
+        );
+    }
+    return *dynFuh;
+}
+
+void FunctionHandleManager::FindHelpers(Session& session)
+{
+    // Acquire every helper handle before preparing any helper body. Preparing
+    // a helper rewrites its bytecode, which may build TypeInfos for cbc types
+    // (e.g. std.core.Exception when the core package itself is compiled into
+    // cbc instead of coming from the aot library) whose method tables contain
+    // abstract slots backed by the other helper.
+    for (const auto& [helper, methodName] : helperNames) {
+        SetHelper(helper, FindHelper(session, *this, methodName));
+    }
+}
+
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
+{
+    FindHelpers(session);
+    for (const auto& [helper, methodName] : helperNames) {
+        auto res = Prepare(session, impl->helpers[static_cast<size_t>(helper)]);
         if (!res.success) {
             FATAL(
                 "Failure during preparation of helper method %.*s",
@@ -92,21 +117,6 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
                 methodName.data()
             );
         }
-        return fuh;
-    } else {
-        FATAL(
-            "Helper method %.*s was found in AOT code instead of cbc",
-            static_cast<int>(methodName.size()),
-            methodName.data()
-        );
-    }
-}
-
-void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
-{
-    for (const auto& [helper, methodName] : helperNames) {
-        auto fuh = FindAndPrepareHelper(session, *this, methodName);
-        SetHelper(helper, fuh);
     }
 }
 

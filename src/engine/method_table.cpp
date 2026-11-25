@@ -335,8 +335,8 @@ struct MethodTableBuilder {
         Utils::Vector<MethodSymbol> symbols;
         symbols.Reserve(table.allEntries.Size());
 
-        auto* newEntriesStart = &table.allEntries[newEntriesStartIdx];
-        auto* currentClassEntriesStart = &table.allEntries[currentClassEntriesStartIdx];
+        auto* newEntriesStart = table.allEntries.Data() + newEntriesStartIdx;
+        auto* currentClassEntriesStart = table.allEntries.Data() + currentClassEntriesStartIdx;
 
         for (auto& entry : table.allEntries) {
             auto method = Reader::Read(session, entry.method);
@@ -429,6 +429,16 @@ struct MethodTableBuilder {
 
 std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, GlobalTerm type)
 {
+    // Primitives have no TypeDefinition, but their interface implementations are
+    // ordinary extension definitions in the loaded CBC images.
+    if (static_cast<uint16_t>(type.GetKind()) < Term::FIRST_NON_PRIMITIVE) {
+        MethodTableBuilder builder { *this, type };
+        if (!builder.AddExtensions(session) || builder.VerifyAndResolveConflicts(session, 0, builder.table.EntryCount())) {
+            return std::nullopt;
+        }
+        return builder.table;
+    }
+
     auto def   = Reader::Read(session, ExtractTypeDefIdentifier(type));
     auto flags = def.GetFlags();
 
