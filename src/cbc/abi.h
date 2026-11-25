@@ -25,6 +25,7 @@ public:
         int sretIrIdx;
         bool onlyOnStackVarargs;
         bool compactStackSlots;
+        bool exhaustFRegsOnHfaSpill;
         CAbi cAbi;
 
         template <Platform p> static PlatformDescription FromTraits()
@@ -35,6 +36,7 @@ public:
                                        0,
                                        PlatformTraits<p>::ONLY_ONSTACK_VARARGS,
                                        PlatformTraits<p>::COMPACT_STACK_SLOTS,
+                                       PlatformTraits<p>::EXHAUST_FREGS_ON_HFA_SPILL,
                                        PlatformTraits<p>::C_ABI };
             if constexpr (!PlatformTraits<p>::SRET_SHIFTS) {
                 desc.sretIrIdx = static_cast<int>(PlatformTraits<p>::SRET_REG);
@@ -65,13 +67,20 @@ public:
 
     int FreeFRegs() const { return static_cast<int>(desc.fregHeadArea.Size()) - fargIdx; }
 
-    /// Reserves `size` bytes in the passing area and returns the first slot.
-    /// Whole areas are always slot-aligned, so their readers can use 8-byte loads.
+    /// Rounds size and start to whole stack slots; returns the first slot index.
     int ConsumeStackArea(uint32_t size)
     {
-        int base    = AlignStackCursor(STACK_SLOT_SIZE);
-        stackBytes += static_cast<int>(MathUtils::AlignUp(size, STACK_SLOT_SIZE));
-        return base / STACK_SLOT_SIZE;
+        return static_cast<int>(
+            ConsumeStackBytes(MathUtils::AlignUp(size, STACK_SLOT_SIZE), STACK_SLOT_SIZE) / STACK_SLOT_SIZE
+        );
+    }
+
+    /// Reserves exactly size bytes at the requested alignment; returns a byte offset.
+    uint32_t ConsumeStackBytes(uint32_t size, uint32_t alignment)
+    {
+        auto base   = AlignStackCursor(alignment);
+        stackBytes += static_cast<int>(size);
+        return static_cast<uint32_t>(base);
     }
 
 private:

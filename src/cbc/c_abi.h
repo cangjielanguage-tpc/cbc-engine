@@ -44,6 +44,7 @@ enum class CAbiPassBy {
 struct CAbiStructPlan {
     CAbiPassBy passBy;
     Utils::Vector<CAbiPiece> pieces; // filled only when passBy == REGS
+    uint32_t hfaElementSize = 0;
 
     int PiecesNum()
     {

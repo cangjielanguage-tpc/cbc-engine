@@ -179,6 +179,28 @@ void CallStager::StageForeignStructArg(
             break;
         }
         case CAbiPassBy::STACK: {
+            if (plan.hfaElementSize != 0) {
+                if (desc.exhaustFRegsOnHfaSpill && !(varArgPos && desc.onlyOnStackVarargs)) {
+                    while (abi.FreeFRegs() > 0) {
+                        abi.Consume(CbcTypeKind::F64);
+                    }
+                }
+                auto width = plan.hfaElementSize;
+                auto base  = desc.compactStackSlots && !varArgPos
+                                 ? abi.ConsumeStackBytes(size, width)
+                                 : static_cast<uint32_t>(abi.ConsumeStackArea(size)) * STACK_SLOT_SIZE;
+                auto ldk   = width == 2 ? LDK::LD_U16 : (width == 4 ? LDK::LD_32 : LDK::LD_64);
+                for (uint32_t offset = 0; offset < size; offset += width) {
+                    auto dst = base + offset;
+                    moves.AddLoadFromAddr(
+                        ArgTarget::Stack(dst / STACK_SLOT_SIZE, StkOfLdk(ldk), dst % STACK_SLOT_SIZE),
+                        srcAddr,
+                        offset,
+                        ldk
+                    );
+                }
+                break;
+            }
             int base = abi.ConsumeStackArea(size);
             // Place struct in stack args area.
             for (uint32_t offset = 0; offset < size; offset += STACK_SLOT_SIZE) {

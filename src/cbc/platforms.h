@@ -42,6 +42,7 @@ template <> struct PlatformTraits<Platform::LINUX_X64> {
 
     static constexpr bool ONLY_ONSTACK_VARARGS = false;
     static constexpr bool COMPACT_STACK_SLOTS  = false;
+    static constexpr bool EXHAUST_FREGS_ON_HFA_SPILL = false;
 
     static constexpr IReg RET_IREGS[] = { IReg::IR1, IReg::IR2 };
     static constexpr FReg RET_FREGS[] = { FReg::FR0, FReg::FR1 };
@@ -74,6 +75,7 @@ template <> struct PlatformTraits<Platform::LINUX_AARCH64> {
 
     static constexpr bool ONLY_ONSTACK_VARARGS = false;
     static constexpr bool COMPACT_STACK_SLOTS  = false;
+    static constexpr bool EXHAUST_FREGS_ON_HFA_SPILL = true;
 
     static constexpr IReg RET_IREGS[] = { IReg::IR1, IReg::IR2 };
     static constexpr FReg RET_FREGS[] = { FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3 };
@@ -106,6 +108,7 @@ template <> struct PlatformTraits<Platform::DARWIN_AARCH64> {
 
     static constexpr bool ONLY_ONSTACK_VARARGS = true;
     static constexpr bool COMPACT_STACK_SLOTS  = true;
+    static constexpr bool EXHAUST_FREGS_ON_HFA_SPILL = true;
 
     static constexpr IReg RET_IREGS[] = { IReg::IR1, IReg::IR2 };
     static constexpr FReg RET_FREGS[] = { FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3 };

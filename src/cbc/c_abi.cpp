@@ -73,6 +73,7 @@ static CAbiStructPlan ClassifyAAPCS64(Utils::Span<const CAbiField> fields, uint3
     }
     if (hfa) {
         plan.passBy = CAbiPassBy::REGS;
+        plan.hfaElementSize = fields[0].size;
         for (const auto& f : fields) {
             // One FP reg for each element.
             plan.pieces.PushBack(CAbiPiece { f.offset, PieceKind(f.size, true) });
