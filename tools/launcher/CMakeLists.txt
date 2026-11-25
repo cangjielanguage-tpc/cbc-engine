@@ -52,6 +52,7 @@ target_link_libraries(launcher PRIVATE
   "${CJ_RUNTIME_LIB}"
   m
   c
+  ${CMAKE_DL_LIBS}
 )
 
 # Final-layout rpaths baked at link time (BUILD_WITH_INSTALL_RPATH). The
