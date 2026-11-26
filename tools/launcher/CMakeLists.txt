@@ -46,6 +46,7 @@ target_include_directories(launcher PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../i
 target_link_libraries(launcher PRIVATE
   "${CBCENGINE_LIB}"
   "${CJ_RUNTIME_LIB}"
+  "${CMAKE_DL_LIBS}"
   m
   c
 )

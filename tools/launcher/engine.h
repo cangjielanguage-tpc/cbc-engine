@@ -2,6 +2,7 @@
 #define ENGINE_H
 
 typedef struct {
+    void* interpreter_init;
     void *(*get_trampoline)(void);
     void (*initialize)(void);
     void (*set_cbcpath)(char const *);

@@ -35,9 +35,13 @@ void load_engine_symbols(void) {
     g_engine.set_main_cbc = xdlsym(engine_handle, "engine_set_main_cbc");
     g_engine.enable_dasm = xdlsym(engine_handle, "engine_enable_dasm");
     g_engine.enable_raw_dasm = xdlsym(engine_handle, "engine_enable_raw_dasm");
+    g_engine.interpreter_init = xdlsym(engine_handle, "interpreter_bridge_init");
 }
 
 enum RTErrorCode init_cbc_interpreter(void) {
+    if (!g_engine.interpreter_init) {
+        load_engine_symbols();
+    }
     enum RTErrorCode (*init)(struct InterpreterParam *param) =
         (enum RTErrorCode (*)(struct InterpreterParam *))dlsym(RTLD_DEFAULT, "InitCJInterpreter");
     if (init == NULL) {
@@ -46,8 +50,8 @@ enum RTErrorCode init_cbc_interpreter(void) {
     }
 
     struct InterpreterParam interpParams = {
-        .interpreterLibName   = interpreter_lib,
-        .interpreterArgsCount = 0,
+        .interpreterInitAddress = g_engine.interpreter_init,
+        .interpreterArgsCount   = 0,
     };
     return init(&interpParams);
 }

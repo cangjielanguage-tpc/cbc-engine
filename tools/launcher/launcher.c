@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <dlfcn.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,16 +69,28 @@ static void init_cangjie_runtime(int arg_count) {
         },
     };
 
-    struct InterpreterParam interpParams = {
-        .interpreterLibName   = interpreter_lib,
-        .interpreterArgsCount = 0,
-    };
-
     int rtInitCode = InitCJRuntime(&rtParams);
     if (rtInitCode != 0) {
         fprintf(stderr, "Runtime initialization failed with code: %d\n", rtInitCode);
         exit(-1);
     }
+
+    void* engine_handle = dlopen(interpreter_lib, RTLD_NOW);
+    if (!engine_handle) {
+        fprintf(stderr, "dlopen(%s) failed: %s\n", interpreter_lib, dlerror());
+        exit(-1);
+    }
+
+    void* interpreter_init = dlsym(engine_handle, "interpreter_bridge_init");
+    if (!interpreter_init) {
+        fprintf(stderr, "dlsym(interpreter_bridge_init) failed: %s\n", dlerror());
+        exit(-1);
+    }
+
+    struct InterpreterParam interpParams = {
+        .interpreterInitAddress = interpreter_init,
+        .interpreterArgsCount   = 0,
+    };
 
     enum RTErrorCode interpInitCode = InitCJInterpreter(&interpParams);
     if (interpInitCode != E_OK) {
@@ -238,7 +251,4 @@ dispatch:
     }
 }
 
-int main(int argc, char *argv[]) {
-    return parse_args_and_start(argc, argv);
-}
-
+int main(int argc, char* argv[]) { return parse_args_and_start(argc, argv); }
