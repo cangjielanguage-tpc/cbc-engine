@@ -103,7 +103,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::s
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
-    return fuhManager.Prepare(session, fuh).info;
+    return fuhManager.Prepare(session, fuh);
 }
 
 TEST_ASM(CbcTest, Simple)

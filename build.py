@@ -309,6 +309,12 @@ def build_launcher(args, project_dir, build_dir):
     run_command(cmake_cmd, cwd=build_dir)
     run_command(f"cmake --build {build_dir} -j{args.jobs}", cwd=build_dir)
 
+    # Publish the compile commands for clangd: the cmake build directory is
+    # platform-specific, the source-tree copy is not (and is gitignored).
+    compile_commands = build_dir / "compile_commands.json"
+    if compile_commands.is_file():
+        shutil.copy(compile_commands, launcher_dir / "compile_commands.json")
+
 def build_helper_lib(args, project_dir, build_dir):
     validate_target(args.target_os, args.target_arch)
     helper_target = (args.target_os, args.target_arch)

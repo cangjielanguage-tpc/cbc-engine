@@ -28,6 +28,7 @@
     #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
+    #define engine_future_execute_function _engine_future_execute_function
     #define engine_set_runtime_cjthread_handle_function _engine_set_runtime_cjthread_handle_function
     #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
     #define engine_tls_function _engine_tls_function
@@ -104,6 +105,7 @@ declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_stack_grow_stub
 declare_hidden engine_i2n_stub
 declare_hidden engine_after_stack_grow
+declare_hidden engine_future_execute_function
 declare_hidden engine_set_runtime_cjthread_handle_function
 
 // --- SECTION BSS ---
@@ -139,6 +141,8 @@ engine_cjthread_specific_offset:
 engine_stack_grow_stub:
   .skip 8
 engine_i2n_stub:
+  .skip 8
+engine_future_execute_function:
   .skip 8
 engine_set_runtime_cjthread_handle_function:
   .skip 8
@@ -462,21 +466,13 @@ FUNC_START perform_2i_call
   test  rax, rax
   jnz   .Lhave_bytecode
 
-  add rsp, -16
-  mov rsi, rsp
-
   // function handle is already on rdi
   call  engine_prepare_bytecode
 
-  test rax, rax
-  jz .Lafter_patch
-
-  // FUH patching:
-  mov [rbp - FUH_SLOT_OFFSET], rax
-
-.Lafter_patch:
-  mov rax, [rsp]
-  add rsp, 16
+  // Unconditionally update `fuh` with returned value, almost always it is the same as old value,
+  // except cases of failures during preparation procedure.
+  mov   [rbp - FUH_SLOT_OFFSET], rax
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
 .Lhave_bytecode:
 
@@ -811,22 +807,9 @@ engine_after_stack_grow:
 .balign 16
 .Lthunk_op_ThrowImplicit:
 .Lengine_throw_implicit_exception:
-  // jumped from .Linterpreter_call without return address to return.
-  // The resolver (C code) returns the interpreted thrower's direct call
-  // trampoline; tail-call it with the kind as the first argument - same
-  // layout as a native thrower. The interpreted thrower always throws, so
-  // execution never comes back.
-  // kind is stashed in r12, which is callee-saved and dead in the thunk
-  // (interpreter state lives in rbx/r14/r13 and frame slots), so it survives
-  // the C resolver call and is reloaded below.
-  mov   r12, rdi
+  // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_implicit_exception_thrower]
-  mov   rdi, r12 // kind -> 1st argument of the tail call
-  lea   r10, [rip + .Lthrower_no_return]
-  push  r10 // restore the "called" ABI: c2i stub expects rsp % 16 == 8
-  jmp   rax
-.Lthrower_no_return:
-  ud2 // should not return, as exception is thrown by the interpreted thrower
+  ud2 // should not return, as exception is thrown inside call
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call

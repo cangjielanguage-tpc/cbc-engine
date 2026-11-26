@@ -146,7 +146,7 @@ static void InterpreterI2CallTest(
     if (!bytecode) {
         Engine::Session session(Engine::GetEngineInstance());
         auto& manager = FunctionHandleManager::Of(session);
-        bytecode      = manager.Prepare(session, fuh).info;
+        bytecode      = manager.Prepare(session, fuh);
     }
     auto code = bytecode->code;
 

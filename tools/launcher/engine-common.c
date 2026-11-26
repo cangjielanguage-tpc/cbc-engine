@@ -29,12 +29,16 @@ void load_engine_symbols(void) {
         exit(-1);
     }
 
-    g_engine.get_trampoline = xdlsym(engine_handle, "engine_get_entrypoint_trampoline");
-    g_engine.initialize = xdlsym(engine_handle, "engine_initialize");
+    g_engine.parse_options = xdlsym(engine_handle, "engine_parse_options");
     g_engine.set_cbcpath = xdlsym(engine_handle, "engine_set_cbcpath");
     g_engine.set_main_cbc = xdlsym(engine_handle, "engine_set_main_cbc");
-    g_engine.enable_dasm = xdlsym(engine_handle, "engine_enable_dasm");
-    g_engine.enable_raw_dasm = xdlsym(engine_handle, "engine_enable_raw_dasm");
+    g_engine.set_kv_option = xdlsym(engine_handle, "engine_set_kv_option");
+    g_engine.set_symbol_resolver = xdlsym(engine_handle, "engine_set_symbol_resolver");
+    g_engine.load = xdlsym(engine_handle, "engine_load");
+    g_engine.preset_init_staging = xdlsym(engine_handle, "engine_preset_init_staging");
+    g_engine.preset_cjnative_builtins = xdlsym(engine_handle, "engine_preset_cjnative_builtins");
+    g_engine.apply_hotfix_patches = xdlsym(engine_handle, "engine_apply_hotfix_patches");
+    g_engine.preset_in_executable_resolver = xdlsym(engine_handle, "engine_preset_in_executable_resolver");
 }
 
 enum RTErrorCode init_cbc_interpreter(void) {

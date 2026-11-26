@@ -4,6 +4,12 @@
 
 namespace Engine {
 
+namespace {
+
+constexpr size_t RESOLVE_ERR_BUFFER_SIZE = 256;
+
+} // namespace
+
 void* Dependencies::FindSymbol(std::string_view linkageName) const
 {
     std::string name(linkageName);
@@ -16,6 +22,11 @@ void* Dependencies::FindSymbol(char const* linkageName) const
         auto sym = handle->SearchSym(linkageName).symbol;
         if (sym)
             return sym;
+    }
+
+    if (resolverFn != nullptr) {
+        char errBuffer[RESOLVE_ERR_BUFFER_SIZE];
+        return resolverFn(resolverCtx, linkageName, errBuffer);
     }
     return nullptr;
 }

@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(launcher C)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT DEFINED CANGJIE_HOME)
   message(FATAL_ERROR "CANGJIE_HOME must be defined (path to the cangjie toolchain)")
@@ -39,7 +40,10 @@ if(NOT EXISTS "${CBCENGINE_LIB}")
   message(FATAL_ERROR "cbcengine lib not found at: ${CBCENGINE_LIB}")
 endif()
 
-add_executable(launcher launcher.c)
+add_executable(launcher
+  launcher.c
+  engine-common.c
+)
 
 target_include_directories(launcher PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../include")
 
@@ -48,9 +52,8 @@ target_link_libraries(launcher PRIVATE
   "${CJ_RUNTIME_LIB}"
   m
   c
+  ${CMAKE_DL_LIBS}
 )
-
-target_compile_definitions(launcher PRIVATE "INTERPRETER_LIB=\"${CMAKE_SHARED_LIBRARY_PREFIX}cbcengine${CMAKE_SHARED_LIBRARY_SUFFIX}\"")
 
 # Final-layout rpaths baked at link time (BUILD_WITH_INSTALL_RPATH). The
 # packed toolchain places the launcher in runtime/lib/<arch>/bin with the
@@ -87,6 +90,8 @@ add_library(cbc-preload SHARED
 set_target_properties(cbc-preload PROPERTIES
   C_STANDARD 11
 )
+
+target_include_directories(cbc-preload PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../include")
 
 if(NOT APPLE)
   target_link_options(cbc-preload PRIVATE

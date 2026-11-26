@@ -2,7 +2,10 @@
 
 #include <dlfcn.h>
 
+#include <cstring>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -10,25 +13,20 @@
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
-#include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cbc_loader.h"
 #include "cjnative.h"
-#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/image/io/filesystem.h"
-#include "engine/image/reader.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
-#include "exception_handling.h"
-#include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
-#include "interpreter/interpretation_loop.h"
-#include "interpreter/loggers.h"
+#include "rt_interface.h"
+#include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/typeinfo_factory.h"
-#include "stack_expansion.h"
+#include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
@@ -36,23 +34,22 @@
 DYN_CJNativeInterface g_CJNativeInterfaceInstance;
 
 static std::mutex g_InitializationGuard;
-static bool g_Initialized;
-static bool g_OptionsInitialized;
+static bool g_Loaded;
+static bool g_BridgeInitialized;
 static bool g_Patched;
 
-static void InitEnvOpts()
+static CbcDlsym g_Resolver {};
+static bool g_HasResolver;
+
+bool IsEngineLoaded()
 {
-    std::lock_guard guard(g_InitializationGuard);
-    if (!g_OptionsInitialized) {
-        Engine::InitEnvOptions();
-        g_OptionsInitialized = true;
-    }
+    return g_Loaded;
 }
 
 static std::string EngineLibraryDirectory()
 {
     Dl_info info {};
-    if (dladdr(reinterpret_cast<void*>(&InitEnvOpts), &info) == 0 || info.dli_fname == nullptr) {
+    if (dladdr(reinterpret_cast<void*>(&EngineLibraryDirectory), &info) == 0 || info.dli_fname == nullptr) {
         return {};
     }
     std::string_view path(info.dli_fname);
@@ -64,24 +61,42 @@ static std::string EngineLibraryDirectory()
     return std::string(path.substr(0, separator));
 }
 
-/// Initialize engine from launcher.
-static void EnsureEngineInitialized()
+static void LoadCbcPaths(Engine::Loader& loader, std::string const& excludedCbc)
 {
-    InitEnvOpts();
+    std::string_view rest(g_cbcPath);
+    while (!rest.empty()) {
+        auto pos = rest.find(':');
+        auto dir = rest.substr(0, pos);
+        if (!dir.empty()) {
+            RTSupport::LoadCbcFilesFromDirectory(loader, std::string(dir), excludedCbc);
+        }
+        if (pos == std::string_view::npos) {
+            break;
+        }
+        rest.remove_prefix(pos + 1);
+    }
+}
+
+/// Load the provided CBC inputs without executing code or querying the runtime.
+static CbcStatus LoadEngine()
+{
     std::lock_guard guard(g_InitializationGuard);
-    if (g_Initialized) {
-        return;
+    if (g_Loaded) {
+        return CBC_OK;
     }
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
         out << "start engine init" << Stream::endl;
     });
 
-    Engine::Loader loader;
+    if (!g_HasResolver) {
+        LOG_ERROR(RTSupport::Log::rt, "no symbol resolver set: foreign functions and AOT symbols will not resolve");
+    }
+
+    Engine::Loader loader(g_Resolver.ctx, g_Resolver.find);
 
     if (!g_cbcPath.empty()) {
-        // TODO: support ':'-delimited directories in cbc.path
-        RTSupport::LoadCbcFilesFromDirectory(loader, g_cbcPath, g_mainCbc);
+        LoadCbcPaths(loader, g_mainCbc);
     }
 
     if (!g_mainCbc.empty()) {
@@ -89,20 +104,10 @@ static void EnsureEngineInitialized()
         if (file.has_value()) {
             loader.Load(std::move(file.value()), g_mainCbc);
         } else {
-            RTSupport::Log::rt.Log(Logging::Level::WARN, [](Stream::Output& out) {
-                out.PrintFmtLn("engine init: no such file or directory %s", g_mainCbc.c_str());
+            RTSupport::Log::rt.Log(Logging::Level::ERROR, [](Stream::Output& out) {
+                out.PrintFmtLn("engine load: no such file or directory %s", g_mainCbc.c_str());
             });
-        }
-    }
-
-    constexpr auto intrinsicsFileName = "/cbc-intrinsics.cbc";
-    auto intrinsicsDir                = EngineLibraryDirectory();
-    if (!intrinsicsDir.empty()) {
-        auto intrinsicsPath = intrinsicsDir + std::string(intrinsicsFileName);
-        if (auto file = IO::TryOpenFile(intrinsicsPath)) {
-            loader.Load(std::move(*file), intrinsicsPath);
-        } else {
-            FATAL("engine init: cannot find path to intrinsics. given path: %s", intrinsicsPath.c_str());
+            return CBC_FILE_NOT_FOUND;
         }
     }
 
@@ -110,18 +115,18 @@ static void EnsureEngineInitialized()
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end engine init" << Stream::endl; });
 
-    g_Initialized = true;
+    g_Loaded = true;
+    return CBC_OK;
+}
+
+static void EnsureHelpersPrepared(Engine::Session& session)
+{
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
+    fuhManager.FindAndPrepareHelpers(session);
 }
 
 static void PerformPatching()
 {
-    EnsureEngineInitialized();
-
-    std::lock_guard guard(g_InitializationGuard);
-    if (g_Patched) {
-        return;
-    }
-
     LOG_INFO(RTSupport::Log::rt, "start patching");
 
     auto& engine = Engine::GetEngineInstance();
@@ -195,11 +200,7 @@ static void PerformPatching()
     }
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end patching" << Stream::endl; });
-
-    g_Patched = true;
 }
-
-static void FiberStart(DYN_CJThreadSpecificData* data) { *data = nullptr; }
 
 extern "C" Interpretation::Ectype* engine_fiber_data_init(DYN_CJThreadSpecificData* data)
 {
@@ -217,86 +218,113 @@ extern "C" Interpretation::Ectype* engine_fiber_data_init(DYN_CJThreadSpecificDa
     return ectype;
 }
 
-static void FiberDestroy(DYN_CJThreadSpecificData* data)
-{
-    if (*data == nullptr) {
-        // ectype wasn't initialized for this fiber, nothing to do here
-        return;
-    }
+namespace {
 
-    LOG_INFO(RTSupport::Log::rt, "fiber destroy, fsd: {}, ectype: {}", Stream::Hex(data), Stream::Hex(*data));
-    delete static_cast<Interpretation::Ectype*>(*data)->Checked();
+CbcStatus SetTableOption(std::string_view key, std::string_view value)
+{
+    switch (Engine::g_table.Set(key, value)) {
+        case Options::Table::Status::OK:
+            return CBC_OK;
+        case Options::Table::Status::INVALID_OPTION:
+            LOG_ERROR(RTSupport::Log::rt, "invalid option {}={}", key, value);
+            return CBC_INVALID_ARGUMENT;
+        case Options::Table::Status::UNKNOWN_OPTION:
+            LOG_ERROR(RTSupport::Log::rt, "unknown option {}={}", key, value);
+            return CBC_INVALID_ARGUMENT;
+    }
+    return CBC_INVALID_ARGUMENT;
 }
 
-static void IterateFramesWithState(
-    DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
+/// Splits a `key=value` token; returns false if the token is malformed.
+bool SplitKeyVal(std::string_view token, std::string_view& key, std::string_view& value)
+{
+    auto eqPos = token.find('=');
+    if (eqPos == std::string_view::npos || eqPos + 1 >= token.size()) {
+        return false;
+    }
+    key   = token.substr(0, eqPos);
+    value = token.substr(eqPos + 1);
+    return true;
+}
+
+CbcStatus FillQueryResult(
+    CbcFunction* rloc,
+    Engine::Session& session,
+    Image::Identifier<Image::MethodDefinition> methodDef,
+    bool needTrampoline
 )
 {
-    if (g_Initialized) {
-        GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    auto& engine     = Engine::GetEngineInstance();
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto tagged = fuhManager.AcquireTagged(session, methodDef);
+
+    rloc->code = nullptr;
+    rloc->fuh  = nullptr;
+
+    if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&tagged)) {
+        // AOT compiled function is directly callable, no trampoline is needed.
+        rloc->code = (*staticFuh)->function;
+        rloc->fuh  = reinterpret_cast<struct FunctionHandle*>(&(*staticFuh)->base);
+        return CBC_OK;
     }
+
+    auto* dynFuh = std::get<Interpretation::DynamicFunctionHandle*>(tagged);
+    rloc->fuh    = reinterpret_cast<struct FunctionHandle*>(&dynFuh->base);
+
+    if (needTrampoline) {
+        auto trampoline = RTSupport::Adapters::TryGetDirectCallTrampoline(dynFuh);
+        if (trampoline == nullptr) {
+            LOG_ERROR(RTSupport::Log::rt, "trampoline pool exhausted for query {}", methodDef.Pack());
+            return CBC_TRAMPOLINES_EXHAUSTED;
+        }
+        rloc->code = trampoline;
+    }
+    return CBC_OK;
 }
 
-static void VisitFrameRootsMarking(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
-{
-    if (g_Initialized) {
-        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
-    }
-}
-
-static void VisitFrameRootsAdjusting(
-    DYN_VisitingState state,
-    INT_FrameDesc frame_desc,
-    DYN_RootVisitor root_visitor,
-    DYN_DerivedPtrVisitor derived_ptr_visitor
+/// Finds a method by the type name and the function name.
+/// The type name is the full name of the enclosing type and may itself contain
+/// colons (e.g. "std.core:Future"); package level functions are stored in a
+/// type named after the package (e.g. "$P$<pkg name>").
+std::optional<Image::Identifier<Image::MethodDefinition>> FindMethodByName(
+    Engine::Session& session, std::string_view typeName, std::string_view funcName, CbcStatus* status
 )
 {
-    if (g_Initialized) {
-        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor, derived_ptr_visitor);
+    auto& engine = Engine::GetEngineInstance();
+
+    auto type = engine.FindType(session, typeName);
+    if (!type.has_value()) {
+        LOG_ERROR(RTSupport::Log::rt, "type not found {}", typeName);
+        *status = CBC_RESOLUTION_ERROR;
+        return std::nullopt;
     }
+
+    auto typeDef = Decode::Read(session, type.value());
+
+    int count                                                       = 0;
+    std::optional<Image::Identifier<Image::MethodDefinition>> found = std::nullopt;
+    for (auto m : Decode::Reader::FindBucket(session, typeDef.GetMethods(), funcName)) {
+        count++;
+        found = m;
+    }
+
+    if (count > 1) {
+        LOG_ERROR(RTSupport::Log::rt, "ambiguous function query {}:{}", typeName, funcName);
+        *status = CBC_AMBIGUOUS_RESOLUTION_ERROR;
+        return std::nullopt;
+    }
+    if (count == 0) {
+        LOG_ERROR(RTSupport::Log::rt, "function not found {}:{}", typeName, funcName);
+        *status = CBC_RESOLUTION_ERROR;
+        return std::nullopt;
+    }
+
+    *status = CBC_OK;
+    return found;
 }
 
-static void VisitFrameRootsExpansion(
-    DYN_VisitingState state,
-    INT_FrameDesc frameDesc,
-    DYN_RootVisitor stackPtrVisitor,
-    DYN_DerivedPtrVisitor derivedPtrVisitor,
-    DYN_RootVisitor stackAllocVisitor
-)
-{
-    if (g_Initialized) {
-        StackExpansion::VisitFrameRootsForStackPtrs(
-            state, frameDesc, stackPtrVisitor, derivedPtrVisitor, stackAllocVisitor
-        );
-    }
-}
-
-static void VisitGlobalRoots(DYN_RootVisitor visitor)
-{
-    if (g_Initialized) {
-        GCSupport::VisitGlobalRoots(visitor);
-    }
-}
-
-static uint32_t GetFrameSize(DYN_FramePointer fp)
-{
-    ASSERTION(g_Initialized, "GetFrameSize cannot be called if there are no interpreter frames");
-    return StackExpansion::GetFrameSize(fp);
-}
-
-static void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info)
-{
-    if (g_Initialized) {
-        EHSupport::FrameInfoProvider(ip, fp, info);
-    }
-}
-
-static void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_InterpretedFrameDesc* frameDesc)
-{
-    if (g_Initialized) {
-        EHSupport::FrameDescProvider(fuh, pos, frameDesc);
-    }
-}
+} // namespace
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
@@ -307,38 +335,202 @@ CBC_EXPORT int interpreter_bridge_init(
     const char** options
 );
 
-CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
-
-CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
-
-CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
-
-CBC_EXPORT void engine_enable_dasm() { Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE); }
-
-CBC_EXPORT void engine_enable_raw_dasm()
+CBC_EXPORT CbcStatus engine_set_cbcpath(char const* cbcPath)
 {
-    engine_enable_dasm();
-    Cbc::EnableRawDisasm();
+    if (cbcPath == nullptr || cbcPath[0] == '\0') {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+    if (g_Loaded) {
+        return CBC_INVALID_STATE;
+    }
+    if (g_cbcPath.empty()) {
+        g_cbcPath = cbcPath;
+    } else {
+        g_cbcPath += ':';
+        g_cbcPath += cbcPath;
+    }
+    return CBC_OK;
 }
 
-CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
+CBC_EXPORT CbcStatus engine_set_main_cbc(char const* mainCbc)
 {
-    ASSERTION(g_Initialized, "Engine is not initialized");
+    if (mainCbc == nullptr || mainCbc[0] == '\0') {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+    if (g_Loaded) {
+        return CBC_INVALID_STATE;
+    }
+    g_mainCbc = mainCbc;
+    return CBC_OK;
+}
+
+CBC_EXPORT CbcStatus engine_parse_options(char const* text)
+{
+    if (text == nullptr) {
+        return CBC_OK;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+
+    std::string_view rest(text);
+    while (!rest.empty()) {
+        auto pos   = rest.find(' ');
+        auto token = rest.substr(0, pos);
+
+        if (!token.empty()) {
+            std::string_view key;
+            std::string_view value;
+            if (!SplitKeyVal(token, key, value)) {
+                LOG_ERROR(RTSupport::Log::rt, "invalid option format {}", token);
+                return CBC_INVALID_ARGUMENT;
+            }
+            auto status = SetTableOption(key, value);
+            if (status != CBC_OK) {
+                return status;
+            }
+        }
+
+        if (pos == std::string_view::npos) {
+            break;
+        }
+        rest.remove_prefix(pos + 1);
+    }
+    return CBC_OK;
+}
+
+CBC_EXPORT CbcStatus engine_set_kv_option(char const* key, char const* value)
+{
+    if (key == nullptr || value == nullptr) {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+    return SetTableOption(key, value);
+}
+
+CBC_EXPORT CbcStatus engine_set_symbol_resolver(CbcDlsym dlsym)
+{
+    if (dlsym.find == nullptr) {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+    g_Resolver    = dlsym;
+    g_HasResolver = true;
+    return CBC_OK;
+}
+
+CBC_EXPORT CbcStatus engine_load() { return LoadEngine(); }
+
+CBC_EXPORT CbcStatus engine_query_function(
+    CbcFunction* rloc, char const* typeName, char const* funcName, int needTrampoline
+)
+{
+    if (rloc == nullptr || typeName == nullptr || typeName[0] == '\0' || funcName == nullptr ||
+        funcName[0] == '\0') {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+    if (!g_Loaded) {
+        return CBC_NOT_LOADED;
+    }
 
     auto& engine = Engine::GetEngineInstance();
-
     Engine::Session session(engine);
+    EnsureHelpersPrepared(session);
+
+    CbcStatus status = CBC_OK;
+    auto method = FindMethodByName(session, typeName, funcName, &status);
+    if (!method.has_value()) {
+        return status;
+    }
+    return FillQueryResult(rloc, session, method.value(), needTrampoline != 0);
+}
+
+CBC_EXPORT CbcStatus engine_query_main_function(CbcFunction* rloc)
+{
+    if (rloc == nullptr) {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+    if (!g_Loaded) {
+        return CBC_NOT_LOADED;
+    }
+    if (g_mainCbc.empty()) {
+        LOG_ERROR(RTSupport::Log::rt, "main cbc is not set");
+        return CBC_MAIN_NOT_SET;
+    }
+
+    auto& engine = Engine::GetEngineInstance();
+    Engine::Session session(engine);
+    EnsureHelpersPrepared(session);
 
     auto main = engine.FindMain(session, g_mainCbc);
     if (!main.has_value()) {
-        return nullptr;
+        LOG_ERROR(RTSupport::Log::rt, "main function not found in {}", g_mainCbc);
+        return CBC_RESOLUTION_ERROR;
     }
-    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+    return FillQueryResult(rloc, session, main.value(), true);
+}
 
-    fuhManager.FindAndPrepareHelpers(session);
+CBC_EXPORT CbcStatus engine_initialize_rt_staging(CbcStagingSym* symbols, int count)
+{
+    if (count < 0 || (count > 0 && symbols == nullptr)) {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
 
-    auto fuh = fuhManager.AcquireTagged(session, main.value());
-    return fuhManager.GetFunctionPtrForDirectCall(fuh);
+    for (int i = 0; i < count; i++) {
+        auto& sym = symbols[i];
+        if (sym.token == nullptr) {
+            return CBC_INVALID_ARGUMENT;
+        }
+        if (std::strcmp(sym.token, READ_WEAK_REF_TOKEN) == 0) {
+            if (sym.symbol == nullptr) {
+                return CBC_INVALID_ARGUMENT;
+            }
+            RTSupport::InitializeStaging(sym.symbol);
+            continue;
+        }
+        LOG_ERROR(RTSupport::Log::rt, "unknown staging symbol token {}", sym.token);
+        return CBC_UNKNOWN_TOKEN;
+    }
+    return CBC_OK;
+}
+
+CBC_EXPORT CbcStatus engine_lib_initialize_builtins(CjBuiltins* builtins)
+{
+    if (builtins == nullptr) {
+        return CBC_INVALID_ARGUMENT;
+    }
+    std::lock_guard guard(g_InitializationGuard);
+    // Entries with a null `code` are skipped: the builtin stays unavailable and
+    // executing the operation that requires it is a fatal error. Previously
+    // installed builtins are not overwritten.
+    RTSupport::InstallBuiltins(
+        builtins->implicitThrower.code,
+        builtins->futureExecute.code,
+        builtins->setRuntimeCJThreadHandle.code
+    );
+    return CBC_OK;
+}
+
+CBC_EXPORT CbcStatus engine_apply_hotfix_patches()
+{
+    std::lock_guard guard(g_InitializationGuard);
+    if (!g_Loaded) {
+        return CBC_NOT_LOADED;
+    }
+    if (!g_BridgeInitialized) {
+        LOG_ERROR(RTSupport::Log::rt, "hotfix patching requires the runtime to be initialized");
+        return CBC_RUNTIME_NOT_INITIALIZED;
+    }
+    if (g_Patched) {
+        return CBC_OK;
+    }
+
+    PerformPatching();
+    g_Patched = true;
+    return CBC_OK;
 }
 
 CBC_EXPORT int interpreter_bridge_init(
@@ -348,20 +540,18 @@ CBC_EXPORT int interpreter_bridge_init(
     const char** options
 )
 {
+    (void)size;
+    (void)options; // deprecated: options are set through the configuration stage functions
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
         LOG_ERROR(
             RTSupport::Log::rt,
-            "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
+            "Unexpected DYN_CJNativeInterface version: expected {}, actual {}",
             DYN_CJNATIVE_INTERFACE_VERSION,
             rtInterf != nullptr ? rtInterf->version : -1
         );
         return 1;
     }
-
-    // Order matters
-    InitEnvOpts();
-    Engine::g_table.ParseAndSet(size, options);
 
     if (!RTSupport::Initialize(rtInterf)) {
         RTSupport::Log::rt.Log(Logging::Level::ERROR, [](Stream::Output& out) {
@@ -402,14 +592,8 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_i2n_stub                  = g_CJNativeInterfaceInstance.i2nStub;
 
     RTSupport::InitBuiltinTypeInfos();
-    if (g_mainCbc.empty()) {
-        PerformPatching();
-    }
-    // If CBC patch is not found, engine will be left uninitialized.
-    // But Cangjie runtime will still be calling provided interpreter callbacks.
-    // So behavior of INT_InterpreterInterface callbacks with uninitialized engine should be changed:
-    // 1. GC roots visitors should be no-op (since no roots can be created without engine initialization).
 
+    g_BridgeInitialized = true;
     return 0;
 }
 

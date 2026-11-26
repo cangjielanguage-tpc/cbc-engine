@@ -4,3 +4,5 @@
 
 inline std::string g_cbcPath;
 inline std::string g_mainCbc;
+
+bool IsEngineLoaded();
