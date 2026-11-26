@@ -39,9 +39,13 @@ void load_engine_symbols(void) {
     g_engine.preset_cjnative_builtins = xdlsym(engine_handle, "engine_preset_cjnative_builtins");
     g_engine.apply_hotfix_patches = xdlsym(engine_handle, "engine_apply_hotfix_patches");
     g_engine.preset_in_executable_resolver = xdlsym(engine_handle, "engine_preset_in_executable_resolver");
+    g_engine.interpreter_init = xdlsym(engine_handle, "interpreter_bridge_init");
 }
 
 enum RTErrorCode init_cbc_interpreter(void) {
+    if (!g_engine.interpreter_init) {
+        load_engine_symbols();
+    }
     enum RTErrorCode (*init)(struct InterpreterParam *param) =
         (enum RTErrorCode (*)(struct InterpreterParam *))dlsym(RTLD_DEFAULT, "InitCJInterpreter");
     if (init == NULL) {
@@ -50,8 +54,8 @@ enum RTErrorCode init_cbc_interpreter(void) {
     }
 
     struct InterpreterParam interpParams = {
-        .interpreterLibName   = interpreter_lib,
-        .interpreterArgsCount = 0,
+        .interpreterInitAddress = g_engine.interpreter_init,
+        .interpreterArgsCount   = 0,
     };
     return init(&interpParams);
 }

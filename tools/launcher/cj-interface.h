@@ -63,8 +63,8 @@ struct RuntimeParam {
  * @brief Data structure for interpreter configuration parameters.
  */
 struct InterpreterParam {
-    /* Interpreter dynamic library name. */
-    const char* interpreterLibName;
+    /* Address of the interpreter initialization function. */
+    void* interpreterInitAddress;
     /* Number of startup arguments passed to interpreter. */
     int interpreterArgsCount;
     /* Startup argument list passed to interpreter. */

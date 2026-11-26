@@ -9,6 +9,7 @@
  * linking it at build time.
  */
 typedef struct {
+    void*     interpreter_init;
     CbcStatus (*parse_options)(char const *text);
     CbcStatus (*set_cbcpath)(char const *cbc_path);
     CbcStatus (*set_main_cbc)(char const *main_cbc);
