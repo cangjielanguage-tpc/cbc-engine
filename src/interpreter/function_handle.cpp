@@ -298,6 +298,7 @@ ExecBytecodeInfo* FunctionHandleManager::RebuildAndPublish(Session& session, con
             static_cast<const void*>(published->code.bytecode),
             published->code.bytecodeSize
         );
+        out << *published;
         Cbc::RT::Log(published->code, out);
     });
     return published;

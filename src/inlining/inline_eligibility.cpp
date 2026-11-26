@@ -28,9 +28,11 @@ InlineRejectionReason CheckInlineEligibility(
     if (!codeId.has_value()) {
         return InlineRejectionReason::MISSING_BYTECODE;
     }
-    auto code = Decode::Read(session, *codeId);
 
-    if (code.CodeSize() > MAX_INLINE_CBC_SIZE) {
+    auto code = Decode::Read(session, *codeId);
+    const auto& calleeCode = expectedCalleeBytecode->code;
+
+    if (calleeCode.bytecodeSize > MAX_CODE_SIZE) {
         return InlineRejectionReason::TOO_LARGE;
     }
     if (!HasSupportedInlineFrame(*expectedCalleeBytecode)) {
@@ -54,7 +56,6 @@ InlineRejectionReason CheckInlineEligibility(
         !expectedCalleeBytecode->stackPtrsInfo.positionalInfo.Empty()) {
         return InlineRejectionReason::UNSUPPORTED_INSTRUCTION;
     }
-    const auto& calleeCode = expectedCalleeBytecode->code;
     if (!IsSupportedBody(calleeCode, DecodeRuntimeBytecode(calleeCode))) {
         return InlineRejectionReason::UNSUPPORTED_INSTRUCTION;
     }

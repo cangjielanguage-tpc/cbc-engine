@@ -4,12 +4,13 @@
 #include "interpreter/code.h"
 #include "utils/math.h"
 
+#include <bitset>
 #include <limits>
 
 namespace Cbc {
 
 std::optional<ExpandedFrameLayout> ExpandFrame(
-    const Interpretation::ExecBytecodeInfo& caller, uint32_t requiredInlineAreaSize
+    const Interpretation::ExecBytecodeInfo& caller, uint32_t requiredInlineAreaSize, uint32_t addedSaveSize
 )
 {
     if (caller.staticFrameSize > caller.frameSize) {
@@ -18,33 +19,31 @@ std::optional<ExpandedFrameLayout> ExpandFrame(
 
     const auto alignment = Cbc::FRAME_ALIGNMENT;
     const auto maxSize   = std::numeric_limits<uint32_t>::max();
-    if (requiredInlineAreaSize > maxSize - (alignment - 1U)) {
+    if (requiredInlineAreaSize > maxSize - (alignment - 1U) || addedSaveSize > maxSize - (alignment - 1U)) {
         return std::nullopt;
     }
 
     const auto inlineAreaSize = MathUtils::AlignUp(requiredInlineAreaSize, alignment);
-    if (caller.staticFrameSize > maxSize - inlineAreaSize || caller.frameSize > maxSize - inlineAreaSize) {
+    const auto callerSlotShift = MathUtils::AlignUp(addedSaveSize, alignment);
+    if (inlineAreaSize > maxSize - caller.frameSize ||
+        callerSlotShift > maxSize - caller.frameSize - inlineAreaSize) {
         return std::nullopt;
     }
 
+    const auto growth = inlineAreaSize + callerSlotShift;
     return ExpandedFrameLayout {
-        .frameSize       = caller.frameSize + inlineAreaSize,
-        .staticFrameSize = caller.staticFrameSize + inlineAreaSize,
+        .frameSize       = caller.frameSize + growth,
+        .staticFrameSize = caller.staticFrameSize + growth,
         .inlineAreaSize  = inlineAreaSize,
+        .callerSlotShift = callerSlotShift,
     };
 }
 
 bool HasSupportedInlineFrame(const Interpretation::ExecBytecodeInfo& callee)
 {
-    const auto count = [](Interpretation::NonVolatileRegs regs) {
-        uint32_t count = 0;
-        while (!regs.IsEmpty()) {
-            regs.ExtractReg();
-            ++count;
-        }
-        return count;
-    };
-    const auto saveSize = (count(callee.savedIRegs) + count(callee.savedFRegs)) * STACK_SLOT_SIZE;
+    using RegMask = std::bitset<Interpretation::NonVolatileRegs::REGS_MAX_NUM>;
+    const auto saveSize = (RegMask(callee.savedIRegs.Mask()).count() + RegMask(callee.savedFRegs.Mask()).count()) *
+                          STACK_SLOT_SIZE;
     const auto untypedSize = callee.untypedSlotCount * STACK_SLOT_SIZE;
     const auto staticSize = callee.staticFrameSize;
     return staticSize >= saveSize + untypedSize && staticSize % STACK_SLOT_SIZE == 0 &&

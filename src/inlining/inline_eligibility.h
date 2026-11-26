@@ -17,7 +17,7 @@ struct ExecBytecodeInfo;
 
 namespace Cbc {
 
-constexpr uint32_t MAX_INLINE_CBC_SIZE = 64 * 1024;
+constexpr uint32_t MAX_CODE_SIZE = 8 * 1024;
 
 enum class InlineRejectionReason {
     NONE,

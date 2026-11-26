@@ -104,6 +104,15 @@ struct NonVolatileRegs {
     }
 
     bool IsEmpty() { return value == 0; }
+
+    uint16_t Mask() const
+    {
+        uint16_t mask = 0;
+        for (auto regs = *this; !regs.IsEmpty();) {
+            mask |= 1U << regs.ExtractReg();
+        }
+        return mask;
+    }
 };
 
 // Call arguments use register indices, or IReg::VIRT_COUNT + outgoing stack-slot index.

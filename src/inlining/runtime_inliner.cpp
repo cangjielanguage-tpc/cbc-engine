@@ -12,6 +12,7 @@
 #include "utils/heap.h"
 
 #include <algorithm>
+#include <bitset>
 #include <cstring>
 #include <limits>
 #include <optional>
@@ -24,7 +25,6 @@ namespace {
 using Interpretation::ExecBytecodeInfo;
 
 struct PreparedInlineSite {
-    const ExecBytecodeInfo* callee;
     uint32_t oldBegin;
     uint32_t oldEnd;
     Utils::Vector<uint8_t> body;
@@ -35,11 +35,11 @@ struct PreparedInlineSite {
 struct PreparedInlining {
     const ExecBytecodeInfo* source;
     ExpandedFrameLayout frameLayout;
-    std::vector<PreparedInlineSite> sites;
+    Interpretation::NonVolatileRegs savedIRegs;
+    Interpretation::NonVolatileRegs savedFRegs;
+    Utils::Vector<uint8_t> bytecode;
     std::vector<RewrittenCodeEdit> edits;
-    std::vector<BranchPatch> branchPatches;
     std::vector<Interpretation::Literal> literals;
-    uint32_t bytecodeSize;
 };
 
 struct RelocatedMetadata {
@@ -54,27 +54,35 @@ struct InlineFrameCode {
     Utils::Vector<uint8_t> restore;
 };
 
-InlineFrameCode MakeInlineFrameCode(const ExecBytecodeInfo& caller, const ExecBytecodeInfo& callee)
+InlineFrameCode MakeInlineFrameCode(
+    uint32_t callerLocalSize, const ExecBytecodeInfo& callee, uint16_t callerIMask, uint16_t callerFMask
+)
 {
     Emitter::Emitter entry;
     Emitter::Emitter restore;
-    auto offset = -static_cast<int64_t>(caller.staticFrameSize);
+    auto offset = -static_cast<int64_t>(callerLocalSize);
 
     // Use the ordinary callee's I/F save order in the area below the caller's static frame.
     for (auto regs = callee.savedIRegs; !regs.IsEmpty();) {
-        const auto reg = IReg::From(regs.ExtractReg());
+        const auto index = regs.ExtractReg();
         offset -= STACK_SLOT_SIZE;
-        entry.StoreFrame(Format::StoreAccessKind::ST_64, reg, static_cast<int32_t>(offset));
-        restore.LoadFrame(Format::LoadAccessKind::LD_64, reg, static_cast<int32_t>(offset));
+        if ((callerIMask & (1U << index)) != 0) {
+            const auto reg = IReg::From(index);
+            entry.StoreFrame(Format::StoreAccessKind::ST_64, reg, static_cast<int32_t>(offset));
+            restore.LoadFrame(Format::LoadAccessKind::LD_64, reg, static_cast<int32_t>(offset));
+        }
     }
     for (auto regs = callee.savedFRegs; !regs.IsEmpty();) {
-        const auto reg = FReg::From(regs.ExtractReg());
+        const auto index = regs.ExtractReg();
         offset -= STACK_SLOT_SIZE;
-        entry.StoreFrame(Format::StoreAccessKind::ST_F64, reg, static_cast<int32_t>(offset));
-        restore.LoadFrame(Format::LoadAccessKind::LD_F64, reg, static_cast<int32_t>(offset));
+        if ((callerFMask & (1U << index)) != 0) {
+            const auto reg = FReg::From(index);
+            entry.StoreFrame(Format::StoreAccessKind::ST_F64, reg, static_cast<int32_t>(offset));
+            restore.LoadFrame(Format::LoadAccessKind::LD_F64, reg, static_cast<int32_t>(offset));
+        }
     }
 
-    const auto bottom = -static_cast<int64_t>(caller.staticFrameSize) - callee.staticFrameSize;
+    const auto bottom = -static_cast<int64_t>(callerLocalSize) - callee.staticFrameSize;
     if (bottom < offset) {
         entry.ZeroFrame(static_cast<int32_t>(bottom), static_cast<uint32_t>(offset - bottom));
     }
@@ -85,6 +93,7 @@ std::optional<PreparedInlineSite> PrepareSite(
     const InlineCallSite& site,
     const ExecBytecodeInfo& caller,
     const std::vector<RuntimeInstruction>& callerInstructions,
+    uint32_t expandedCallerStaticSize,
     uint32_t literalBase,
     std::vector<Interpretation::Literal>& literals
 )
@@ -127,23 +136,21 @@ std::optional<PreparedInlineSite> PrepareSite(
         !callee->stackPtrsInfo.positionalInfo.Empty()) {
         return std::nullopt;
     }
-    if (callee->staticFrameSize != 0 &&
-        -static_cast<int64_t>(caller.staticFrameSize) - callee->staticFrameSize < std::numeric_limits<int32_t>::min()) {
-        return std::nullopt;
-    }
-
     const auto calleeInstructions = DecodeRuntimeBytecode(callee->code);
     if (!IsSupportedBody(callee->code, calleeInstructions)) {
         return std::nullopt;
     }
-    auto body = RelocateInlineBody(callee->code, calleeInstructions, caller.staticFrameSize, literalBase, literals);
+    auto body = RelocateInlineBody(
+        callee->code, calleeInstructions, expandedCallerStaticSize, literalBase, literals
+    );
     if (!body.has_value()) {
         return std::nullopt;
     }
 
-    auto frameCode = MakeInlineFrameCode(caller, *callee);
+    auto frameCode = MakeInlineFrameCode(
+        expandedCallerStaticSize, *callee, caller.savedIRegs.Mask(), caller.savedFRegs.Mask()
+    );
     return PreparedInlineSite {
-        .callee         = callee,
         .oldBegin       = site.runtimeCallSiteOffset,
         .oldEnd         = site.runtimeCallSiteOffset + instruction->size,
         .body           = std::move(*body),
@@ -161,6 +168,49 @@ void AppendLiteralTable(std::vector<Interpretation::Literal>& literals, const In
     }
 }
 
+std::optional<Utils::Vector<uint8_t>> EmitBytecode(
+    const Interpretation::Code& source,
+    const std::vector<RuntimeInstruction>& instructions,
+    const std::vector<PreparedInlineSite>& sites,
+    uint32_t callerSlotShift,
+    std::vector<RewrittenCodeEdit>& edits
+)
+{
+    Emitter::Segment output;
+    auto append = [&](const uint8_t* bytes, size_t size) {
+        for (size_t i = 0; i < size; ++i) {
+            output.AddW8(bytes[i]);
+        }
+    };
+    auto site = sites.begin();
+    for (const auto& instruction : instructions) {
+        const auto begin = output.Pos();
+        const bool inlineCall = site != sites.end() && site->oldBegin == instruction.offset;
+        const auto maxSize = inlineCall
+            ? static_cast<uint64_t>(site->entryCode.Size()) + site->body.Size() + site->restoreCode.Size()
+            : static_cast<uint64_t>(instruction.size) + (callerSlotShift != 0 ? 3 : 0);
+        if (maxSize >= static_cast<uint64_t>(std::numeric_limits<int32_t>::max() - begin)) {
+            return std::nullopt;
+        }
+        if (inlineCall) {
+            append(site->entryCode.Data(), site->entryCode.Size());
+            append(site->body.Data(), site->body.Size());
+            append(site->restoreCode.Data(), site->restoreCode.Size());
+            ++site;
+        } else if (callerSlotShift != 0) {
+            EmitRelocatedInstruction(output, source, instruction, callerSlotShift, 0);
+        } else {
+            append(source.bytecode + instruction.offset, instruction.size);
+        }
+        const auto size = static_cast<uint32_t>(output.Pos() - begin);
+        if (inlineCall || size != instruction.size) {
+            edits.push_back({ instruction.offset, instruction.offset + instruction.size, size });
+        }
+    }
+    ASSERT(site == sites.end());
+    return output.Finish();
+}
+
 std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
 {
     if (plan.callerFuh == nullptr || plan.callSites.empty()) {
@@ -170,7 +220,33 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
     auto* source        = plan.expectedBytecode;
     auto* currentCaller = plan.callerFuh->bytecode.load();
     if (source == nullptr || currentCaller != source || source->version != plan.expectedVersion ||
-        source->ownerFuh != plan.callerFuh || source->code.bytecodeSize > std::numeric_limits<uint32_t>::max()) {
+        source->ownerFuh != plan.callerFuh || source->code.bytecodeSize >= std::numeric_limits<int32_t>::max()) {
+        return std::nullopt;
+    }
+
+    const auto callerIMask = source->savedIRegs.Mask();
+    const auto callerFMask = source->savedFRegs.Mask();
+    auto mergedIMask = callerIMask;
+    auto mergedFMask = callerFMask;
+    uint32_t inlineAreaSize = 0;
+    for (const auto& site : plan.callSites) {
+        const auto* callee = site.expectedCalleeBytecode;
+        if (callee == nullptr) {
+            return std::nullopt;
+        }
+        inlineAreaSize = std::max(inlineAreaSize, callee->staticFrameSize);
+        mergedIMask |= callee->savedIRegs.Mask();
+        mergedFMask |= callee->savedFRegs.Mask();
+    }
+    using RegMask = std::bitset<Interpretation::NonVolatileRegs::REGS_MAX_NUM>;
+    const auto addedSaveSize =
+        (RegMask(mergedIMask ^ callerIMask).count() + RegMask(mergedFMask ^ callerFMask).count()) * STACK_SLOT_SIZE;
+    const auto frameLayout = ExpandFrame(*source, inlineAreaSize, addedSaveSize);
+    if (!frameLayout.has_value()) {
+        return std::nullopt;
+    }
+    const auto expandedCallerStaticSize = source->staticFrameSize + frameLayout->callerSlotShift;
+    if (-static_cast<int64_t>(expandedCallerStaticSize) - inlineAreaSize < std::numeric_limits<int32_t>::min()) {
         return std::nullopt;
     }
 
@@ -185,13 +261,8 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
     AppendLiteralTable(literals, *source->code.literals);
     std::unordered_map<const Interpretation::LiteralTable*, uint32_t> literalBases { { source->code.literals, 0 } };
 
-    uint32_t previousEnd    = 0;
-    uint32_t inlineAreaSize  = 0;
-    int64_t newBytecodeSize = static_cast<int64_t>(source->code.bytecodeSize);
+    uint32_t previousEnd = 0;
     for (const auto& site : plan.callSites) {
-        if (site.expectedCalleeBytecode == nullptr) {
-            return std::nullopt;
-        }
         const auto* table = site.expectedCalleeBytecode->code.literals;
         const auto tableSize = table->size();
         uint32_t literalBase = 0;
@@ -206,79 +277,33 @@ std::optional<PreparedInlining> PrepareInlining(const InlinePlan& plan)
             literalBase = base->second;
         }
 
-        auto prepared = PrepareSite(site, *source, callerInstructions, literalBase, literals);
-        if (!prepared.has_value()) {
-            return std::nullopt;
-        }
-        if (prepared->oldBegin < previousEnd) {
+        auto prepared = PrepareSite(site, *source, callerInstructions, expandedCallerStaticSize, literalBase, literals);
+        if (!prepared.has_value() || prepared->oldBegin < previousEnd) {
             return std::nullopt;
         }
         previousEnd = prepared->oldEnd;
-        inlineAreaSize = std::max(inlineAreaSize, prepared->callee->staticFrameSize);
-
-        const auto replacementSize =
-            static_cast<uint64_t>(prepared->body.Size()) + prepared->entryCode.Size() + prepared->restoreCode.Size();
-        if (replacementSize > std::numeric_limits<uint32_t>::max()) {
-            return std::nullopt;
-        }
-        newBytecodeSize += static_cast<int64_t>(replacementSize) - (prepared->oldEnd - prepared->oldBegin);
-        if (newBytecodeSize < 0 || newBytecodeSize > std::numeric_limits<uint32_t>::max()) {
-            return std::nullopt;
-        }
-
-        edits.push_back(RewrittenCodeEdit {
-            .oldBegin = prepared->oldBegin,
-            .oldEnd   = prepared->oldEnd,
-            .newSize  = static_cast<uint32_t>(replacementSize),
-        });
         preparedSites.push_back(std::move(*prepared));
     }
 
-    auto branchPatches = PrepareBranchPatches(source->code, callerInstructions, edits, 0, literals);
+    auto bytecode = EmitBytecode(source->code, callerInstructions, preparedSites, frameLayout->callerSlotShift, edits);
+    if (!bytecode.has_value()) {
+        return std::nullopt;
+    }
+    const auto branchPatches = PrepareBranchPatches(source->code, callerInstructions, edits, 0, literals);
     if (!branchPatches.has_value()) {
         return std::nullopt;
     }
-    auto frameLayout = ExpandFrame(*source, inlineAreaSize);
-    if (!frameLayout.has_value()) {
-        return std::nullopt;
-    }
+    ApplyBranchPatches(bytecode->Data(), bytecode->Size(), *branchPatches);
 
     return PreparedInlining {
         .source        = source,
         .frameLayout   = *frameLayout,
-        .sites         = std::move(preparedSites),
+        .savedIRegs    = Interpretation::NonVolatileRegs(mergedIMask),
+        .savedFRegs    = Interpretation::NonVolatileRegs(mergedFMask),
+        .bytecode      = std::move(*bytecode),
         .edits         = std::move(edits),
-        .branchPatches = std::move(*branchPatches),
         .literals      = std::move(literals),
-        .bytecodeSize  = static_cast<uint32_t>(newBytecodeSize),
     };
-}
-
-uint8_t* EmitBytecode(const PreparedInlining& prepared, Memory::Heap& heap)
-{
-    auto* source       = prepared.source;
-    auto* newBytecode  = static_cast<uint8_t*>(heap.Allocate(prepared.bytecodeSize, alignof(uint8_t)));
-    uint32_t oldCursor = 0;
-    uint32_t newCursor = 0;
-    auto append = [&](const uint8_t* bytes, size_t size) {
-        if (size != 0) {
-            std::memcpy(newBytecode + newCursor, bytes, size);
-            newCursor += size;
-        }
-    };
-    for (const auto& site : prepared.sites) {
-        const auto prefixSize = site.oldBegin - oldCursor;
-        append(source->code.bytecode + oldCursor, prefixSize);
-        append(site.entryCode.Data(), site.entryCode.Size());
-        append(site.body.Data(), site.body.Size());
-        append(site.restoreCode.Data(), site.restoreCode.Size());
-        oldCursor = site.oldEnd;
-    }
-    const auto suffixSize = static_cast<uint32_t>(source->code.bytecodeSize) - oldCursor;
-    append(source->code.bytecode + oldCursor, suffixSize);
-    ASSERT(newCursor == prepared.bytecodeSize);
-    ApplyBranchPatches(newBytecode, prepared.bytecodeSize, prepared.branchPatches);
-    return newBytecode;
 }
 
 void RelocateMetadataPosition(uint32_t& position, const std::vector<RewrittenCodeEdit>& edits)
@@ -297,7 +322,7 @@ RelocatedMetadata RelocateMetadata(const PreparedInlining& prepared)
         }
     };
 
-    // The slots stay at the same addresses, but the static base used by GC and stack walking moves down.
+    // The new saves move both the slots and the static base. Only the inline area changes slot indices.
     auto gcInfo = prepared.source->gcInfo;
     for (auto& offset : gcInfo.refOffsets) {
         offset += prepared.frameLayout.inlineAreaSize;
@@ -359,19 +384,23 @@ InlineResult Rebuild(const InlinePlan& plan, Memory::Heap& heap)
     }
 
     auto* source      = prepared->source;
-    auto* newBytecode = EmitBytecode(*prepared, heap);
+    const auto bytecodeSize = prepared->bytecode.Size();
+    auto* newBytecode = static_cast<uint8_t*>(heap.Allocate(bytecodeSize, alignof(uint8_t)));
+    if (bytecodeSize != 0) {
+        std::memcpy(newBytecode, prepared->bytecode.Data(), bytecodeSize);
+    }
     auto metadata     = RelocateMetadata(*prepared);
     auto* literals    = CloneLiterals(prepared->literals, heap);
 
     return ExecBytecodeInfo {
         .code =
             Interpretation::Code {
-                .bytecodeSize = prepared->bytecodeSize,
+                .bytecodeSize = bytecodeSize,
                 .bytecode     = newBytecode,
                 .literals     = literals,
             },
-        .savedIRegs               = source->savedIRegs,
-        .savedFRegs               = source->savedFRegs,
+        .savedIRegs               = prepared->savedIRegs,
+        .savedFRegs               = prepared->savedFRegs,
         .frameSize                = prepared->frameLayout.frameSize,
         .staticFrameSize          = prepared->frameLayout.staticFrameSize,
         .untypedSlotCount         = source->untypedSlotCount,

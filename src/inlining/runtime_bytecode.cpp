@@ -257,6 +257,8 @@ RT::Opcode LongFrameOpcode(RT::Opcode opcode)
     }
 }
 
+} // namespace
+
 void EmitRelocatedInstruction(
     Emitter::Segment& output,
     const Interpretation::Code& code,
@@ -268,7 +270,9 @@ void EmitRelocatedInstruction(
     auto* begin = code.bytecode + instruction.offset;
     Decoder::ByteReader reader(begin, code.bytecode, code.bytecode + code.bytecodeSize);
     const auto relocateOffset = [frameShift](int32_t offset) {
-        return static_cast<int32_t>(static_cast<int64_t>(offset) - frameShift);
+        const auto relocated = static_cast<int64_t>(offset) - frameShift;
+        ASSERT(relocated >= std::numeric_limits<int32_t>::min());
+        return static_cast<int32_t>(relocated);
     };
     const auto relocateImm32 = [&](Format::Imm32& operand) {
         operand.imm = static_cast<uint32_t>(relocateOffset(static_cast<int32_t>(operand.imm)));
@@ -357,6 +361,59 @@ void EmitRelocatedInstruction(
             Encode(output, op);
             break;
         }
+        case Opcode::COPY_TO_TYPESLOT: {
+            auto op = RT::CopyToTypeSlot::Decode(reader);
+            relocateImm32(op.dstOffset);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::COPY_TO_TYPESLOT_GENERIC: {
+            auto op = RT::CopyToTypeSlotGeneric::Decode(reader);
+            relocateImm32(op.dstOffset);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::COPY_FROM_TYPESLOT: {
+            auto op = RT::CopyFromTypeSlot::Decode(reader);
+            relocateImm32(op.srcOffset);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::COPY_FROM_TYPESLOT_GENERIC: {
+            auto op = RT::CopyFromTypeSlotGeneric::Decode(reader);
+            relocateImm32(op.srcOffset);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::UNBOX_T: {
+            auto op = RT::B6xri32::Decode(reader);
+            relocateImm32(op.imm32);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::STRING_INIT: {
+            auto op = RT::B13i64i32::Decode(reader);
+            relocateImm32(op.imm32);
+            Encode(output, op);
+            break;
+        }
+        case Opcode::STK_PARAM_S16: {
+            auto op = RT::StackParamS16::Decode(reader);
+            const auto src = relocateOffset(op.src);
+            if (MathUtils::IsNBitsSigned(src, 16)) {
+                op.src = static_cast<int16_t>(src);
+                Encode(output, op);
+            } else {
+                Encode(output, RT::StackParamS32 { Opcode::STK_PARAM_S32, src, op.dst });
+            }
+            break;
+        }
+        case Opcode::STK_PARAM_S32: {
+            auto op = RT::StackParamS32::Decode(reader);
+            op.src = relocateOffset(op.src);
+            Encode(output, op);
+            break;
+        }
         case Opcode::ZERO_FRAME: {
             auto op   = RT::FrameRange::Decode(reader);
             op.offset = relocateOffset(op.offset);
@@ -370,8 +427,6 @@ void EmitRelocatedInstruction(
             break;
     }
 }
-
-} // namespace
 
 std::vector<RuntimeInstruction> DecodeRuntimeBytecode(const Interpretation::Code& code)
 {

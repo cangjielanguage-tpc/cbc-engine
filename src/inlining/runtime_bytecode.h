@@ -11,6 +11,10 @@
 
 namespace Cbc {
 
+namespace Emitter {
+class Segment;
+}
+
 struct RuntimeInstruction {
     RT::Opcode opcode;
     uint32_t offset;
@@ -50,6 +54,14 @@ std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
     uint32_t frameShift,
     uint32_t literalBase,
     std::vector<Interpretation::Literal>& literals
+);
+
+void EmitRelocatedInstruction(
+    Emitter::Segment& output,
+    const Interpretation::Code& code,
+    const RuntimeInstruction& instruction,
+    uint32_t frameShift,
+    uint32_t literalBase
 );
 
 } // namespace Cbc

@@ -17,12 +17,30 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
     Stream::Indented out4(out, 4);
 
     out << "ExecBytecodeInfo {" << endl;
-    out2 << "untypedSlotsCount: " << bc.untypedSlotCount << endl
-         << "typedSlotsCount: " << bc.gcInfo.refOffsets.Size() << endl
+    out2 << "version: " << bc.version << endl
+         << "ownerFuh: " << Hex(bc.ownerFuh) << endl
+         << "bytecodeSize: " << bc.code.bytecodeSize << endl
+         << "literalCount: " << bc.code.literals->size() << endl
          << "frameSize: " << bc.frameSize << endl
+         << "staticFrameSize: " << bc.staticFrameSize << endl
+         << "untypedSlotsCount: " << bc.untypedSlotCount << endl
          << "savedIRegs: " << Hex(bc.savedIRegs.value) << endl
          << "savedFRegs: " << Hex(bc.savedFRegs.value) << endl
-         << "version: " << bc.version << endl;
+         << "savedIRegsMask: " << Hex(bc.savedIRegs.Mask()) << endl
+         << "savedFRegsMask: " << Hex(bc.savedFRegs.Mask()) << endl;
+
+    const auto& abi = bc.abiInfo;
+    out2 << "AbiInfo {" << endl;
+    out4 << "stackPtrParams: " << Hex(abi.stackPtrParams) << endl
+         << "referenceParams: " << Hex(abi.referenceParams) << endl
+         << "derivedPairs: " << Hex(abi.derivedPairs) << endl
+         << "outerTi: " << abi.staticCallTypeInfoArgs.outerTi << endl
+         << "thisTi: " << abi.staticCallTypeInfoArgs.thisTi << endl
+         << "iregParamCount: " << abi.iregParamCount << endl
+         << "fregParamCount: " << abi.fregParamCount << endl
+         << "isSRet: " << abi.isSRet << endl
+         << "hasTailReg: " << abi.hasTailReg << endl;
+    out2 << "}" << endl;
 
     out2 << "GCMap {" << endl;
     for (const auto& entry : bc.gcInfo.positionalInfo) {
@@ -36,6 +54,24 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
         out4 << endl;
     }
     out2 << "}" << endl;
+
+    out2 << "StackPtrsMap {" << endl;
+    for (const auto& entry : bc.stackPtrsInfo.positionalInfo) {
+        out4 << "rtPos: " << entry.rewrittenPos << ", resources: ";
+        Std::Vector::Print(out4, entry.resources, [](Stream::Output& out, const Resource& resource) {
+            out << resource.idx;
+        });
+        out4 << endl;
+    }
+    out2 << "}" << endl;
+
+    out2 << "ExceptionPositions: [";
+    const char* separator = "";
+    for (const auto& [rtPos, cbcPos] : bc.bcPositionsForExceptions) {
+        out2 << separator << cbcPos << "->" << rtPos;
+        separator = ", ";
+    }
+    out2 << "]" << endl;
 
     return out << "}" << endl;
 }
