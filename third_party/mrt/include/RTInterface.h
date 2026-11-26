@@ -111,8 +111,8 @@ struct INT_InterpreterInterface;
 // Collection of callbacks implemented by CJNative. See detailed description below.
 struct DYN_CJNativeInterface;
 
-#define INT_INTERPRETER_INTERFACE_VERSION 2
-#define DYN_CJNATIVE_INTERFACE_VERSION 4
+#define INT_INTERPRETER_INTERFACE_VERSION 3
+#define DYN_CJNATIVE_INTERFACE_VERSION 5
 
 // region interpreter interface
 
@@ -598,20 +598,12 @@ typedef int (*DYN_IsActiveGcPhaseFn)(DYN_ThreadLocalData);
 // StackOverflowError to the appropriate exception-handling path.
 typedef void (*DYN_StackGrowStubFn)();
 
-// I2N (interpreter-to-native) entry stub.
-// This function points to an architecture-specific assembly stub used by the
-// interpreter to invoke native code while preserving managed thread and stack in safe state.
-// Assembly stub expects following arguments:
-// params:
-// - 5-th architecture-specific ABI integer argument - address of the native function to call.
-// - 6-th architecture-specific ABI integer argument - current thread local data of the calling interpreter thread.
-// return:
-// - return value produced by the native callee using architecture-specific ABI.
-// Notes:
-// - The function can be null on platforms that do not provide an I2N stub.
-// - The concrete register/stack mapping is architecture-dependent and defined by the corresponding assembly
-// implementation.
-typedef void (*DYN_I2NStubFn)();
+// Publish and clear the managed unwind context around an interpreter-to-native call.
+typedef void (*DYN_SaveI2NContextFn)(const void* pc, void* fa, DYN_ThreadLocalData threadLocalData);
+typedef void (*DYN_DeleteI2NContextFn)(DYN_ThreadLocalData threadLocalData);
+// Return nonzero when the saferegion state changed.
+typedef int (*DYN_EnterSaferegionFn)(int updateUnwindContext);
+typedef int (*DYN_LeaveSaferegionFn)();
 
 // Retrieves the current ExceptionWrapper.
 // return: pointer to ExceptionWrapper
@@ -668,17 +660,26 @@ typedef int (*DYN_AtomicCompareAndSwapRef)(DYN_ObjRef oldRef, DYN_ObjRef newRef,
 
 // region Interfaces
 
+enum {
+    INT_ILLEGAL = 0,
+    INT_INTERPRETED = 1,
+    INT_C2I = 2,
+    INT_I2I = 3,
+    INT_I2N = 4,
+    INT_N2I = 5,
+    INT_OUTSIDE = 6
+};
+
+typedef int INT_FrameKind;
+typedef INT_FrameKind (*INT_ClassifyFrameFn)(void* fa, void* pc);
+
 struct INT_InterpreterInterface {
     // current supported version is INT_INTERPRETER_INTERFACE_VERSION
     int64_t version;
 
     size_t cjThreadSpecificDataSize;
 
-    uintptr_t c2iStubStartAddr;
-    uintptr_t c2iStubEndAddr;
-
-    uintptr_t i2iAdapterStartAddr;
-    uintptr_t i2iAdapterEndAddr;
+    INT_ClassifyFrameFn classifyFrame;
 
     INT_IterateFramesWithStateFn iterateFramesWithState;
     INT_VisitFrameRootsExpansionFn visitFrameRootsExpansion;
@@ -754,7 +755,10 @@ struct DYN_CJNativeInterface {
     DYN_GetThreadLocalDataFn getThreadLocalData;
     DYN_IsActiveGcPhaseFn isActiveGcPhase;
     DYN_StackGrowStubFn stackGrowStub;
-    DYN_I2NStubFn i2nStub;
+    DYN_SaveI2NContextFn saveI2NContext;
+    DYN_DeleteI2NContextFn deleteI2NContext;
+    DYN_EnterSaferegionFn enterSaferegion;
+    DYN_LeaveSaferegionFn leaveSaferegion;
 
     DYN_NativeLoggerFn nativeLogger;
 

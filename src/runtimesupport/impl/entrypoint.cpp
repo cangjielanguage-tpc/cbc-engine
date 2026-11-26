@@ -326,6 +326,25 @@ std::optional<Image::Identifier<Image::MethodDefinition>> FindMethodByName(
 
 } // namespace
 
+static INT_FrameKind ClassifyFrame(void* fa, void* pc)
+{
+    auto address = reinterpret_cast<uintptr_t>(pc);
+    auto inRange = [address](void (*start)(), void (*end)()) {
+        return reinterpret_cast<uintptr_t>(start) <= address && address < reinterpret_cast<uintptr_t>(end);
+    };
+    INT_FrameKind kind = INT_OUTSIDE;
+    if (inRange(Asm::engine_c2i_call_pc_start, Asm::engine_c2i_call_pc_end)) {
+        kind = INT_C2I;
+    } else if (inRange(Asm::engine_i2n_stub, Asm::engine_i2n_stub_end) ||
+               inRange(Asm::engine_c_abi_adapter_start, Asm::engine_c_abi_adapter_end)) {
+        kind = INT_I2N;
+    } else if (inRange(Asm::engine_interpreted_start, Asm::engine_interpreted_end) ||
+               inRange(Asm::engine_exception_start, Asm::engine_exception_end)) {
+        kind = INT_INTERPRETED;
+    }
+    return kind != INT_OUTSIDE && fa == nullptr ? INT_ILLEGAL : kind;
+}
+
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT int interpreter_bridge_init(
@@ -563,8 +582,7 @@ CBC_EXPORT int interpreter_bridge_init(
 
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
-    interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
-    interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
+    interpInterf->classifyFrame            = &ClassifyFrame;
     interpInterf->cjThreadOnStart          = &FiberStart;
     interpInterf->cjThreadOnDestroy        = &FiberDestroy;
 
@@ -589,7 +607,11 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
     Asm::engine_newarray_function         = g_CJNativeInterfaceInstance.arrayAlloc;
     Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
-    Asm::engine_i2n_stub                  = g_CJNativeInterfaceInstance.i2nStub;
+    Asm::engine_save_i2n_context          = g_CJNativeInterfaceInstance.saveI2NContext;
+    Asm::engine_delete_i2n_context        = g_CJNativeInterfaceInstance.deleteI2NContext;
+    Asm::engine_enter_saferegion          = g_CJNativeInterfaceInstance.enterSaferegion;
+    Asm::engine_leave_saferegion          = g_CJNativeInterfaceInstance.leaveSaferegion;
+    Asm::engine_pending_exception         = g_CJNativeInterfaceInstance.getAndClearPendingException;
 
     RTSupport::InitBuiltinTypeInfos();
 

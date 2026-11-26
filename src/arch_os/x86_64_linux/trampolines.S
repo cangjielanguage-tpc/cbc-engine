@@ -44,6 +44,16 @@
     #define engine_stack_grow_stub _engine_stack_grow_stub
     #define engine_i2n_stub _engine_i2n_stub
     #define engine_after_stack_grow _engine_after_stack_grow
+    #define engine_i2n_stub_end _engine_i2n_stub_end
+    #define engine_interpreted_start _engine_interpreted_start
+    #define engine_interpreted_end _engine_interpreted_end
+    #define engine_exception_start _engine_exception_start
+    #define engine_exception_end _engine_exception_end
+    #define engine_save_i2n_context _engine_save_i2n_context
+    #define engine_delete_i2n_context _engine_delete_i2n_context
+    #define engine_enter_saferegion _engine_enter_saferegion
+    #define engine_leave_saferegion _engine_leave_saferegion
+    #define engine_pending_exception _engine_pending_exception
 #endif
 
 .macro declare_hidden sym
@@ -106,6 +116,16 @@ declare_hidden engine_stack_grow_stub
 declare_hidden engine_i2n_stub
 declare_hidden engine_after_stack_grow
 declare_hidden engine_future_execute_function
+declare_hidden engine_i2n_stub_end
+declare_hidden engine_interpreted_start
+declare_hidden engine_interpreted_end
+declare_hidden engine_exception_start
+declare_hidden engine_exception_end
+declare_hidden engine_save_i2n_context
+declare_hidden engine_delete_i2n_context
+declare_hidden engine_enter_saferegion
+declare_hidden engine_leave_saferegion
+declare_hidden engine_pending_exception
 declare_hidden engine_set_runtime_cjthread_handle_function
 
 // --- SECTION BSS ---
@@ -143,6 +163,16 @@ engine_stack_grow_stub:
 engine_i2n_stub:
   .skip 8
 engine_future_execute_function:
+  .skip 8
+engine_save_i2n_context:
+  .skip 8
+engine_delete_i2n_context:
+  .skip 8
+engine_enter_saferegion:
+  .skip 8
+engine_leave_saferegion:
+  .skip 8
+engine_pending_exception:
   .skip 8
 engine_set_runtime_cjthread_handle_function:
   .skip 8
@@ -415,6 +445,7 @@ engine_c2i_call_pc_end:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
+engine_interpreted_start:
 perform_2i_call:
 FUNC_START perform_2i_call
 // The final layout of the frame is following:
@@ -640,7 +671,7 @@ engine_after_stack_grow:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-// Calls the runtime I2N stub which wraps the native call into a GC-safe region.
+// Calls the I2N stub which wraps the native call into a GC-safe region.
 // TODO: support structs pass-by-value
 .Lthunk_op_I2NCall:
 .Lengine_i2n_call:
@@ -657,7 +688,7 @@ engine_after_stack_grow:
   mov   rsi, rsp                       // stack arguments pointer
   lea   r8, [rip + engine_c_abi_adapter]
   mov   r9, TLS_REG
-  call  [rip + engine_i2n_stub] // the I2N stub calls engine_c_abi_adapter
+  call  engine_i2n_stub // the I2N stub calls engine_c_abi_adapter
   jmp   .Lrestart_interpretation
 
 .balign 16
@@ -813,6 +844,7 @@ engine_after_stack_grow:
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
+engine_interpreted_end:
 
 // Thunk dispatch table. Entry order must match the C++ ThunkOp enum in int_thunk.h.
 #define THUNK_OP_ENTRY(name) .long .Lthunk_op_##name - .Lthunk_ops_table
@@ -850,6 +882,7 @@ engine_fake_execute_closure:
 // interpreter exception handling starts here
 // TODO obtain exception using PostThrowException from RT interface
 .balign 16
+engine_exception_start:
 common_landing_pad:
   call engine_get_and_clear_pending_exception
   mov rdi, rax
@@ -943,6 +976,7 @@ common_landing_pad:
 
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
+engine_exception_end:
 
 .balign 16
 // Called by the I2N stub with helper data in argument registers:
@@ -987,3 +1021,84 @@ engine_c_abi_adapter:
   pop   rbp
   ret
 engine_c_abi_adapter_end:
+
+.balign 16
+engine_i2n_stub:
+  .cfi_startproc
+  push rbp
+  .cfi_def_cfa_offset 16
+  .cfi_offset rbp, -16
+  mov rbp, rsp
+  .cfi_def_cfa_register rbp
+  sub rsp, 256
+  mov [rbp - 8], rdi
+  mov [rbp - 16], rsi
+  mov [rbp - 24], rdx
+  mov [rbp - 32], rcx
+  mov [rbp - 40], r8
+  mov [rbp - 48], r9
+  mov [rbp - 56], rax
+  movapd [rbp - 80], xmm0
+  movapd [rbp - 96], xmm1
+  movapd [rbp - 112], xmm2
+  movapd [rbp - 128], xmm3
+  movapd [rbp - 144], xmm4
+  movapd [rbp - 160], xmm5
+  movapd [rbp - 176], xmm6
+  movapd [rbp - 192], xmm7
+  lea rdi, [rip + .Li2n_unwind_pc]
+.Li2n_unwind_pc:
+  mov rsi, rbp
+  mov rdx, [rbp - 48]
+  call [rip + engine_save_i2n_context]
+  xor edi, edi
+  call [rip + engine_enter_saferegion]
+#ifdef __APPLE__
+  mov [rbp - 248], eax
+#endif
+  mov rdi, [rbp - 8]
+  mov rsi, [rbp - 16]
+  mov rdx, [rbp - 24]
+  mov rcx, [rbp - 32]
+  mov rax, [rbp - 56]
+  movapd xmm0, [rbp - 80]
+  movapd xmm1, [rbp - 96]
+  movapd xmm2, [rbp - 112]
+  movapd xmm3, [rbp - 128]
+  movapd xmm4, [rbp - 144]
+  movapd xmm5, [rbp - 160]
+  movapd xmm6, [rbp - 176]
+  movapd xmm7, [rbp - 192]
+  call QWORD PTR [rbp - 40]
+  mov [rbp - 200], rax
+  mov [rbp - 208], rdx
+  movapd [rbp - 224], xmm0
+  movapd [rbp - 240], xmm1
+#ifdef __APPLE__
+  cmp DWORD PTR [rbp - 248], 0
+  je .Li2n_no_leave
+#endif
+  call [rip + engine_leave_saferegion]
+#ifdef __APPLE__
+  call [rip + engine_tls_function]
+  mov [rbp - 48], rax
+#endif
+.Li2n_no_leave:
+  mov rdi, [rbp - 48]
+  call [rip + engine_delete_i2n_context]
+  call [rip + engine_pending_exception]
+  test rax, rax
+  jz .Li2n_return
+  mov rdi, rax
+  call [rip + engine_throw_out_of_interpreter]
+.Li2n_return:
+  mov rax, [rbp - 200]
+  mov rdx, [rbp - 208]
+  movapd xmm0, [rbp - 224]
+  movapd xmm1, [rbp - 240]
+  mov rsp, rbp
+  pop rbp
+  .cfi_def_cfa rsp, 8
+  ret
+  .cfi_endproc
+engine_i2n_stub_end:

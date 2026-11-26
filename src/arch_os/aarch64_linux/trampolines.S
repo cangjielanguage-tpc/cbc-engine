@@ -42,6 +42,16 @@
     #define engine_stack_grow_stub _engine_stack_grow_stub
     #define engine_i2n_stub _engine_i2n_stub
     #define engine_after_stack_grow _engine_after_stack_grow
+    #define engine_i2n_stub_end _engine_i2n_stub_end
+    #define engine_interpreted_start _engine_interpreted_start
+    #define engine_interpreted_end _engine_interpreted_end
+    #define engine_exception_start _engine_exception_start
+    #define engine_exception_end _engine_exception_end
+    #define engine_save_i2n_context _engine_save_i2n_context
+    #define engine_delete_i2n_context _engine_delete_i2n_context
+    #define engine_enter_saferegion _engine_enter_saferegion
+    #define engine_leave_saferegion _engine_leave_saferegion
+    #define engine_pending_exception _engine_pending_exception
 #endif
 
 #ifdef __APPLE__
@@ -139,6 +149,16 @@ declare_hidden engine_c_abi_adapter
 declare_hidden engine_c_abi_adapter_start
 declare_hidden engine_c_abi_adapter_end
 declare_hidden engine_after_stack_grow
+declare_hidden engine_i2n_stub_end
+declare_hidden engine_interpreted_start
+declare_hidden engine_interpreted_end
+declare_hidden engine_exception_start
+declare_hidden engine_exception_end
+declare_hidden engine_save_i2n_context
+declare_hidden engine_delete_i2n_context
+declare_hidden engine_enter_saferegion
+declare_hidden engine_leave_saferegion
+declare_hidden engine_pending_exception
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -173,7 +193,15 @@ engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
   .skip 8
-engine_i2n_stub:
+engine_save_i2n_context:
+  .skip 8
+engine_delete_i2n_context:
+  .skip 8
+engine_enter_saferegion:
+  .skip 8
+engine_leave_saferegion:
+  .skip 8
+engine_pending_exception:
   .skip 8
 engine_future_execute_function:
   .skip 8
@@ -408,6 +436,7 @@ engine_c2i_call_pc_end:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: TLS_REG, ECTYPE_REG, x29
+engine_interpreted_start:
 perform_2i_call:
 FUNC_START perform_2i_call
 // The final layout of the frame is following:
@@ -624,7 +653,7 @@ CFI_LABEL .Lthunk_op_I2CCall
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-// Calls the runtime I2N stub which wraps the native call into a GC-safe region.
+// Calls the I2N stub which wraps the native call into a GC-safe region.
 // Supports at most 6 integer and 8 FP register arguments (checked in the rewriter).
 CFI_LABEL .Lthunk_op_I2NCall
 CFI_LABEL .Lengine_i2n_call
@@ -635,8 +664,7 @@ CFI_LABEL .Lengine_i2n_call
   adr   x4, engine_c_abi_adapter
   mov   x5, TLS_REG
 
-  adrp  x10, Page(engine_i2n_stub)
-  ldr   x10, [x10, PageOff(engine_i2n_stub)]
+  adr   x10, engine_i2n_stub
   blr   x10  // call I2N adapter
 
   b     .Lrestart_interpretation
@@ -833,6 +861,7 @@ CFI_LABEL .Lend_interpretation
   ret
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
+engine_interpreted_end:
 
 // Thunk dispatch table. Entry order must match the C++ ThunkOp enum in int_thunk.h.
 #define THUNK_OP_ENTRY(name) .long .Lthunk_op_##name - .Lthunk_ops_table
@@ -868,6 +897,7 @@ engine_fake_execute_closure:
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
 // TODO obtain exception using PostThrowException from RT interface
+engine_exception_start:
 common_landing_pad:
   bl engine_get_and_clear_pending_exception
   b .Lengine_handle_exception
@@ -964,6 +994,7 @@ common_landing_pad:
   ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
+engine_exception_end:
 
 .balign 16
 // Called by the I2N stub with the C call metadata in argument registers:
@@ -972,7 +1003,7 @@ common_landing_pad:
 // Preserved: callee-saved registers (ECTYPE_REG among them).
 engine_c_abi_adapter_start:
 engine_c_abi_adapter:
-  // TODO: fix I2NStub in runtime and do not construct frame here
+  // TODO: fix I2NStub and do not construct frame here
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
 
@@ -1011,3 +1042,82 @@ engine_c_abi_adapter:
   ldp   x29, x30, [sp], #16
   ret
 engine_c_abi_adapter_end:
+
+.macro i2n_runtime_call target
+  adrp x9, Page(\target)
+  ldr  x9, [x9, PageOff(\target)]
+  blr  x9
+.endm
+
+.balign 16
+engine_i2n_stub:
+  .cfi_startproc
+  stp x29, x30, [sp, #-208]!
+  .cfi_def_cfa_offset 208
+  .cfi_offset x29, -208
+  .cfi_offset x30, -200
+  mov x29, sp
+  .cfi_def_cfa_register x29
+  str x28, [sp, #0x10]
+  .cfi_offset x28, -192
+  str x4, [sp, #0x18]
+  stp x0, x1, [sp, #0x20]
+  stp x2, x3, [sp, #0x30]
+  stp q0, q1, [sp, #0x40]
+  stp q2, q3, [sp, #0x60]
+  stp q4, q5, [sp, #0x80]
+  stp q6, q7, [sp, #0xa0]
+  mov x28, x5
+  adr x0, .Li2n_unwind_pc
+.Li2n_unwind_pc:
+  mov x1, x29
+  mov x2, x28
+  i2n_runtime_call engine_save_i2n_context
+  mov x0, #0
+  i2n_runtime_call engine_enter_saferegion
+#ifdef __APPLE__
+  str w0, [sp, #0xc0]
+#endif
+  ldp x0, x1, [sp, #0x20]
+  ldp x2, x3, [sp, #0x30]
+  ldp q0, q1, [sp, #0x40]
+  ldp q2, q3, [sp, #0x60]
+  ldp q4, q5, [sp, #0x80]
+  ldp q6, q7, [sp, #0xa0]
+  ldr x9, [sp, #0x18]
+  blr x9
+  stp x0, x1, [sp, #0x20]
+  stp x2, x3, [sp, #0x30]
+  str x8, [sp, #0x18]
+  stp d0, d1, [sp, #0x40]
+  stp d2, d3, [sp, #0x50]
+#ifdef __APPLE__
+  ldr w9, [sp, #0xc0]
+  cbz w9, .Li2n_no_leave
+#endif
+  i2n_runtime_call engine_leave_saferegion
+.Li2n_no_leave:
+#ifdef __APPLE__
+  i2n_runtime_call engine_tls_function
+#else
+  mov x0, x28
+#endif
+  i2n_runtime_call engine_delete_i2n_context
+  i2n_runtime_call engine_pending_exception
+  cbz x0, .Li2n_return
+  i2n_runtime_call engine_throw_out_of_interpreter
+.Li2n_return:
+  ldp x0, x1, [sp, #0x20]
+  ldp x2, x3, [sp, #0x30]
+  ldr x8, [sp, #0x18]
+  ldp d0, d1, [sp, #0x40]
+  ldp d2, d3, [sp, #0x50]
+  ldr x28, [sp, #0x10]
+  .cfi_restore x28
+  ldp x29, x30, [sp], #208
+  .cfi_def_cfa sp, 0
+  .cfi_restore x29
+  .cfi_restore x30
+  ret
+  .cfi_endproc
+engine_i2n_stub_end:
