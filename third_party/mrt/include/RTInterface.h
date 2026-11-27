@@ -91,6 +91,33 @@ typedef struct INT_InterpretedFrameDesc {
     void (*freeResources)(char* methodName, char* className, char* fileName);
 } INT_InterpretedFrameDesc;
 
+// Published unwind-context state. Values other than NORMAL/NATIVE are runtime-owned
+// and must be saved and restored unchanged by the interpreter.
+typedef uintptr_t DYN_UnwindState;
+enum {
+    DYN_UNWIND_NORMAL = 0,
+    DYN_UNWIND_NATIVE = 1
+};
+
+// Snapshot of the current thread's published unwind context.
+typedef struct DYN_UnwindContext {
+    void* fa;
+    void* pc;
+    DYN_UnwindState state;
+} DYN_UnwindContext;
+
+// Frame kinds returned by the interpreter's frame classifier.
+enum {
+    INT_ILLEGAL = 0,     // Invalid frame or classification error.
+    INT_INTERPRETED = 1, // Interpreted method frame.
+    INT_C2I = 2,         // Compiled-to-interpreter transition.
+    INT_I2I = 3,         // Interpreter-to-interpreter transition.
+    INT_I2N = 4,         // Interpreter-to-native transition.
+    INT_N2I = 5,         // Native-to-interpreter transition.
+    INT_OUTSIDE = 6      // Not an interpreter-owned frame.
+};
+typedef int INT_FrameKind;
+
 // endregion Types
 
 // region Calling Conventions
@@ -117,14 +144,13 @@ struct DYN_CJNativeInterface;
 
 // region interpreter interface
 
-// Initalize interpreter and fill it`s interface.
+// Initializes the interpreter and fills its interface.
 // params:
-// - interpreterInterface - [OUT] Pointer to `INT_InterpreterInterface` which filled by callee.
-// - cjnativeInterface - Pointer to `DYN_CJNativeInterface`. Pointer owned by caller, callee should copy the content.
-// - interpreterArgsCount - Number of interpreter arguments in `interpreterArgs`.
-// - interpreterArgs - Interpreter arguments array (null-terminated).
-//                     Pointer owned by caller, callee should copy the content.
-// return: 0 on success.
+// - interpreterInterface - [OUT] Interface to be filled by the interpreter.
+// - cjnativeInterface - runtime callbacks owned by the caller; copy before returning.
+// - interpreterArgsCount - number of startup arguments.
+// - interpreterArgs - startup arguments owned by the caller; copy any retained values.
+// return: 0 on success, non-zero on failure.
 typedef int (*INT_InitInterpreter)(struct INT_InterpreterInterface* interpreterInterface,
     struct DYN_CJNativeInterface* cjnativeInterface, int interpreterArgsCount, const char** interpreterArgs);
 
@@ -241,6 +267,27 @@ typedef void (*INT_FrameInfoProviderFn)(
 // If there is suitable catch block in current last interpreted frame, interprets catch block.
 // Otherwise, drops current frame and rethrows exception.
 typedef void (*INT_LandingPadFn)();
+
+// Classifies a frame during stack walking.
+// params:
+// - fa - frame address being inspected.
+// - pc - instruction pointer in the frame.
+// return: frame kind, INT_OUTSIDE for non-interpreter frames, or INT_ILLEGAL on error.
+// Notes:
+// This method may be called by another thread while the inspected thread is suspended
+// or in a saferegion. It must not change the inspected frame or runtime context.
+typedef INT_FrameKind (*INT_ClassifyFrameFn)(void* fa, void* pc);
+
+// Retrieves the preceding I2N context saved by an N2I frame, skipping native frames.
+// params:
+// - fa - address of a valid N2I frame.
+// - pc - instruction pointer in the N2I frame.
+// - faSaved - [OUT] Saved I2N frame address, or NULL if there is no preceding context.
+// - pcSaved - [OUT] Saved I2N instruction pointer, or NULL to terminate traversal.
+// Notes:
+// The interpreter owns the N2I frame layout. This method reads its snapshot without
+// changing the published context and may be called by another thread.
+typedef void (*INT_N2I_GetUnwindFn)(void* fa, void* pc, void** faSaved, void** pcSaved);
 
 // endregion interpreter interface
 
@@ -599,30 +646,46 @@ typedef int (*DYN_IsActiveGcPhaseFn)(DYN_ThreadLocalData);
 // StackOverflowError to the appropriate exception-handling path.
 typedef void (*DYN_StackGrowStubFn)();
 
-// Return nonzero when the saferegion state changed.
+// Enters a saferegion in which GC may inspect the current thread's managed roots.
+// params:
+// - updateUnwindContext - capture the caller context before entering, unless a native
+//   boundary context is already published. Pass false after explicitly publishing it.
+// return: true if the thread entered the saferegion, false if already in it or not registered.
+// Notes:
+// Call on the current thread. A saferegion does not stop native execution; native code
+// must not access managed objects without leaving it. Entry does not change unwind state.
 typedef bool (*DYN_EnterSaferegionFn)(bool updateUnwindContext);
+
+// Leaves the current thread's saferegion before resuming access to managed objects.
+// return: true if the thread left the saferegion, false if outside it or not registered.
+// Notes:
+// Call on the current thread. This method may block. Keep the
+// published context valid until it returns; it does not clear or reset that context.
 typedef bool (*DYN_LeaveSaferegionFn)();
 
-typedef uintptr_t DYN_UnwindState;
-enum {
-    DYN_UNWIND_NORMAL = 0,
-    DYN_UNWIND_NATIVE = 1
-};
-
-typedef struct {
-    void* fa;
-    void* pc;
-    // Other values returned by the getter must be preserved unchanged.
-    DYN_UnwindState state;
-} DYN_UnwindContext;
-
-// Access the current mutator's stored context without capturing the caller.
-// Set only outside the saferegion; the task's anchorFA is not changed.
+// Reads the current thread's published unwind context without capturing the caller.
+// params:
+// - context - [OUT] Non-null destination for the stored frame address, PC and state.
+// Notes:
+// Requires a thread registered for managed execution. Preserve unknown state values when restoring
+// a snapshot.
 typedef void (*DYN_GetPublishedUnwindContextFn)(DYN_UnwindContext* context);
+
+// Sets the current thread's published unwind context.
+// params:
+// - fa - frame address to publish, or NULL when clearing the managed context.
+// - pc - instruction pointer to publish, or NULL when clearing the managed context.
+// - state - NORMAL, NATIVE, or an unchanged state previously returned by the getter.
+// Notes:
+// Requires a thread registered for managed execution outside the saferegion. Publish a valid native boundary
+// before entering a saferegion. This method does not change saferegion state.
 typedef void (*DYN_SetPublishedUnwindContextFn)(void* fa, void* pc, DYN_UnwindState state);
 
-// Disable stack movement on native entry; balance with enable on return.
-// Restrictions nest: enabling removes one restriction, not all of them.
+// Controls moving stack expansion for the current Cangjie thread.
+// params:
+// - enable - false adds a restriction; true removes one outstanding restriction.
+// Notes:
+// Restrictions are reentrant.
 typedef void (*DYN_SetStackGrowFn)(bool enable);
 
 // Retrieves the current ExceptionWrapper.
@@ -680,21 +743,7 @@ typedef int (*DYN_AtomicCompareAndSwapRef)(DYN_ObjRef oldRef, DYN_ObjRef newRef,
 
 // region Interfaces
 
-enum {
-    INT_ILLEGAL = 0,
-    INT_INTERPRETED = 1,
-    INT_C2I = 2,
-    INT_I2I = 3,
-    INT_I2N = 4,
-    INT_N2I = 5,
-    INT_OUTSIDE = 6
-};
-
-typedef int INT_FrameKind;
-typedef INT_FrameKind (*INT_ClassifyFrameFn)(void* fa, void* pc);
-// Resume at the saved managed context across N2I; null outputs end traversal.
-typedef void (*INT_N2I_GetUnwindFn)(void* fa, void* pc, void** faSaved, void** pcSaved);
-
+// Collection of callbacks implemented by interpreter.
 struct INT_InterpreterInterface {
     // current supported version is INT_INTERPRETER_INTERFACE_VERSION
     int64_t version;
