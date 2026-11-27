@@ -41,23 +41,16 @@ InlineRejectionReason CheckInlineEligibility(
     if (code.rawExTable.start != code.rawExTable.end) {
         return InlineRejectionReason::EXCEPTION_REGIONS;
     }
-    if (code.rawLivenessInfo.start != code.rawLivenessInfo.end) {
-        return InlineRejectionReason::LIVENESS_INFO;
-    }
-    if (code.rawStackPtrsInfo.start != code.rawStackPtrsInfo.end) {
-        return InlineRejectionReason::STACK_PTRS_INFO;
-    }
-
     const auto& abi = expectedCalleeBytecode->abiInfo;
     if (abi.isSRet || abi.hasTailReg || abi.stackPtrParams != 0 || abi.derivedPairs != 0) {
         return InlineRejectionReason::UNSUPPORTED_ABI;
     }
-    if (!expectedCalleeBytecode->gcInfo.positionalInfo.Empty() ||
-        !expectedCalleeBytecode->stackPtrsInfo.positionalInfo.Empty()) {
+    const auto instructions = DecodeRuntimeBytecode(calleeCode);
+    if (!IsSupportedBody(calleeCode, instructions)) {
         return InlineRejectionReason::UNSUPPORTED_INSTRUCTION;
     }
-    if (!IsSupportedBody(calleeCode, DecodeRuntimeBytecode(calleeCode))) {
-        return InlineRejectionReason::UNSUPPORTED_INSTRUCTION;
+    if (!HasSupportedInlineGC(*expectedCalleeBytecode, instructions)) {
+        return InlineRejectionReason::LIVENESS_INFO;
     }
     return InlineRejectionReason::NONE;
 }
@@ -70,8 +63,7 @@ Stream::Output& operator<<(Stream::Output& out, InlineRejectionReason reason)
         case InlineRejectionReason::MISSING_BYTECODE:        return out << "missing bytecode";
         case InlineRejectionReason::TOO_LARGE:               return out << "callee is too large";
         case InlineRejectionReason::STACK_SLOTS:             return out << "callee has an unsupported frame layout";
-        case InlineRejectionReason::LIVENESS_INFO:           return out << "callee has liveness info";
-        case InlineRejectionReason::STACK_PTRS_INFO:         return out << "callee has stack pointers info";
+        case InlineRejectionReason::LIVENESS_INFO:           return out << "callee has unsupported GC or stack pointer maps";
         case InlineRejectionReason::EXCEPTION_REGIONS:       return out << "callee has exception regions";
         case InlineRejectionReason::UNSUPPORTED_ABI:         return out << "callee has unsupported ABI";
         case InlineRejectionReason::UNSUPPORTED_INSTRUCTION: return out << "callee contains an unsupported instruction";

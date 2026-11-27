@@ -44,11 +44,18 @@ std::optional<std::vector<BranchPatch>> PrepareBranchPatches(
 
 void ApplyBranchPatches(uint8_t* bytecode, uint32_t bytecodeSize, const std::vector<BranchPatch>& patches);
 
-bool IsSupportedBody(
-    const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions
+bool IsSupportedBody(const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions);
+
+bool HasSupportedInlineGC(
+    const Interpretation::ExecBytecodeInfo& callee, const std::vector<RuntimeInstruction>& instructions
 );
 
-std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
+struct RelocatedInlineBody {
+    Utils::Vector<uint8_t> bytecode;
+    std::vector<RewrittenCodeEdit> edits;
+};
+
+std::optional<RelocatedInlineBody> RelocateInlineBody(
     const Interpretation::Code& code,
     const std::vector<RuntimeInstruction>& instructions,
     uint32_t frameShift,

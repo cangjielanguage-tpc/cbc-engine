@@ -37,28 +37,23 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         // Reference access in these families calls into the managed runtime.
         case Opcode::LOAD_OBJ:
         case Opcode::LOAD_OBJ_F:
-        case Opcode::ATOMIC_LOAD:
-            return RT::B4xi12rr::Decode(reader).xi12.imm4.LDK() != Format::LoadAccessKind::LD_REF;
+        case Opcode::ATOMIC_LOAD: return RT::B4xi12rr::Decode(reader).xi12.imm4.LDK() != Format::LoadAccessKind::LD_REF;
         case Opcode::STORE_OBJ:
         case Opcode::STORE_OBJ_F:
         case Opcode::ATOMIC_STORE:
             return RT::B4xi12rr::Decode(reader).xi12.imm4.STK() != Format::StoreAccessKind::ST_REF;
         case Opcode::LOAD_ARR:
-        case Opcode::LOAD_ARR_F:
-            return RT::B3xrrr::Decode(reader).xr.imm.LDK() != Format::LoadAccessKind::LD_REF;
+        case Opcode::LOAD_ARR_F:  return RT::B3xrrr::Decode(reader).xr.imm.LDK() != Format::LoadAccessKind::LD_REF;
         case Opcode::STORE_ARR:
-        case Opcode::STORE_ARR_F:
-            return RT::B3xrrr::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
+        case Opcode::STORE_ARR_F: return RT::B3xrrr::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
         case Opcode::LOAD_LONG_DERIVED:
         case Opcode::LOAD_LONG_DERIVED_F:
             return RT::B7xrrri32::Decode(reader).xr.imm.LDK() != Format::LoadAccessKind::LD_REF;
         case Opcode::STORE_LONG_DERIVED:
         case Opcode::STORE_LONG_DERIVED_F:
             return RT::B7xrrri32::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
-        case Opcode::LOAD_ADDR:
-            return RT::B4xri16::Decode(reader).xr.imm.LDK() != Format::LoadAccessKind::LD_REF;
-        case Opcode::STORE_ADDR:
-            return RT::B4xri16::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
+        case Opcode::LOAD_ADDR:  return RT::B4xri16::Decode(reader).xr.imm.LDK() != Format::LoadAccessKind::LD_REF;
+        case Opcode::STORE_ADDR: return RT::B4xri16::Decode(reader).xr.imm.STK() != Format::StoreAccessKind::ST_REF;
         // Calls, allocations, safepoints and exceptional control flow need inline metadata.
         case Opcode::NEWOBJ:
         case Opcode::NEWOBJ_PINNED:
@@ -82,7 +77,6 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         case Opcode::VIRTUAL_CALL:
         case Opcode::INTERFACE_CALL:
         case Opcode::INTERFACE_CALL_GENERIC:
-        case Opcode::GC_POINT:
         case Opcode::CBIN8:
         case Opcode::CBIN16:
         case Opcode::CBIN32:
@@ -100,8 +94,7 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         case Opcode::DIVCHECK:
         case Opcode::ARRAY_INDEX_CHECK:
         case Opcode::THROW:
-        case Opcode::CATCH:
-            return false;
+        case Opcode::CATCH:                  return false;
         // Frame operands whose relocation or ABI semantics still need support.
         case Opcode::STRING_INIT:
         case Opcode::UNBOX_T:
@@ -109,8 +102,7 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         case Opcode::STK_PARAM_F:
         case Opcode::STK_PARAM_S16:
         case Opcode::STK_PARAM_S32:
-        case Opcode::LEA_STACK_PARAM:
-            return false;
+        case Opcode::LEA_STACK_PARAM: return false;
         // Runtime helpers or managed barriers, including copies with a dynamic storage kind.
         case Opcode::STORE_GENERIC:
         case Opcode::STORE_GENERIC_1:
@@ -134,13 +126,10 @@ bool IsSupportedInstruction(const Interpretation::Code& code, const RuntimeInstr
         case Opcode::COPY_TO_TYPESLOT:
         case Opcode::COPY_FROM_TYPESLOT:
         case Opcode::COPY_TO_TYPESLOT_GENERIC:
-        case Opcode::COPY_FROM_TYPESLOT_GENERIC:
-            return false;
+        case Opcode::COPY_FROM_TYPESLOT_GENERIC: return false;
         case Opcode::HALT:
-        case Opcode::OPCODE_NUM:
-            return false;
-        default:
-            return true;
+        case Opcode::OPCODE_NUM:                 return false;
+        default:                                 return true;
     }
 }
 
@@ -149,11 +138,11 @@ std::optional<RT::Opcode> LiteralBranchOpcode(RT::Opcode opcode)
     using Opcode = RT::Opcode;
     switch (opcode) {
         case Opcode::BCC16I:
-        case Opcode::BCC16L: return Opcode::BCC16L;
+        case Opcode::BCC16L:  return Opcode::BCC16L;
         case Opcode::BCC32I:
-        case Opcode::BCC32L: return Opcode::BCC32L;
+        case Opcode::BCC32L:  return Opcode::BCC32L;
         case Opcode::BCC64I:
-        case Opcode::BCC64L: return Opcode::BCC64L;
+        case Opcode::BCC64L:  return Opcode::BCC64L;
         case Opcode::BCCI32I:
         case Opcode::BCCI32L: return Opcode::BCCI32L;
         case Opcode::BCCI64I:
@@ -162,7 +151,7 @@ std::optional<RT::Opcode> LiteralBranchOpcode(RT::Opcode opcode)
         case Opcode::BCCL32L: return Opcode::BCCL32L;
         case Opcode::BCCL64I:
         case Opcode::BCCL64L: return Opcode::BCCL64L;
-        default: return std::nullopt;
+        default:              return std::nullopt;
     }
 }
 
@@ -171,9 +160,7 @@ struct BranchDestination {
     std::optional<uint32_t> literalIndex;
 };
 
-std::optional<BranchDestination> BranchTarget(
-    const Interpretation::Code& code, const RuntimeInstruction& instruction
-)
+std::optional<BranchDestination> BranchTarget(const Interpretation::Code& code, const RuntimeInstruction& instruction)
 {
     auto* const end = code.bytecode + code.bytecodeSize;
     Decoder::ByteReader reader(code.bytecode + instruction.offset, code.bytecode, end);
@@ -185,9 +172,7 @@ std::optional<BranchDestination> BranchTarget(
         case RT::Opcode::BCC64I:
         case RT::Opcode::BCC16L:
         case RT::Opcode::BCC32L:
-        case RT::Opcode::BCC64L:
-            operand = RT::B4xi12rr::Decode(reader).xi12.imm12;
-            break;
+        case RT::Opcode::BCC64L:        operand = RT::B4xi12rr::Decode(reader).xi12.imm12; break;
         case RT::Opcode::BCCI32I:
         case RT::Opcode::BCCI64I:
         case RT::Opcode::BCCI32L:
@@ -195,16 +180,10 @@ std::optional<BranchDestination> BranchTarget(
         case RT::Opcode::BCCL32I:
         case RT::Opcode::BCCL64I:
         case RT::Opcode::BCCL32L:
-        case RT::Opcode::BCCL64L:
-            operand = RT::B5xi12ri12::Decode(reader).xi12.imm12;
-            break;
-        case RT::Opcode::JMP32:
-            operand = RT::B5i32::Decode(reader).imm32.imm;
-            break;
-        case RT::Opcode::BRANCH_IS_REF:
-            operand = RT::B3xi12::Decode(reader).xi12.imm12;
-            break;
-        default: return std::nullopt;
+        case RT::Opcode::BCCL64L:       operand = RT::B5xi12ri12::Decode(reader).xi12.imm12; break;
+        case RT::Opcode::JMP32:         operand = RT::B5i32::Decode(reader).imm32.imm; break;
+        case RT::Opcode::BRANCH_IS_REF: operand = RT::B3xi12::Decode(reader).xi12.imm12; break;
+        default:                        return std::nullopt;
     }
     const auto branchEnd = static_cast<int64_t>(instruction.offset) + instruction.size;
     if (LiteralBranchOpcode(instruction.opcode) == instruction.opcode) {
@@ -217,7 +196,7 @@ std::optional<BranchDestination> BranchTarget(
         }
         return BranchDestination { branchEnd + delta, operand };
     }
-    const auto bits = instruction.opcode == RT::Opcode::JMP32 ? 32 : 12;
+    const auto bits  = instruction.opcode == RT::Opcode::JMP32 ? 32 : 12;
     const auto delta = static_cast<int64_t>(MathUtils::SignExtend<uint64_t>(operand, bits));
     return BranchDestination { branchEnd + delta, std::nullopt };
 }
@@ -398,7 +377,7 @@ void EmitRelocatedInstruction(
             break;
         }
         case Opcode::STK_PARAM_S16: {
-            auto op = RT::StackParamS16::Decode(reader);
+            auto op        = RT::StackParamS16::Decode(reader);
             const auto src = relocateOffset(op.src);
             if (MathUtils::IsNBitsSigned(src, 16)) {
                 op.src = static_cast<int16_t>(src);
@@ -410,7 +389,7 @@ void EmitRelocatedInstruction(
         }
         case Opcode::STK_PARAM_S32: {
             auto op = RT::StackParamS32::Decode(reader);
-            op.src = relocateOffset(op.src);
+            op.src  = relocateOffset(op.src);
             Encode(output, op);
             break;
         }
@@ -511,8 +490,8 @@ std::optional<std::vector<BranchPatch>> PrepareBranchPatches(
 
         const auto newEnd = static_cast<int64_t>(*newOffset) + instruction.size;
         const auto delta  = static_cast<int64_t>(*newTarget) - newEnd;
-        auto newOpcode = instruction.opcode;
-        auto operand = delta;
+        auto newOpcode    = instruction.opcode;
+        auto operand      = delta;
         if (oldTarget->literalIndex.has_value() || !FitsBranchDelta(instruction.opcode, delta)) {
             const auto literalOpcode = LiteralBranchOpcode(instruction.opcode);
             if (!literalOpcode.has_value()) {
@@ -582,9 +561,7 @@ void ApplyBranchPatches(uint8_t* bytecode, uint32_t bytecodeSize, const std::vec
     }
 }
 
-bool IsSupportedBody(
-    const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions
-)
+bool IsSupportedBody(const Interpretation::Code& code, const std::vector<RuntimeInstruction>& instructions)
 {
     if (instructions.empty() || instructions.back().opcode != RT::Opcode::RET) {
         return false;
@@ -594,15 +571,40 @@ bool IsSupportedBody(
         const auto opcode = instructions[i].opcode;
         if (!IsSupportedInstruction(code, instructions[i]) ||
             (opcode == RT::Opcode::RET && i + 1 != instructions.size()) ||
-            (IsRuntimeBranch(opcode) &&
-             !IsSupportedBranch(code, instructions, instructions[i]))) {
+            (IsRuntimeBranch(opcode) && !IsSupportedBranch(code, instructions, instructions[i]))) {
             return false;
         }
     }
     return true;
 }
 
-std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
+bool HasSupportedInlineGC(
+    const Interpretation::ExecBytecodeInfo& callee, const std::vector<RuntimeInstruction>& instructions
+)
+{
+    const auto& maps = callee.gcInfo.positionalInfo;
+    size_t nextMap   = 0;
+    for (const auto& instruction : instructions) {
+        if (instruction.opcode != RT::Opcode::GC_POINT) {
+            continue;
+        }
+        if (nextMap == maps.Size()) {
+            return false;
+        }
+        const auto& map = maps[nextMap++];
+        if (map.rewrittenPos != instruction.offset + instruction.size || !map.paramRefSlots.Empty() ||
+            !map.paramRecSlots.Empty()) {
+            return false;
+        }
+    }
+    return nextMap == maps.Size() && std::none_of(
+                                         callee.stackPtrsInfo.positionalInfo.begin(),
+                                         callee.stackPtrsInfo.positionalInfo.end(),
+                                         [](const auto& map) { return !map.resources.Empty(); }
+                                     );
+}
+
+std::optional<RelocatedInlineBody> RelocateInlineBody(
     const Interpretation::Code& code,
     const std::vector<RuntimeInstruction>& instructions,
     uint32_t frameShift,
@@ -623,13 +625,13 @@ std::optional<Utils::Vector<uint8_t>> RelocateInlineBody(
             edits.push_back({ instruction.offset, instruction.offset + instruction.size, size });
         }
     }
-    auto body = output.Finish();
+    auto body          = output.Finish();
     const auto patches = PrepareBranchPatches(code, instructions, edits, literalBase, literals);
     if (!patches.has_value()) {
         return std::nullopt;
     }
     ApplyBranchPatches(body.Data(), body.Size(), *patches);
-    return body;
+    return RelocatedInlineBody { std::move(body), std::move(edits) };
 }
 
 } // namespace Cbc
