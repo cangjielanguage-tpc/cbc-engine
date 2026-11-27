@@ -335,6 +335,8 @@ static void N2IGetUnwind(void* fa, void* pc, void** faSaved, void** pcSaved)
 
 static INT_FrameKind ClassifyFrame(void* fa, void* pc)
 {
+    static_assert(UNWIND_STATE_NORMAL == DYN_UNWIND_NORMAL);
+    static_assert(UNWIND_STATE_NATIVE == DYN_UNWIND_NATIVE);
     auto address = reinterpret_cast<uintptr_t>(pc);
     auto inRange = [address](void (*start)(), void (*end)()) {
         return reinterpret_cast<uintptr_t>(start) <= address && address < reinterpret_cast<uintptr_t>(end);
@@ -342,8 +344,7 @@ static INT_FrameKind ClassifyFrame(void* fa, void* pc)
     INT_FrameKind kind = INT_OUTSIDE;
     if (inRange(Asm::engine_c2i_call_pc_start, Asm::engine_c2i_call_pc_end)) {
         kind = INT_C2I;
-    } else if (inRange(Asm::engine_i2n_stub, Asm::engine_i2n_stub_end) ||
-               inRange(Asm::engine_c_abi_adapter_start, Asm::engine_c_abi_adapter_end)) {
+    } else if (inRange(Asm::engine_i2n_stub, Asm::engine_i2n_stub_end)) {
         kind = INT_I2N;
     } else if (inRange(Asm::engine_interpreted_start, Asm::engine_interpreted_end) ||
                inRange(Asm::engine_exception_start, Asm::engine_exception_end)) {

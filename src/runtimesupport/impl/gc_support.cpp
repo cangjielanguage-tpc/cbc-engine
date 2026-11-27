@@ -34,12 +34,6 @@ void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, P
     g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
 }
 
-bool IsCABiAdapterFrame(uintptr_t ip)
-{
-    return ip >= reinterpret_cast<uintptr_t>(&Asm::engine_c_abi_adapter_start) &&
-           ip < reinterpret_cast<uintptr_t>(&Asm::engine_c_abi_adapter_end);
-}
-
 void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
@@ -72,10 +66,6 @@ void VisitGCFrameRoots(
     std::optional<DYN_DerivedPtrVisitor> derivedPtrVisitorOpt
 )
 {
-    if (IsCABiAdapterFrame(reinterpret_cast<uintptr_t>(frame_desc.ip))) {
-        return;
-    }
-
     using namespace Interpretation;
     auto regsLocationTable = reinterpret_cast<RegistersTable*>(state);
 

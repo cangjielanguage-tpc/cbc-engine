@@ -21,9 +21,6 @@
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_c_abi_adapter _engine_c_abi_adapter
-    #define engine_c_abi_adapter_start _engine_c_abi_adapter_start
-    #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
     #define engine_future_execute_function _engine_future_execute_function
@@ -144,9 +141,6 @@ declare_hidden engine_implicit_exception_thrower
 declare_hidden common_landing_pad
 declare_hidden engine_stack_grow_stub
 declare_hidden engine_i2n_stub
-declare_hidden engine_c_abi_adapter
-declare_hidden engine_c_abi_adapter_start
-declare_hidden engine_c_abi_adapter_end
 declare_hidden engine_after_stack_grow
 declare_hidden engine_i2n_stub_end
 declare_hidden engine_interpreted_start
@@ -655,10 +649,7 @@ CFI_LABEL .Lthunk_op_I2NCall
 CFI_LABEL .Lengine_i2n_call
   lsr   x2, x0, #I2N_STACK_ARGS_SIZE_SHIFT  // stack arguments count
   ubfx  x3, x0, #0, #I2N_VEC_COUNT_SHIFT    // target C function
-  mov   x0, ECTYPE_REG                      // ectype
   mov   x1, sp                              // stack arguments pointer
-  adr   x4, engine_c_abi_adapter
-  mov   x5, TLS_REG
 
   adr   x10, engine_i2n_stub
   blr   x10  // call I2N adapter
@@ -992,109 +983,85 @@ common_landing_pad:
   brk   #0
 engine_exception_end:
 
-.balign 16
-// Called by the I2N stub with the C call metadata in argument registers:
-// (x0: ectype, x1: stack arguments pointer, x2: stack arguments area size, x3: target).
-// Fills C argument registers from ectype, pushes the stack arguments and calls the target.
-// Preserved: callee-saved registers (ECTYPE_REG among them).
-engine_c_abi_adapter_start:
-engine_c_abi_adapter:
-  // TODO: fix I2NStub and do not construct frame here
-  stp   x29, x30, [sp, #-16]!
-  mov   x29, sp
-
-  str   ECTYPE_REG, [sp, #-16]!
-  mov   ECTYPE_REG, x0
-  mov   x9, x1  // stack arguments pointer
-  mov   x10, x2 // stack arguments area size
-  mov   x11, x3 // target C function
-
-  mov   x12, x10
-  add   x12, x12, #15
-  bic   x12, x12, #15
-  sub   sp, sp, x12
-  mov   x13, sp
-  cbz   x10, .Lprepare_regs
-.Lprepare_stackargs:
-  ldr   x14, [x9], #8
-  str   x14, [x13], #8
-  subs  x10, x10, #8
-  b.ne  .Lprepare_stackargs
-.Lprepare_regs:
-  i2c_emit_iregs_abi IREG_ABI_AMOUNT
-  i2c_emit_fregs_abi FREG_ABI_AMOUNT
-
-  blr   x11          // call target
-
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
-  str   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * 2)]
-  str   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
-  str   d1, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE)]
-  str   d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * 2)]
-  str   d3, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * 3)]
-
-  ldr   ECTYPE_REG, [x29, #-16]
-  mov   sp, x29
-  ldp   x29, x30, [sp], #16
-  ret
-engine_c_abi_adapter_end:
-
 .macro i2n_runtime_call target
   adrp x9, Page(\target)
   ldr  x9, [x9, PageOff(\target)]
   blr  x9
 .endm
 
+.set I2N_STACK_ARGS, 0x10
+.set I2N_STACK_ARGS_SIZE, 0x18
+.set I2N_TARGET, 0x20
+.set I2N_SAFE_STATE_CHANGED, 0x28
+.set I2N_FRAME_SIZE, 48
+
 .balign 16
-// (x0: ectype, x1: stack args, x2: stack args size, x3: native target,
-//  x4: C ABI adapter, x5: thread-local data).
+// (ECTYPE_REG: ectype, x1: stack args, x2: stack args size, x3: native target).
+// ECTYPE_REG is preserved by native calls.
 // Frame slots relative to x29:
-//   0x10: saved x28; 0x18..0x3f: saved call metadata;
-//   0x40: saferegion changed.
+//   0x10: stack args; 0x18: stack args size; 0x20: target; 0x28: saferegion changed.
 engine_i2n_stub:
   .cfi_startproc
-  stp x29, x30, [sp, #-80]!
-  .cfi_def_cfa_offset 80
-  .cfi_offset x29, -80
-  .cfi_offset x30, -72
+  stp x29, x30, [sp, #-I2N_FRAME_SIZE]!
+  .cfi_def_cfa_offset I2N_FRAME_SIZE
+  .cfi_offset x29, -I2N_FRAME_SIZE
+  .cfi_offset x30, (8 - I2N_FRAME_SIZE)
   mov x29, sp
   .cfi_def_cfa_register x29
-  str x28, [sp, #0x10]
-  .cfi_offset x28, -64
   // Preserve arguments across runtime calls.
-  str x4, [sp, #0x18]
-  stp x0, x1, [sp, #0x20]
-  stp x2, x3, [sp, #0x30]
-  mov x28, x5
+  stp x1, x2, [sp, #I2N_STACK_ARGS]
+  str x3, [sp, #I2N_TARGET]
 
   // Publish this frame as NATIVE, then enter saferegion without recapturing it.
   mov x0, x29
   adr x1, .Li2n_unwind_pc
-  mov x2, #1
+  mov x2, #UNWIND_STATE_NATIVE
   i2n_runtime_call engine_set_unwind_context
   mov x0, #0
   i2n_runtime_call engine_enter_saferegion
 .Li2n_unwind_pc:
-  and w0, w0, #0xff
-  str w0, [sp, #0x40]
+  strb w0, [sp, #I2N_SAFE_STATE_CHANGED]
 
-  // Restore arguments and call the C ABI adapter, which invokes the native target.
-  ldp x0, x1, [sp, #0x20]
-  ldp x2, x3, [sp, #0x30]
-  ldr x9, [sp, #0x18]
-  blr x9
+.Li2n_c_abi_adapter:
+  // Copy stack arguments into a 16-byte-aligned outgoing area.
+  ldp x9, x10, [sp, #I2N_STACK_ARGS]
+  add x12, x10, #15
+  bic x12, x12, #15
+  sub sp, sp, x12
+  mov x13, sp
+  cbz x10, .Li2n_prepare_regs
+.Li2n_copy_args:
+  ldr x14, [x9], #8
+  str x14, [x13], #8
+  subs x10, x10, #8
+  b.ne .Li2n_copy_args
+.Li2n_prepare_regs:
+  // Load native register arguments and invoke the target.
+  ldr x11, [x29, #I2N_TARGET]
+  i2c_emit_iregs_abi IREG_ABI_AMOUNT
+  i2c_emit_fregs_abi FREG_ABI_AMOUNT
+  blr x11
+  // Store results before runtime calls can overwrite the return registers.
+  str x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
+  str x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * 2)]
+  str d0, [ECTYPE_REG, #ECTYPE_FREGS_OFFSET]
+  str d1, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE)]
+  str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * 2)]
+  str d3, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * 3)]
+  mov sp, x29
 
   // Leave only if entered before. The published context stays valid during suspension.
-  ldr w9, [sp, #0x40]
+  ldrb w9, [sp, #I2N_SAFE_STATE_CHANGED]
   cbz w9, .Li2n_no_leave
   i2n_runtime_call engine_leave_saferegion
 .Li2n_no_leave:
   // Clear the published context and return to NORMAL state.
   mov x0, #0
   mov x1, #0
-  mov x2, #0
+  mov x2, #UNWIND_STATE_NORMAL
   i2n_runtime_call engine_set_unwind_context
 
+  // Refresh TLS after possible suspension during saferegion exit.
   i2n_runtime_call engine_tls_function
   mov TLS_REG, x0
 
@@ -1105,17 +1072,15 @@ engine_i2n_stub:
   adrp x9, Page(engine_throw_out_of_interpreter)
   ldr x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   .cfi_remember_state
-  ldp x29, x30, [sp], #80
+  ldp x29, x30, [sp], #I2N_FRAME_SIZE
   .cfi_def_cfa sp, 0
-  .cfi_restore x28
   .cfi_restore x29
   .cfi_restore x30
   br x9
   .cfi_restore_state
 .Li2n_return:
-  // Native results are already stored in ectype by the C ABI adapter.
-  .cfi_restore x28
-  ldp x29, x30, [sp], #80
+  // Native results are already stored in ectype.
+  ldp x29, x30, [sp], #I2N_FRAME_SIZE
   .cfi_def_cfa sp, 0
   .cfi_restore x29
   .cfi_restore x30

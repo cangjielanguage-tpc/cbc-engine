@@ -23,9 +23,6 @@
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_c_abi_adapter _engine_c_abi_adapter
-    #define engine_c_abi_adapter_start _engine_c_abi_adapter_start
-    #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
     #define engine_future_execute_function _engine_future_execute_function
@@ -96,9 +93,6 @@ declare_hidden engine_trampolines_dyn_static_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_c_abi_adapter
-declare_hidden engine_c_abi_adapter_start
-declare_hidden engine_c_abi_adapter_end
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
 declare_hidden engine_read_generic
@@ -678,11 +672,8 @@ engine_after_stack_grow:
   mov   rcx, rdi
   shl   rcx, 64 - I2N_VEC_COUNT_SHIFT
   shr   rcx, 64 - I2N_VEC_COUNT_SHIFT  // target C function
-  mov   rdi, ECTYPE_REG                // ectype
   mov   rsi, rsp                       // stack arguments pointer
-  lea   r8, [rip + engine_c_abi_adapter]
-  mov   r9, TLS_REG
-  call  engine_i2n_stub // the I2N stub calls engine_c_abi_adapter
+  call  engine_i2n_stub
   jmp   .Lrestart_interpretation
 
 .balign 16
@@ -972,55 +963,19 @@ common_landing_pad:
   ud2
 engine_exception_end:
 
-.balign 16
-// Called by the I2N stub with helper data in argument registers:
-// (rdi: ectype, rsi: stack arguments pointer, rdx: stack arguments area size, rcx: target).
-// Fills C argument registers from ectype, pushes stack arguments and calls the target.
-// Preserved: callee-saved registers (ECTYPE_REG among them).
-engine_c_abi_adapter_start:
-engine_c_abi_adapter:
-  // TODO: fix I2NStub in runtime and do not construct frame here
-  push  rbp
-  mov   rbp, rsp
-
-  push  ECTYPE_REG
-  mov   ECTYPE_REG, rdi
-  mov   r10, rcx        // target C function
-  mov   r11, rsi        // stack arguments pointer
-
-  test  dl, 8
-  jnz   .Lcheck_if_there_are_stackargs
-  push  rax // align stack
-.Lcheck_if_there_are_stackargs:
-  test  rdx, rdx
-  jz    .Lprepare_regs
-.Lprepare_stackargs:
-  push  QWORD PTR [r11 + rdx - 8]
-  sub   rdx, 8
-  jnz   .Lprepare_stackargs
-.Lprepare_regs:
-  i2c_emit_iregs_abi IREG_PARAM_PASSING_AMOUNT
-  i2c_emit_fregs_abi FREG_ABI_AMOUNT
-
-  call  r10            // call target
-
-  mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
-  mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * 2], rdx
-  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET], xmm0
-  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE], xmm1
-
-  lea   rsp, [rbp - 8] // clear stack args
-  pop   ECTYPE_REG
-
-  pop   rbp
-  ret
-engine_c_abi_adapter_end:
+.set I2N_STACK_ARGS, 8
+.set I2N_STACK_ARGS_SIZE, 16
+.set I2N_TARGET, 24
+.set I2N_VECTOR_COUNT, 32
+.set I2N_SAFE_STATE_CHANGED, 40
+.set I2N_FRAME_SIZE, 48
 
 .balign 16
-// (rdi: ectype, rsi: stack args, rdx: stack args size, rcx: native target,
-//  r8: C ABI adapter, r9: thread-local data, al: varargs vector register count).
+// (ECTYPE_REG: ectype, rsi: stack args, rdx: stack args size, rcx: native target,
+//  al: varargs vector register count). ECTYPE_REG is preserved by native calls.
 // Frame slots below rbp:
-//   -8..-56: saved call metadata; -64: saferegion changed.
+//   -8: stack args; -16: stack args size; -24: target; -32: vector count;
+//   -40: saferegion changed.
 engine_i2n_stub:
   .cfi_startproc
   push rbp
@@ -1028,46 +983,62 @@ engine_i2n_stub:
   .cfi_offset rbp, -16
   mov rbp, rsp
   .cfi_def_cfa_register rbp
-  sub rsp, 64
+  sub rsp, I2N_FRAME_SIZE
   // Preserve arguments across runtime calls.
-  mov [rbp - 8], rdi
-  mov [rbp - 16], rsi
-  mov [rbp - 24], rdx
-  mov [rbp - 32], rcx
-  mov [rbp - 40], r8
-  mov [rbp - 48], r9
-  mov [rbp - 56], rax
+  mov [rbp - I2N_STACK_ARGS], rsi
+  mov [rbp - I2N_STACK_ARGS_SIZE], rdx
+  mov [rbp - I2N_TARGET], rcx
+  mov [rbp - I2N_VECTOR_COUNT], rax
 
   // Publish this frame as NATIVE, then enter saferegion without recapturing it.
   mov rdi, rbp
   lea rsi, [rip + .Li2n_unwind_pc]
-  mov edx, 1
+  mov edx, UNWIND_STATE_NATIVE
   call [rip + engine_set_unwind_context]
   xor edi, edi
   call [rip + engine_enter_saferegion]
 .Li2n_unwind_pc:
-  movzx eax, al
-  mov [rbp - 64], eax
+  mov BYTE PTR [rbp - I2N_SAFE_STATE_CHANGED], al
 
-  // Restore arguments and call the C ABI adapter, which invokes the native target.
-  mov rdi, [rbp - 8]
-  mov rsi, [rbp - 16]
-  mov rdx, [rbp - 24]
-  mov rcx, [rbp - 32]
-  mov rax, [rbp - 56]
-  call QWORD PTR [rbp - 40]
+.Li2n_c_abi_adapter:
+  // Copy stack arguments, keeping rsp aligned to 16 bytes before the call.
+  mov r11, [rbp - I2N_STACK_ARGS]
+  mov rdx, [rbp - I2N_STACK_ARGS_SIZE]
+  test dl, 8
+  jz .Li2n_stack_aligned
+  sub rsp, 8
+.Li2n_stack_aligned:
+  test rdx, rdx
+  jz .Li2n_prepare_regs
+.Li2n_copy_args:
+  push QWORD PTR [r11 + rdx - 8]
+  sub rdx, 8
+  jnz .Li2n_copy_args
+.Li2n_prepare_regs:
+  // Load native register arguments and invoke the target.
+  i2c_emit_iregs_abi IREG_PARAM_PASSING_AMOUNT
+  i2c_emit_fregs_abi FREG_ABI_AMOUNT
+  mov rax, [rbp - I2N_VECTOR_COUNT]
+  call QWORD PTR [rbp - I2N_TARGET]
+  // Store results before runtime calls can overwrite the return registers.
+  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * 2], rdx
+  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET], xmm0
+  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE], xmm1
+  lea rsp, [rbp - I2N_FRAME_SIZE]
 
   // Leave safe state only if entered before.
-  cmp DWORD PTR [rbp - 64], 0
+  cmp BYTE PTR [rbp - I2N_SAFE_STATE_CHANGED], 0
   je .Li2n_no_leave
   call [rip + engine_leave_saferegion]
 .Li2n_no_leave:
   // Clear the published context and return to NORMAL state.
   xor edi, edi
   xor esi, esi
-  xor edx, edx
+  mov edx, UNWIND_STATE_NORMAL
   call [rip + engine_set_unwind_context]
 
+  // Refresh TLS after possible suspension during saferegion exit.
   call [rip + engine_tls_function]
   mov TLS_REG, rax
 
@@ -1085,7 +1056,7 @@ engine_i2n_stub:
   jmp [rip + engine_throw_out_of_interpreter]
   .cfi_restore_state
 .Li2n_return:
-  // Native results are already stored in ectype by the C ABI adapter.
+  // Native results are already stored in ectype.
   mov rsp, rbp
   pop rbp
   .cfi_def_cfa rsp, 8
