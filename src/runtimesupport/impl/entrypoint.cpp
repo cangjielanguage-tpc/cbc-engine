@@ -37,6 +37,7 @@ static std::mutex g_InitializationGuard;
 static bool g_Loaded;
 static bool g_BridgeInitialized;
 static bool g_Patched;
+static bool g_CbcTypeMetadataInitialized;
 
 static CbcDlsym g_Resolver {};
 static bool g_HasResolver;
@@ -44,6 +45,26 @@ static bool g_HasResolver;
 bool IsEngineLoaded()
 {
     return g_Loaded;
+}
+
+/// Build type info metadata that depends on both the loaded CBC images and the
+/// runtime interface (installed by the bridge initialization). Depending on the
+/// embedding, either of the two completes first; run the construction once both
+/// prerequisites are in place. Images without a CBC std.core keep the native
+/// metadata path: the core type infos are then provided by the AOT libraries
+/// and the primitive metadata is built lazily as before.
+static void InitCbcTypeInfoMetadataIfNeeded()
+{
+    if (g_CbcTypeMetadataInitialized || !g_Loaded || !g_BridgeInitialized) {
+        return;
+    }
+    g_CbcTypeMetadataInitialized = true;
+
+    Engine::Session session(Engine::GetEngineInstance());
+    if (!RTSupport::InitCoreTypeInfoMetadata(session)) {
+        return;
+    }
+    RTSupport::InitBuiltinTypeInfoMetadata(session);
 }
 
 static std::string EngineLibraryDirectory()
@@ -114,8 +135,7 @@ static CbcStatus LoadEngine()
     auto& engine = loader.Build();
     Engine::Session session(engine);
     Interpretation::FunctionHandleManager::Of(engine).FindHelpers(session);
-    RTSupport::InitCoreTypeInfoMetadata(session);
-    RTSupport::InitBuiltinTypeInfoMetadata(session);
+    InitCbcTypeInfoMetadataIfNeeded();
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end engine init" << Stream::endl; });
 
@@ -598,6 +618,7 @@ CBC_EXPORT int interpreter_bridge_init(
     RTSupport::InitBuiltinTypeInfos();
 
     g_BridgeInitialized = true;
+    InitCbcTypeInfoMetadataIfNeeded();
     return 0;
 }
 

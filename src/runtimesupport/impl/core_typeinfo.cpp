@@ -8,7 +8,11 @@
 
 namespace RTSupport {
 
-void InitCoreTypeInfoMetadata(Engine::Session& session)
+/// Register the CBC std.core Any/Object type infos and initialize the runtime
+/// metadata caches when the loaded images carry a non-AOT std.core. Returns
+/// `true` if the CBC core was initialized, `false` if the images contain no
+/// CBC core and the native metadata remains the source of the core types.
+bool InitCoreTypeInfoMetadata(Engine::Session& session)
 {
     bool hasCbcCore = false;
     for (auto name : { "std.core:Any", "std.core:Object" }) {
@@ -22,7 +26,7 @@ void InitCoreTypeInfoMetadata(Engine::Session& session)
         }
     }
     if (!hasCbcCore) {
-        return;
+        return false;
     }
     // Check all roots before construction, which can recursively register
     // another CBC root. Native roots cannot be replaced by this initializer.
@@ -64,6 +68,7 @@ void InitCoreTypeInfoMetadata(Engine::Session& session)
         FATAL("runtime does not expose CBC core type cache initialization");
     }
     initCore(getManager());
+    return true;
 }
 
 } // namespace RTSupport

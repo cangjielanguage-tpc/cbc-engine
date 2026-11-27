@@ -110,7 +110,7 @@ void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
     FindHelpers(session);
     for (const auto& [helper, methodName] : helperNames) {
         auto res = Prepare(session, impl->helpers[static_cast<size_t>(helper)]);
-        if (!res.success) {
+        if (res == nullptr) {
             FATAL(
                 "Failure during preparation of helper method %.*s",
                 static_cast<int>(methodName.size()),

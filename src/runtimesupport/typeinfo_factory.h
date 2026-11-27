@@ -42,8 +42,10 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
 void InitBuiltinTypeInfos();
 
 /// Register loaded CBC Any/Object and initialize still-null native core-type caches.
-/// Call after acquiring helper handles, before preparing bodies or running code.
-void InitCoreTypeInfoMetadata(Engine::Session& session);
+/// Call after acquiring helper handles and installing the runtime interface,
+/// before preparing bodies or running code. Returns `true` if the loaded images
+/// carry a CBC std.core and the caches were initialized, `false` otherwise.
+bool InitCoreTypeInfoMetadata(Engine::Session& session);
 
 /// Attach CBC extension metadata to the early-allocated primitive type infos.
 /// Call after loading all CBC images and acquiring helper handles, before preparing bodies.
