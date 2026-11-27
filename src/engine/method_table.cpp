@@ -190,6 +190,19 @@ static Term AcquireGenericContext(Session& session, Utils::Span<Term const> gene
     return TermManager::NewTermWithId(session, termId, true, genericContext);
 }
 
+/// The engine helper package (compiled from tools/launcher/cbcengine-helper.cj)
+/// provides companion witnesses for the primitive arithmetic interfaces. With
+/// a CBC std.core loaded alongside the helper, primitives get same-reference
+/// entries from both packages, while the native metadata would keep only the
+/// std.core ones. Such companions must not fail the primitive table build.
+static constexpr std::string_view ENGINE_HELPER_PACKAGE = "cangjie.runtime.cbcengine.helper";
+
+static bool IsEngineHelperMethod(Session& session, Identifier<MethodDefinition> method)
+{
+    auto typeName = Decode::Read(session, Decode::Read(session, method).TypeName());
+    return typeName.find(ENGINE_HELPER_PACKAGE) != std::string_view::npos;
+}
+
 struct MethodTableBuilder {
     MethodTableManager& manager;
     GlobalTerm tableOwner;
@@ -326,7 +339,10 @@ struct MethodTableBuilder {
         }
     }
 
-    bool VerifyAndResolveConflicts(Session& session, size_t newEntriesStartIdx, size_t currentClassEntriesStartIdx)
+    bool VerifyAndResolveConflicts(
+        Session& session, size_t newEntriesStartIdx, size_t currentClassEntriesStartIdx,
+        bool resolveEngineHelperDuplicates = false
+    )
     {
         if (table.allEntries.Empty()) {
             return false;
@@ -411,6 +427,42 @@ struct MethodTableBuilder {
             if (nonAbstractCount <= 1) {
                 continue;
             }
+
+            // The engine helper package repeats the arithmetic interface
+            // witnesses already provided by the CBC std.core. Unify the
+            // same-reference entries to the non-helper definition, mirroring
+            // the native metadata, which keeps only the std.core witnesses.
+            // Any other duplicate remains a genuine conflict.
+            if (resolveEngineHelperDuplicates) {
+                MethodSymbol* nonHelper  = nullptr;
+                bool helperInvolved      = false;
+                bool ambiguous           = false;
+                for (auto& sym : syms) {
+                    if (sym->isAbstract) {
+                        continue;
+                    }
+                    if (IsEngineHelperMethod(session, sym->mtEntry->method)) {
+                        helperInvolved = true;
+                        continue;
+                    }
+                    if (nonHelper == nullptr) {
+                        nonHelper = sym;
+                    } else if (nonHelper->mtEntry->method != sym->mtEntry->method) {
+                        ambiguous = true;
+                    }
+                }
+                if (nonHelper != nullptr && helperInvolved && !ambiguous) {
+                    for (auto& sym : syms) {
+                        *sym->mtEntry = *nonHelper->mtEntry;
+                    }
+                    LOGS_DEBUG(
+                        Log::mt, session, "Duplicate reference {}{} resolved to {} instead of the engine helper definitions",
+                        refName, refSig, Detailed(nonHelper->mtEntry->method)
+                    );
+                    continue;
+                }
+            }
+
             // conflict is possibly present, final corner case:
             // "the same method could present in different entries method"
             auto refMethod = nonAbstract->mtEntry->method;
@@ -433,7 +485,8 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     // ordinary extension definitions in the loaded CBC images.
     if (static_cast<uint16_t>(type.GetKind()) < Term::FIRST_NON_PRIMITIVE) {
         MethodTableBuilder builder { *this, type };
-        if (!builder.AddExtensions(session) || builder.VerifyAndResolveConflicts(session, 0, builder.table.EntryCount())) {
+        if (!builder.AddExtensions(session) ||
+            builder.VerifyAndResolveConflicts(session, 0, builder.table.EntryCount(), /*resolveEngineHelperDuplicates=*/true)) {
             return std::nullopt;
         }
         return builder.table;
