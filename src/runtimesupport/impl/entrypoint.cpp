@@ -298,6 +298,13 @@ static void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_I
     }
 }
 
+static void N2IGetUnwind(void* fa, void* pc, void** faSaved, void** pcSaved)
+{
+    auto* frame = static_cast<uint8_t*>(fa);
+    *faSaved    = *reinterpret_cast<void**>(frame - N2I_SAVED_FA_OFFSET);
+    *pcSaved    = *reinterpret_cast<void**>(frame - N2I_SAVED_PC_OFFSET);
+}
+
 static INT_FrameKind ClassifyFrame(void* fa, void* pc)
 {
     auto address = reinterpret_cast<uintptr_t>(pc);
@@ -393,6 +400,7 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->classifyFrame            = &ClassifyFrame;
+    interpInterf->n2iGetUnwind             = &N2IGetUnwind;
     interpInterf->cjThreadOnStart          = &FiberStart;
     interpInterf->cjThreadOnDestroy        = &FiberDestroy;
 
@@ -417,9 +425,8 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
     Asm::engine_newarray_function         = g_CJNativeInterfaceInstance.arrayAlloc;
     Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
-    Asm::engine_save_i2n_context          = g_CJNativeInterfaceInstance.saveI2NContext;
-    Asm::engine_delete_i2n_context        = g_CJNativeInterfaceInstance.deleteI2NContext;
     Asm::engine_enter_saferegion          = g_CJNativeInterfaceInstance.enterSaferegion;
+    Asm::engine_set_unwind_context        = g_CJNativeInterfaceInstance.setPublishedUnwindContext;
     Asm::engine_leave_saferegion          = g_CJNativeInterfaceInstance.leaveSaferegion;
     Asm::engine_pending_exception         = g_CJNativeInterfaceInstance.getAndClearPendingException;
 

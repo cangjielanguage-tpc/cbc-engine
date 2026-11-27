@@ -48,9 +48,8 @@
     #define engine_interpreted_end _engine_interpreted_end
     #define engine_exception_start _engine_exception_start
     #define engine_exception_end _engine_exception_end
-    #define engine_save_i2n_context _engine_save_i2n_context
-    #define engine_delete_i2n_context _engine_delete_i2n_context
     #define engine_enter_saferegion _engine_enter_saferegion
+    #define engine_set_unwind_context _engine_set_unwind_context
     #define engine_leave_saferegion _engine_leave_saferegion
     #define engine_pending_exception _engine_pending_exception
 #endif
@@ -119,9 +118,8 @@ declare_hidden engine_interpreted_start
 declare_hidden engine_interpreted_end
 declare_hidden engine_exception_start
 declare_hidden engine_exception_end
-declare_hidden engine_save_i2n_context
-declare_hidden engine_delete_i2n_context
 declare_hidden engine_enter_saferegion
+declare_hidden engine_set_unwind_context
 declare_hidden engine_leave_saferegion
 declare_hidden engine_pending_exception
 declare_hidden engine_set_runtime_cjthread_handle_function
@@ -158,11 +156,9 @@ engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
   .skip 8
-engine_save_i2n_context:
-  .skip 8
-engine_delete_i2n_context:
-  .skip 8
 engine_enter_saferegion:
+  .skip 8
+engine_set_unwind_context:
   .skip 8
 engine_leave_saferegion:
   .skip 8
@@ -1038,6 +1034,10 @@ engine_c_abi_adapter:
 engine_c_abi_adapter_end:
 
 .balign 16
+// (rdi: ectype, rsi: stack args, rdx: stack args size, rcx: native target,
+//  r8: C ABI adapter, r9: thread-local data, al: varargs vector register count).
+// Frame slots below rbp:
+//   -8..-56: saved call metadata; -64: saferegion changed.
 engine_i2n_stub:
   .cfi_startproc
   push rbp
@@ -1045,7 +1045,8 @@ engine_i2n_stub:
   .cfi_offset rbp, -16
   mov rbp, rsp
   .cfi_def_cfa_register rbp
-  sub rsp, 256
+  sub rsp, 64
+  // Preserve arguments across runtime calls.
   mov [rbp - 8], rdi
   mov [rbp - 16], rsi
   mov [rbp - 24], rdx
@@ -1053,64 +1054,55 @@ engine_i2n_stub:
   mov [rbp - 40], r8
   mov [rbp - 48], r9
   mov [rbp - 56], rax
-  movapd [rbp - 80], xmm0
-  movapd [rbp - 96], xmm1
-  movapd [rbp - 112], xmm2
-  movapd [rbp - 128], xmm3
-  movapd [rbp - 144], xmm4
-  movapd [rbp - 160], xmm5
-  movapd [rbp - 176], xmm6
-  movapd [rbp - 192], xmm7
-  lea rdi, [rip + .Li2n_unwind_pc]
-.Li2n_unwind_pc:
-  mov rsi, rbp
-  mov rdx, [rbp - 48]
-  call [rip + engine_save_i2n_context]
+
+  // Publish this frame as NATIVE, then enter saferegion without recapturing it.
+  mov rdi, rbp
+  lea rsi, [rip + .Li2n_unwind_pc]
+  mov edx, 1
+  call [rip + engine_set_unwind_context]
   xor edi, edi
   call [rip + engine_enter_saferegion]
-#ifdef __APPLE__
-  mov [rbp - 248], eax
-#endif
+.Li2n_unwind_pc:
+  movzx eax, al
+  mov [rbp - 64], eax
+
+  // Restore arguments and call the C ABI adapter, which invokes the native target.
   mov rdi, [rbp - 8]
   mov rsi, [rbp - 16]
   mov rdx, [rbp - 24]
   mov rcx, [rbp - 32]
   mov rax, [rbp - 56]
-  movapd xmm0, [rbp - 80]
-  movapd xmm1, [rbp - 96]
-  movapd xmm2, [rbp - 112]
-  movapd xmm3, [rbp - 128]
-  movapd xmm4, [rbp - 144]
-  movapd xmm5, [rbp - 160]
-  movapd xmm6, [rbp - 176]
-  movapd xmm7, [rbp - 192]
   call QWORD PTR [rbp - 40]
-  mov [rbp - 200], rax
-  mov [rbp - 208], rdx
-  movapd [rbp - 224], xmm0
-  movapd [rbp - 240], xmm1
-#ifdef __APPLE__
-  cmp DWORD PTR [rbp - 248], 0
+
+  // Leave safe state only if entered before.
+  cmp DWORD PTR [rbp - 64], 0
   je .Li2n_no_leave
-#endif
   call [rip + engine_leave_saferegion]
-#ifdef __APPLE__
-  call [rip + engine_tls_function]
-  mov [rbp - 48], rax
-#endif
 .Li2n_no_leave:
-  mov rdi, [rbp - 48]
-  call [rip + engine_delete_i2n_context]
+  // Clear the published context and return to NORMAL state.
+  xor edi, edi
+  xor esi, esi
+  xor edx, edx
+  call [rip + engine_set_unwind_context]
+
+  call [rip + engine_tls_function]
+  mov TLS_REG, rax
+
+  // Rethrow a pending managed exception after returning from native code.
   call [rip + engine_pending_exception]
   test rax, rax
   jz .Li2n_return
   mov rdi, rax
-  call [rip + engine_throw_out_of_interpreter]
+  // Drop I2N so runtime starts exception unwinding at the interpreted caller.
+  .cfi_remember_state
+  mov rsp, rbp
+  pop rbp
+  .cfi_def_cfa rsp, 8
+  .cfi_restore rbp
+  jmp [rip + engine_throw_out_of_interpreter]
+  .cfi_restore_state
 .Li2n_return:
-  mov rax, [rbp - 200]
-  mov rdx, [rbp - 208]
-  movapd xmm0, [rbp - 224]
-  movapd xmm1, [rbp - 240]
+  // Native results are already stored in ectype by the C ABI adapter.
   mov rsp, rbp
   pop rbp
   .cfi_def_cfa rsp, 8
