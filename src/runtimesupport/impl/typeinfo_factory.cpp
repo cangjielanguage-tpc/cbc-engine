@@ -30,19 +30,34 @@
 
 namespace RTSupport {
 
+namespace {
+
+enum {
+    ERR_OK = 0,
+    ERR_RESOLUTION = -1,
+    ERR_METHOD_TABLE_FAILURE = -2,
+    ERR_OOM = -3,
+    ERR_FIELD_LAYOUT_BUILD = -4,
+    ERR_FIELD_GCTIB = -5,
+    ERR_FIELD_TYPE = -6,
+    ERR_VARRAY_TOO_BIG = -7,
+};
+
 // TypeInfo flags
-static constexpr uint8_t HAS_REF_FIELD    = 0b00000001;
-static constexpr uint8_t HAS_FINALIZER    = 0b00000010;
-static constexpr uint8_t FUTURE_CLASS     = 0b00000100;
-static constexpr uint8_t MUTEX_CLASS      = 0b00001000;
-static constexpr uint8_t MONITOR_CLASS    = 0b00010000;
-static constexpr uint8_t WAIT_QUEUE_CLASS = 0b00100000;
-static constexpr uint8_t HAS_REFLECTION   = 0b01000000;
-static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
+constexpr uint8_t HAS_REF_FIELD    = 0b00000001;
+constexpr uint8_t HAS_FINALIZER    = 0b00000010;
+constexpr uint8_t FUTURE_CLASS     = 0b00000100;
+constexpr uint8_t MUTEX_CLASS      = 0b00001000;
+constexpr uint8_t MONITOR_CLASS    = 0b00010000;
+constexpr uint8_t WAIT_QUEUE_CLASS = 0b00100000;
+constexpr uint8_t HAS_REFLECTION   = 0b01000000;
+constexpr uint8_t HAS_EXT_PART     = 0b10000000;
 
-static constexpr std::string_view CORE_FUTURE_TYPE_NAME = "std.core:Future";
+constexpr std::string_view CORE_FUTURE_TYPE_NAME      = "std.core:Future";
+constexpr std::string_view STD_REF_WEAK_REF_TYPE_NAME = "std.ref:WeakRef";
 
-static constexpr std::string_view STD_REF_WEAK_REF_TYPE_NAME = "std.ref:WeakRef";
+int64_t FakeWhereCond() { return -1; }
+}
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
@@ -109,6 +124,20 @@ union OuterTIFuncUnion {
     DYN_TypeInfo* typeInfo;
 };
 
+struct MethodTableMember {
+    Interpretation::FunctionHandle* handle;
+    DYN_FuncPtr function;
+};
+
+struct TypeInfoBuilder;
+
+
+static MethodTableMember GetTableMember(
+    Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodId, int entryIdx
+);
+
+static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, Utils::Vector<uint32_t>& refFieldOffs);
+
 /// This class is almost 1-to-1 maps to fields of TypeInfo.
 /// The builder is needed mainly to properly manage memory in case of unexpected
 /// errors like resolution failures.
@@ -158,100 +187,397 @@ struct TypeInfoBuilder {
     bool needFields                 = false;
     bool isLambda                   = false;
 
-    Engine::GlobalTerm term;
+    int errorCode = ERR_OK;
+
+    Engine::GlobalTerm targetTerm;
     Engine::Session& session;
     Engine::Term superType = Engine::Term::Predefined(Engine::TermKind::NIL);
 
-    TypeInfoBuilder(CbcTypeInfo* typeInfo, Engine::Session& session, Engine::GlobalTerm term)
+    TypeInfoManager& manager;
+
+    TypeInfoBuilder(CbcTypeInfo* typeInfo, Engine::Session& session, Engine::GlobalTerm term, TypeInfoManager& manager)
         : typeInfo(typeInfo),
-          term(term),
-          session(session)
+          targetTerm(term),
+          session(session),
+          manager(manager)
     {}
 
-    void Identify()
+    std::optional<TypeInfo> AcquireTypeInfo(Engine::Term term)
     {
-        switch (term.GetKind()) {
-            case Engine::TermKind::CANGJIE_ARRAY:
-                type           = TYPE_KIND_RAWARRAY;
-                needExtDefs    = false;
-                needFields     = false;
-                isAot          = true;
-                aotTypeDefName = "RawArray";
-                superType      = term.Subterm(0);
-                flag           = HAS_REF_FIELD;
-                gctib          = { .ptr = nullptr };
-                return;
-            case Engine::TermKind::VARRAY:
-                type           = TYPE_KIND_VARRAY;
-                isAot          = true;
-                aotTypeDefName = "VArray";
-                superType      = term.Subterm(0);
-                return;
-            case Engine::TermKind::TUPLE:
-                type           = TYPE_KIND_TUPLE;
-                needExtDefs    = false;
-                needFields     = true;
-                isAot          = true;
-                aotTypeDefName = "Tuple";
-                return;
-            case Engine::TermKind::C_POINTER:
-                type           = TYPE_KIND_CPOINTER;
-                needExtDefs    = false;
-                needFields     = false;
-                isAot          = true;
-                aotTypeDefName = "CPointer";
-                superType      = term.Subterm(0);
-                return;
-            case Engine::TermKind::GENERIC_CONTEXT:
-                type           = TYPE_KIND_STRUCT;
-                needExtDefs    = false;
-                needFields     = false;
-                isAot          = false;
-                aotTypeDefName = "GenericContext";
-                return;
-            default: {
+        return manager.AcquireTypeInfo(session, term);
+    }
+
+    int InitName()
+    {
+        Stream::StringBuffer stringBuffer;
+        Engine::Term(targetTerm).GetName(session, stringBuffer, /* hasDebugPrefix = */ false);
+
+        // Not guaranteed that name is constructed in the same way as CJNative does.
+        // TODO: does it matter?
+        name = stringBuffer.ToCString();
+        return name != nullptr ? 0 : -1;
+    }
+
+    void InitMethodTable()
+    {
+        if (errorCode != ERR_OK) return;
+        auto& methodTableManager = Engine::MethodTableManager::Of(session);
+        auto optMT               = methodTableManager.GetMethodTable(session, targetTerm);
+
+        if (!optMT.has_value()) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build method table for " << targetTerm << Stream::endl;
+            });
+            errorCode = ERR_METHOD_TABLE_FAILURE;
+            return;
+        }
+        auto mt = *optMT;
+
+        auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
+        validInheritNum  = extDefCount;
+
+        // To simplify memory management here, we will preallocate "flat" arrays
+        // where corresponding structures would be filled out.
+        // E.g. function tables are essentionally views in the big array.
+
+        auto entryCount = mt->EntryCount();
+
+        struct FuncDesc {
+            DYN_FuncPtr ptr;
+            Engine::Term declaredType;
+        };
+
+        Utils::Vector<FuncDesc> funcDescs;
+        funcDescs.Resize(entryCount);
+
+        dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
+        flatMethods = Alloc<OuterTIFuncUnion>(2 * entryCount);
+        extDefs     = Alloc<DYN_ExtensionData*>(extDefCount + 1);
+        flatExtDefs = Alloc<DYN_ExtensionData>(extDefCount);
+
+        if (!dataMT || !flatMethods || !extDefs || !flatExtDefs) {
+            errorCode = ERR_OOM;
+            return;
+        }
+
+        // fill out flat methods table and data method table
+        int entryIdx = 0;
+        for (auto entry : mt->Entries()) {
+            auto tm             = GetTableMember(session, entry.method, entryIdx);
+            dataMT[entryIdx]    = tm.handle;
+            funcDescs[entryIdx] = FuncDesc { tm.function, entry.genericContext };
+            entryIdx++;
+        }
+
+        // Fill out array of pointers to ext defs.
+        for (int i = 0; i < extDefCount; i++) {
+            extDefs[i] = &flatExtDefs[i];
+        }
+
+        extDefs[extDefCount] = nullptr;
+
+        bool resolutionFailed = false;
+        auto prepareExtDef    = [&](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) {
+            // We are maintaining disjoint sub method table ranges!
+            auto start      = smt.StartPos();
+            auto end        = smt.EndPos();
+            auto entryCount = end - start;
+
+            // first `entryCount` slots are func ptrs, next `entryCount` slots are outer ti's.
+            auto ft = &flatMethods[2 * start];
+            auto tt = &flatMethods[2 * start + entryCount];
+
+            for (int i = 0; i < entryCount; i++) {
+                auto desc = funcDescs[start + i];
+                if (auto ti = AcquireTypeInfo(desc.declaredType); ti) {
+                    tt[i].typeInfo = UnpackTypeInfo(*ti);
+                } else {
+                    resolutionFailed = true;
+                }
+                ft[i].func = desc.ptr;
+            }
+
+            // Values from cjnative runtime.
+            uint8_t hasOuterTIFastPath = 0b00000001;
+            uint8_t isFuncTableUpdated = 0b00000110;
+            uint8_t isDirect           = 0b10000000;
+
+            extDef.funcTable           = reinterpret_cast<DYN_FuncPtr*>(ft);
+            extDef.funcTableSize       = entryCount;
+            extDef.argNum              = 0;
+            extDef.isInterfaceTypeInfo = 1;
+            extDef.flag                = hasOuterTIFastPath | isFuncTableUpdated;
+            extDef.whereCondFn         = (void*)&FakeWhereCond;
+
+            extDef.ti = &typeInfo->base;
+
+            if (smt.DeclaringType() == targetTerm) {
+                extDef.flag |= isDirect;
+            }
+
+            auto interface = smt.DeclaringType();
+            if (auto ti = AcquireTypeInfo(interface); ti) {
+                extDef.interfaceTypeInfo = UnpackTypeInfo(*ti);
+            } else {
+                resolutionFailed = true;
+            }
+        };
+
+        // fill out ext defs
+        int extDefIndex = 0;
+        for (auto st : mt->Classes()) {
+            prepareExtDef(flatExtDefs[extDefIndex++], st);
+        }
+
+        for (auto st : mt->Interfaces()) {
+            prepareExtDef(flatExtDefs[extDefIndex++], st);
+        }
+    }
+
+    void InitLambdaMethods()
+    {
+        if (errorCode != ERR_OK) return;
+        auto& manager = Engine::MethodTableManager::Of(session);
+        auto optMT    = manager.GetMethodTable(session, targetTerm);
+
+        if (!optMT.has_value()) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build method table for " << targetTerm << Stream::endl;
+            });
+            errorCode = ERR_METHOD_TABLE_FAILURE;
+            return;
+        }
+        auto mt = *optMT;
+
+        // In cbc closures are represented as type definitions with two virtual methods,
+        // which are represent "generic" and "instantiated" version of closure.
+        // Note, that order of methods is important (first is "generic", second is "instantiated").
+        // FIXME: pure generic closure
+        auto entryCount = mt->EntryCount();
+        dataMT  = Alloc<Interpretation::FunctionHandle*>(entryCount);
+        if (!dataMT) {
+            errorCode = ERR_OOM;
+            return;
+        }
+        for (int i = 0; i < entryCount; i++) {
+            dataMT[i] = (Interpretation::FunctionHandle*)0x1234567890abcdef;
+        }
+
+        // It is assumed that closures in CBC have only CBC methods (not aot compiled),
+        // so we will place a function handle in data mt, which would be referenced
+        // by 0/1-indexed trampolines, which would be placed as first and second fields of an object.
+        int entryIdx = 0;
+        for (auto entry : mt->Entries()) {
+            auto tm = GetTableMember(session, entry.method, entryIdx);
+
+            dataMT[entryIdx] = tm.handle;
+            entryIdx++;
+        }
+    }
+
+    void InitFields(bool needGcTib)
+    {
+        if (errorCode != ERR_OK) return;
+        auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
+        auto optlayout    = fieldManager->GetLayout(targetTerm);
+
+        bool hasProperLayout = optlayout.has_value();
+        if (hasProperLayout) {
+            auto layout = *optlayout;
+            if (!layout->desc.size.has_value()) {
+                hasProperLayout = false;
             }
         }
-        Engine::ClassSubstitution sub(session, term);
-        auto ident     = Engine::ExtractTypeDefIdentifier(term);
-        auto def       = Decode::Read(session, ident);
-        aotTypeDefName = Decode::Read(session, def.GetName());
 
-        superType = sub.Substitute(Engine::TermManager::Resolve(session, def.GetSuperType()));
-
-        isAot = def.GetFlags().Is(Image::TypeFlag::AOT);
-        switch (def.GetFlags().GetTypeKind()) {
-            case Image::TypeKind::INTERFACE:
-                type        = TYPE_KIND_INTERFACE;
-                needExtDefs = !isAot;
-                needFields  = false;
-                break;
-            case Image::TypeKind::RECORD:
-                type        = TYPE_KIND_STRUCT;
-                needExtDefs = true;
-                needFields  = true;
-                break;
-            case Image::TypeKind::CLASS:
-                type        = TYPE_KIND_CLASS;
-                needExtDefs = !isAot;
-                needFields  = true;
-                if (aotTypeDefName == STD_REF_WEAK_REF_TYPE_NAME) {
-                    type = TYPE_KIND_WEAKREF_CLASS;
-                }
-                break;
-            case Image::TypeKind::LAMBDA:
-                type        = TYPE_KIND_CLASS;
-                needExtDefs = false;
-                needFields  = true;
-                isLambda    = true;
-                break;
-            case Image::TypeKind::ENUM:
-                type        = TYPE_KIND_ENUM;
-                needExtDefs = !isAot;
-                needFields  = true;
-                break;
-            default: FATAL("unreachable type kind");
+        if (!hasProperLayout) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build field layout for " << targetTerm << Stream::endl;
+            });
+            errorCode = ERR_FIELD_LAYOUT_BUILD;
+            return;
         }
+        auto layout          = *optlayout;
+        align        = layout->desc.alignment;
+        instanceSize = layout->desc.size.value();
+        fieldNum     = layout->fields.Size();
+
+        fields       = Alloc<DYN_TypeInfo*>(fieldNum);
+        fieldOffsets = Alloc<uint32_t>(fieldNum);
+
+        if (fieldNum != 0 && (fieldOffsets == nullptr || fieldOffsets == nullptr)) {
+            errorCode = ERR_OOM;
+            return;
+        }
+
+        Utils::Vector<uint32_t> refFieldOffs;
+
+        auto acquireFieldTi = [this](Engine::Term term) {
+            if (term.GetKind() == Engine::TermKind::BOX) {
+                // Boxed fields in AOT code are represented as
+                // special TypeInfo that has `CLASS` kind and
+                // the **exact same name** as TI of boxed type.
+                //
+                // They do not have a special kind of `Box` TI
+                // that represents such fields. Instead of this,
+                // they are using such a hacky solution to make
+                // `TypeInfoSize` and similar routines work properly.
+                // Additionally, it helps with their implementation
+                // of reflection.
+                //
+                // It seems this behavior is not needed for execution purposes at all.
+                // So we will use Object to represent such fields,
+                // since we do not (and will not) support reflection using
+                // TypeInfo/TypeTemplate machinery.
+                return QueryTypeInfoAOTByName("std.core:Object");
+            }
+            return AcquireTypeInfo(term);
+        };
+
+        size_t idx = 0;
+        for (auto& field : layout->fields) {
+            auto fieldType = field.fieldType;
+            auto optOffs   = *field.offset; // offset can't be invalid if field layout is proper.
+            auto fieldId = idx++;
+            if (auto ti = acquireFieldTi(fieldType); ti) {
+                fields[fieldId] = UnpackTypeInfo(*ti);
+            } else {
+                errorCode = ERR_FIELD_TYPE;
+                return;
+            }
+            fieldOffsets[fieldId] = optOffs;
+            fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs);
+        }
+
+        if (needGcTib && !refFieldOffs.Empty()) {
+            flag |= HAS_REF_FIELD;
+
+            auto gctib = ConstructGCTib(*this, refFieldOffs);
+            if (!gctib) {
+                errorCode = ERR_FIELD_GCTIB;
+                return;
+            }
+            this->gctib = *gctib;
+
+            Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Ref offsets for " << targetTerm << ":" << Stream::endl;
+                for (auto offset : refFieldOffs) {
+                    stream << " - " << offset << Stream::endl;
+                }
+                out.PrintFmt("gctib: %lx", this->gctib);
+                out.NewLine();
+            });
+        }
+    }
+
+    void InitVArrayFields()
+    {
+        if (errorCode != ERR_OK) return;
+        auto length = Engine::VArrayTermId(targetTerm).GetNum();
+        if (length > UINT16_MAX) {
+            errorCode = ERR_VARRAY_TOO_BIG;
+            return;
+        }
+        fieldNum = static_cast<uint16_t>(length);
+        auto fields      = Engine::FieldLayoutManager::New(session, manager);
+        auto size        = fields->GetFlatSize(targetTerm);
+        if (!size) {
+            errorCode = ERR_FIELD_LAYOUT_BUILD;
+            return;
+        }
+        align        = fields->GetFlatAlignment(targetTerm);
+        instanceSize = *size;
+        Utils::Vector<uint32_t> offsets;
+        fields->FillRefOffsets(targetTerm, offsets, 0);
+        if (!offsets.Empty()) {
+            flag |= HAS_REF_FIELD;
+            auto gctib    = ConstructGCTib(*this, offsets);
+            if (!gctib) {
+                errorCode = ERR_FIELD_GCTIB;
+                return;
+            }
+            this->gctib = *gctib;
+        }
+    }
+
+    void InitNoFields()
+    {
+        if (errorCode != ERR_OK) return;
+        fieldNum     = 0;
+        fields       = nullptr;
+        fieldOffsets = nullptr;
+        align        = 1;
+        instanceSize = 0;
+    }
+
+    void InitTypeArgs()
+    {
+        if (errorCode != ERR_OK) return;
+        if (targetTerm.GetLength() == 0) return; // Only generic types are processed
+        typeArgsNum = targetTerm.GetLength();
+
+        this->typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
+        if (this->typeArgs == nullptr) {
+            return;
+        }
+        for (int i = 0; i < typeArgsNum; i++) {
+            auto ti = manager.AcquireTypeInfo(session, targetTerm.Subterm(i));
+            if (!ti) {
+                errorCode = ERR_RESOLUTION;
+                return;
+            }
+            this->typeArgs[i] = (DYN_TypeInfo*) ti->Raw();
+        }
+    }
+
+    void FixupAotGenericType(char const* typeDefName, int typeArgsNum)
+    {
+        if (errorCode != ERR_OK) return;
+        if (targetTerm.GetLength() == 0) return; // Only generic types are processed
+
+        this->typeArgsNum = typeArgsNum;
+        auto typeTemplate = QueryTypeTemplate(session, typeDefName);
+
+        // FIXME: use RTTypes.h
+        struct TypeTemplate {
+            char* name;
+            int8_t type;
+            int8_t flag;
+            uint16_t fieldNum;
+            uint16_t typeArgNum;
+            uint16_t uuid;
+            void** fieldFns;
+            void* superFn;
+            void* finalizer;
+            void* info;
+            void** extensionDatas;
+            uint16_t validInheritNum;
+        };
+
+        auto tt = (TypeTemplate*)typeTemplate;
+
+        if (tt->type == TYPE_KIND_TEMP_ENUM) {
+            // Workaround for #159.
+            // `TEMP_ENUM` tag is needed for cjnative reflection support.
+            // In other cases, `TEMP_ENUM` behaves exactly as usual classes.
+            ASSERT(TYPE_KIND_CLASS == this->type);
+            this->type = TYPE_KIND_TEMP_ENUM;
+        }
+
+        // Sanity checks: our typeinfo creation routines are working in the same way as CJNative one.
+        if (this->type != TYPE_KIND_TUPLE && this->type != TYPE_KIND_VARRAY) {
+            ASSERT(tt->typeArgNum == typeArgsNum);
+            ASSERT(tt->type == this->type);
+            ASSERT(tt->fieldNum == this->fieldNum);
+        }
+
+        this->typeTemplateOrFinalizer = typeTemplate;
+        this->validInheritNum         = this->type == TYPE_KIND_VARRAY ? (1 << 15) : tt->validInheritNum;
+
+        this->extDefs = this->type == TYPE_KIND_VARRAY ? nullptr : (DYN_ExtensionData**)tt->extensionDatas;
     }
 
     DYN_TypeInfo* Build()
@@ -293,7 +619,7 @@ struct TypeInfoBuilder {
 
         Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
-            stream << "TypeInfo for " << term << ":\n"
+            stream << "TypeInfo for " << targetTerm << ":\n"
                    << "\t typeInfoName: " << result->typeInfoName << "\n"
                    << "\t type: " << result->type << "\n"
                    << "\t flag: " << result->flag << "\n"
@@ -324,6 +650,7 @@ struct TypeInfoBuilder {
     {
         if (!built) {
             // free is no-op on nulls.
+            // FIXME: use after free
             // std::free(longgctib);
             // std::free(fieldOffsets);
             // std::free(name);
@@ -336,11 +663,6 @@ struct TypeInfoBuilder {
             // std::free(typeInfo);
         }
     }
-};
-
-struct MethodTableMember {
-    Interpretation::FunctionHandle* handle;
-    DYN_FuncPtr function;
 };
 
 /// Returns pair of (handle, function) that describes member in method table.
@@ -429,410 +751,9 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, Utils::
     }
 }
 
-static int64_t FakeWhereCond() { return -1; }
-
-// TODO: factory class, so it can hold state of other managers without recreating them.
-// TODO: split function to smaller ones.
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
-)
-{
-    auto wrapper = AllocTiWrapper();
-    if (!wrapper) {
-        return std::nullopt;
-    }
-    auto currentTypeInfo = &wrapper->info;
-
-    TypeInfoBuilder builder(currentTypeInfo, session, term);
-    {
-        Stream::StringBuffer stringBuffer;
-        Engine::Term(term).GetName(session, stringBuffer, /* hasDebugPrefix = */ false);
-
-        // Not guaranteed that name is constructed in the same way as CJNative does.
-        // TODO: does it matter?
-        builder.name = stringBuffer.ToCString();
-    }
-
-    // Register term to allow recursive queries.
-    // TODO: handle unbounded recurisive queries.
-    manager.RegisterPartial(term, TypeInfo(currentTypeInfo));
-
-    if (builder.name == nullptr) {
-        return std::nullopt;
-    }
-
-    builder.Identify();
-
-    // Generic AOT type infos are normally built by CBC to avoid recursive runtime initialization of type arguments
-    // (for example, class Foo extends I<Foo>). Future<T> is an exception: the runtime owns its hidden synchronization
-    // layout and must construct its type info to set the Future flag and the extended instance size.
-    bool requiresRuntimeTypeInfo = term.GetLength() == 0 || CORE_FUTURE_TYPE_NAME.compare(builder.aotTypeDefName) == 0;
-    if (builder.isAot && requiresRuntimeTypeInfo) {
-        std::string typeName(builder.aotTypeDefName);
-        return QueryTypeInfoAOT(session, manager, typeName.c_str(), term);
-    }
-
-    bool needExtDefs = builder.needExtDefs;
-    bool needFields  = builder.needFields;
-
-    auto& termManager = Engine::TermManager::Of(session);
-
-    auto acquireTypeInfo = [&manager, &session](Engine::Term term) { return manager.AcquireTypeInfo(session, term); };
-
-    builder.superTypeInfo = nullptr;
-    Engine::ClassSubstitution substitute(session, term);
-    if (builder.superType.GetKind() != Engine::TermKind::NIL) {
-        if (auto super = acquireTypeInfo(builder.superType); super) {
-            builder.superTypeInfo = UnpackTypeInfo(*super);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    if (needExtDefs) { // fill out ext defs
-        auto& methodTableManager = Engine::MethodTableManager::Of(session);
-        auto optMT               = methodTableManager.GetMethodTable(session, term);
-
-        if (!optMT.has_value()) {
-            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                Stream::ResolvingOutput stream(session, out);
-                stream << "Failed to build method table for " << term << Stream::endl;
-            });
-            return std::nullopt;
-        }
-        auto mt = *optMT;
-
-        auto extDefCount        = mt->ClassCount() + mt->InterfaceCount();
-        builder.validInheritNum = extDefCount;
-
-        // To simplify memory management here, we will preallocate "flat" arrays
-        // where corresponding structures would be filled out.
-        // E.g. function tables are essentionally views in the big array.
-
-        auto entryCount = mt->EntryCount();
-
-        struct FuncDesc {
-            DYN_FuncPtr ptr;
-            Engine::Term declaredType;
-        };
-
-        Utils::Vector<FuncDesc> funcDescs;
-        funcDescs.Resize(entryCount);
-
-        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
-        builder.flatMethods = Alloc<OuterTIFuncUnion>(2 * entryCount);
-        builder.extDefs     = Alloc<DYN_ExtensionData*>(extDefCount + 1);
-        builder.flatExtDefs = Alloc<DYN_ExtensionData>(extDefCount);
-
-        if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
-            return std::nullopt;
-        }
-
-        // fill out flat methods table and data method table
-        int entryIdx = 0;
-        for (auto entry : mt->Entries()) {
-            auto tm                  = GetTableMember(session, entry.method, entryIdx);
-            builder.dataMT[entryIdx] = tm.handle;
-            funcDescs[entryIdx]      = FuncDesc { tm.function, entry.genericContext };
-            entryIdx++;
-        }
-
-        // Fill out array of pointers to ext defs.
-        for (int i = 0; i < extDefCount; i++) {
-            builder.extDefs[i] = &builder.flatExtDefs[i];
-        }
-
-        builder.extDefs[extDefCount] = nullptr;
-
-        bool resolutionFailed = false;
-        auto prepareExtDef    = [&](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) {
-            // We are maintaining disjoint sub method table ranges!
-            auto start      = smt.StartPos();
-            auto end        = smt.EndPos();
-            auto entryCount = end - start;
-
-            // first `entryCount` slots are func ptrs, next `entryCount` slots are outer ti's.
-            auto ft = &builder.flatMethods[2 * start];
-            auto tt = &builder.flatMethods[2 * start + entryCount];
-
-            for (int i = 0; i < entryCount; i++) {
-                auto desc = funcDescs[start + i];
-                if (auto ti = acquireTypeInfo(desc.declaredType); ti) {
-                    tt[i].typeInfo = UnpackTypeInfo(*ti);
-                } else {
-                    resolutionFailed = true;
-                }
-                ft[i].func = desc.ptr;
-            }
-
-            // Values from cjnative runtime.
-            uint8_t hasOuterTIFastPath = 0b00000001;
-            uint8_t isFuncTableUpdated = 0b00000110;
-            uint8_t isDirect           = 0b10000000;
-
-            extDef.funcTable           = reinterpret_cast<DYN_FuncPtr*>(ft);
-            extDef.funcTableSize       = entryCount;
-            extDef.argNum              = 0;
-            extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = hasOuterTIFastPath | isFuncTableUpdated;
-            extDef.whereCondFn         = (void*)&FakeWhereCond;
-
-            extDef.ti = &currentTypeInfo->base;
-
-            if (smt.DeclaringType() == term) {
-                extDef.flag |= isDirect;
-            }
-
-            auto interface = smt.DeclaringType();
-            if (auto ti = acquireTypeInfo(interface); ti) {
-                extDef.interfaceTypeInfo = UnpackTypeInfo(*ti);
-            } else {
-                resolutionFailed = true;
-            }
-        };
-
-        // fill out ext defs
-        int extDefIndex = 0;
-        for (auto st : mt->Classes()) {
-            prepareExtDef(builder.flatExtDefs[extDefIndex++], st);
-        }
-
-        for (auto st : mt->Interfaces()) {
-            prepareExtDef(builder.flatExtDefs[extDefIndex++], st);
-        }
-    } else if (builder.isLambda) {
-        auto& manager = Engine::MethodTableManager::Of(session);
-        auto optMT    = manager.GetMethodTable(session, term);
-
-        if (!optMT.has_value()) {
-            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                Stream::ResolvingOutput stream(session, out);
-                stream << "Failed to build method table for " << term << Stream::endl;
-            });
-            return std::nullopt;
-        }
-        auto mt = *optMT;
-
-        // In cbc closures are represented as type definitions with two virtual methods,
-        // which are represent "generic" and "instantiated" version of closure.
-        // Note, that order of methods is important (first is "generic", second is "instantiated").
-        // FIXME: pure generic closure
-        auto entryCount = mt->EntryCount();
-        builder.dataMT  = Alloc<Interpretation::FunctionHandle*>(entryCount);
-        if (!builder.dataMT) {
-            return std::nullopt;
-        }
-        for (int i = 0; i < entryCount; i++) {
-            builder.dataMT[i] = (Interpretation::FunctionHandle*)0x1234567890abcdef;
-        }
-
-        // It is assumed that closures in CBC have only CBC methods (not aot compiled),
-        // so we will place a function handle in data mt, which would be referenced
-        // by 0/1-indexed trampolines, which would be placed as first and second fields of an object.
-        int entryIdx = 0;
-        for (auto entry : mt->Entries()) {
-            auto tm = GetTableMember(session, entry.method, entryIdx);
-
-            builder.dataMT[entryIdx] = tm.handle;
-            entryIdx++;
-        }
-    }
-
-    if (needFields) {
-        auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
-        auto optlayout    = fieldManager->GetLayout(term);
-
-        bool hasProperLayout = optlayout.has_value();
-        if (hasProperLayout) {
-            auto layout = *optlayout;
-            if (!layout->desc.size.has_value()) {
-                hasProperLayout = false;
-            }
-        }
-
-        if (!hasProperLayout) {
-            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                Stream::ResolvingOutput stream(session, out);
-                stream << "Failed to build field layout for " << term << Stream::endl;
-            });
-            return std::nullopt;
-        }
-        auto layout          = *optlayout;
-        builder.align        = layout->desc.alignment;
-        builder.instanceSize = layout->desc.size.value();
-        builder.fieldNum     = layout->fields.Size();
-
-        builder.fields       = Alloc<DYN_TypeInfo*>(builder.fieldNum);
-        builder.fieldOffsets = Alloc<uint32_t>(builder.fieldNum);
-
-        if (builder.fieldNum != 0 && (builder.fieldOffsets == nullptr || builder.fieldOffsets == nullptr)) {
-            return std::nullopt;
-        }
-
-        Utils::Vector<uint32_t> refFieldOffs;
-
-        auto acquireFieldTi = [&acquireTypeInfo](Engine::Term term) {
-            if (term.GetKind() == Engine::TermKind::BOX) {
-                // Boxed fields in AOT code are represented as
-                // special TypeInfo that has `CLASS` kind and
-                // the **exact same name** as TI of boxed type.
-                //
-                // They do not have a special kind of `Box` TI
-                // that represents such fields. Instead of this,
-                // they are using such a hacky solution to make
-                // `TypeInfoSize` and similar routines work properly.
-                // Additionally, it helps with their implementation
-                // of reflection.
-                //
-                // It seems this behavior is not needed for execution purposes at all.
-                // So we will use Object to represent such fields,
-                // since we do not (and will not) support reflection using
-                // TypeInfo/TypeTemplate machinery.
-                return QueryTypeInfoAOTByName("std.core:Object");
-            }
-            return acquireTypeInfo(term);
-        };
-
-        size_t idx = 0;
-        for (auto& field : layout->fields) {
-            auto fieldType = field.fieldType;
-            auto optOffs   = field.offset;
-            if (!optOffs.has_value()) {
-                return std::nullopt;
-            }
-            auto fieldId = idx++;
-            if (auto ti = acquireFieldTi(fieldType); ti) {
-                builder.fields[fieldId] = UnpackTypeInfo(*ti);
-            } else {
-                return std::nullopt;
-            }
-            builder.fieldOffsets[fieldId] = *optOffs;
-            fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
-        }
-
-        // options has insconsistent .offsets property and gctib in cjnative
-        // why??
-        if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
-            builder.flag  |= HAS_REF_FIELD;
-            builder.gctib  = { .raw = (1ull << 63) | 1 };
-        } else if (!refFieldOffs.Empty()) {
-            builder.flag |= HAS_REF_FIELD;
-
-            auto gctib = ConstructGCTib(builder, refFieldOffs);
-            if (!gctib.has_value()) {
-                return std::nullopt;
-            }
-            builder.gctib = *gctib;
-        }
-
-        Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-            Stream::ResolvingOutput stream(session, out);
-            stream << "Ref offsets for " << term << ":" << Stream::endl;
-            for (auto offset : refFieldOffs) {
-                stream << " - " << offset << Stream::endl;
-            }
-            out.PrintFmt("gctib: %lx", builder.gctib.raw);
-            out.NewLine();
-        });
-    } else if (term.GetKind() == Engine::TermKind::VARRAY) {
-        auto length = Engine::VArrayTermId(term).GetNum();
-        if (length > UINT16_MAX) {
-            return std::nullopt;
-        }
-        builder.fieldNum = static_cast<uint16_t>(length);
-        auto fields      = Engine::FieldLayoutManager::New(session, manager);
-        auto size        = fields->GetFlatSize(term);
-        if (!size) {
-            return std::nullopt;
-        }
-        builder.align        = fields->GetFlatAlignment(term);
-        builder.instanceSize = *size;
-        Utils::Vector<uint32_t> offsets;
-        fields->FillRefOffsets(term, offsets, 0);
-        if (!offsets.Empty()) {
-            builder.flag |= HAS_REF_FIELD;
-            auto gctib    = ConstructGCTib(builder, offsets);
-            if (!gctib) {
-                return std::nullopt;
-            }
-            builder.gctib = *gctib;
-        }
-    } else if (term.GetKind() == Engine::TermKind::C_POINTER) {
-        builder.fieldNum     = 0;
-        builder.fields       = nullptr;
-        builder.fieldOffsets = nullptr;
-        builder.align        = 8;
-        builder.instanceSize = 8;
-    } else {
-        builder.fieldNum     = 0;
-        builder.fields       = nullptr;
-        builder.fieldOffsets = nullptr;
-        builder.align        = 1;
-        builder.instanceSize = 0;
-    }
-
-    int typeArgsNum     = term.GetLength();
-    builder.typeArgsNum = 0; // set type arg num to zero (so cjnative runtime won't query type templates)
-    if (typeArgsNum > 0) {
-        if (builder.type != TYPE_KIND_VARRAY) {
-            builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
-            if (builder.typeArgs == nullptr) {
-                return std::nullopt;
-            }
-            Utils::Vector<DYN_TypeInfo*> typeInfos;
-            auto resolved = QuerySubterms(typeInfos, session, manager, term);
-            if (!resolved) {
-                return std::nullopt;
-            }
-            for (int i = 0; i < typeArgsNum; i++) {
-                builder.typeArgs[i] = typeInfos[i];
-            }
-        }
-        if (builder.isAot) {
-            builder.typeArgsNum = builder.type == TYPE_KIND_VARRAY ? 0 : typeArgsNum;
-            std::string name(builder.aotTypeDefName);
-            auto typeTemplate = QueryTypeTemplate(session, name.c_str());
-
-            // FIXME: use RTTypes.h
-            struct TypeTemplate {
-                char* name;
-                int8_t type;
-                int8_t flag;
-                uint16_t fieldNum;
-                uint16_t typeArgNum;
-                uint16_t uuid;
-                void** fieldFns;
-                void* superFn;
-                void* finalizer;
-                void* info;
-                void** extensionDatas;
-                uint16_t validInheritNum;
-            };
-
-            auto tt = (TypeTemplate*)typeTemplate;
-
-            if (tt->type == TYPE_KIND_TEMP_ENUM) {
-                // Workaround for #159.
-                // `TEMP_ENUM` tag is needed for cjnative reflection support.
-                // In other cases, `TEMP_ENUM` behaves exactly as usual classes.
-                ASSERT(TYPE_KIND_CLASS == builder.type);
-                builder.type = TYPE_KIND_TEMP_ENUM;
-            }
-
-            if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
-                ASSERT(tt->typeArgNum == typeArgsNum);
-                ASSERT(tt->type == builder.type);
-                ASSERT(tt->fieldNum == builder.fieldNum);
-            }
-
-            builder.typeTemplateOrFinalizer = typeTemplate;
-            builder.validInheritNum         = builder.type == TYPE_KIND_VARRAY ? (1 << 15) : tt->validInheritNum;
-            builder.extDefs = builder.type == TYPE_KIND_VARRAY ? nullptr : (DYN_ExtensionData**)tt->extensionDatas;
-        }
-    }
-
-    return TypeInfo(builder.Build());
-}
+);
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 {
@@ -1299,6 +1220,159 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         }
         return termManager.Globalize(term);
     }
+}
+
+static void BuildTypeDef(TypeInfoBuilder& builder, bool needGcTib)
+{
+    auto ident = Engine::ExtractTypeDefIdentifier(builder.targetTerm);
+    auto def   = Decode::Read(builder.session, ident);
+    bool isAot = def.GetFlags().Is(Image::TypeFlag::AOT);
+    auto name  = Decode::Read(builder.session, def.GetName());
+
+    TypeKind type;
+    switch (def.GetFlags().GetTypeKind()) {
+        case Image::TypeKind::INTERFACE: type = TYPE_KIND_INTERFACE; break;
+        case Image::TypeKind::RECORD:    type = TYPE_KIND_STRUCT;    break;
+        case Image::TypeKind::LAMBDA:    type = TYPE_KIND_CLASS;     break;
+        case Image::TypeKind::ENUM:      type = TYPE_KIND_ENUM;      break;
+
+        case Image::TypeKind::CLASS: {
+            if (name.compare(STD_REF_WEAK_REF_TYPE_NAME) == 0) {
+                type = TYPE_KIND_WEAKREF_CLASS;
+            } else {
+                type = TYPE_KIND_CLASS;
+            }
+        }
+    }
+
+    builder.type = type;
+
+    if (builder.type != TYPE_KIND_INTERFACE) {
+        builder.InitFields(needGcTib);
+    }
+    if (!isAot) {
+        builder.InitMethodTable();
+    } else {
+        std::string cname(name);
+        builder.FixupAotGenericType(cname.c_str(), builder.targetTerm.GetLength());
+    }
+    builder.InitTypeArgs();
+}
+
+static void BuildOption(TypeInfoBuilder& builder)
+{
+    auto term = builder.targetTerm;
+    bool isRefOption = term.GetKind() == Engine::TermKind::OPTION && term.IsReference();
+    BuildTypeDef(builder, !isRefOption);
+    if (isRefOption) {
+        // options has insconsistent .offsets property and gctib in cjnative
+        // why??
+        builder.flag |= HAS_REF_FIELD;
+        builder.gctib = {.raw = (1ull << 63) | 1 };
+    }
+}
+
+static void BuildGenericContext(TypeInfoBuilder& builder)
+{
+    builder.type = TYPE_KIND_STRUCT;
+    builder.InitNoFields();
+    builder.InitTypeArgs();
+}
+
+static void BuildLambda(TypeInfoBuilder& builder)
+{
+    builder.type = TYPE_KIND_CLASS;
+    builder.InitLambdaMethods();
+    builder.InitFields(true);
+    builder.InitTypeArgs();
+}
+
+static void BuildRawArray(TypeInfoBuilder& builder)
+{
+    builder.type = TYPE_KIND_RAWARRAY;
+    builder.InitNoFields();
+    builder.superType = builder.targetTerm.Subterm(0);
+
+    builder.InitNoFields();
+    builder.flag = HAS_REF_FIELD;
+    builder.gctib = { .ptr = nullptr };
+    builder.align = 8;
+    builder.instanceSize = 8;
+
+    builder.InitTypeArgs();
+}
+
+static void BuildTuple(TypeInfoBuilder& builder)
+{
+    builder.type = TYPE_KIND_TUPLE;
+    builder.InitFields(true);
+    builder.FixupAotGenericType("Tuple", builder.targetTerm.GetLength());
+    builder.InitTypeArgs();
+}
+
+static void BuildVArray(TypeInfoBuilder& builder)
+{
+    builder.type      = TYPE_KIND_VARRAY;
+    builder.superType = builder.targetTerm.Subterm(0);
+    builder.InitVArrayFields();
+    builder.FixupAotGenericType("VArray", 0);
+}
+
+static void BuildCPointer(TypeInfoBuilder& builder)
+{
+    builder.type = TYPE_KIND_CPOINTER;
+
+    builder.InitNoFields();
+    builder.align        = 8;
+    builder.instanceSize = 8;
+
+    builder.superType     = builder.targetTerm.Subterm(0);
+    builder.FixupAotGenericType("CPointer", 0);
+}
+
+static std::optional<TypeInfo> CreateTypeInfoDyn(
+    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
+) {
+    auto wrapper = AllocTiWrapper();
+    if (!wrapper) {
+        return std::nullopt;
+    }
+    auto currentTypeInfo = &wrapper->info;
+
+    TypeInfoBuilder builder(currentTypeInfo, session, term, manager);
+    switch (term.GetKind()) {
+        case Engine::TermKind::CANGJIE_ARRAY:
+            BuildRawArray(builder);
+            break;
+        case Engine::TermKind::VARRAY:
+            BuildVArray(builder);
+            break;
+        case Engine::TermKind::TUPLE:
+            BuildTuple(builder);
+            break;
+        case Engine::TermKind::C_POINTER:
+            BuildCPointer(builder);
+            break;
+        case Engine::TermKind::GENERIC_CONTEXT:
+            BuildGenericContext(builder);
+            break;
+        case Engine::TermKind::TYPE:
+        case Engine::TermKind::AOT_TYPE:
+        case Engine::TermKind::UNION_ENUM:
+        case Engine::TermKind::PRIMITIVE_ENUM:
+            BuildTypeDef(builder, true);
+            break;
+        case Engine::TermKind::OPTION:
+            BuildOption(builder);
+            break;
+        default:
+            return std::nullopt;
+    }
+
+    if (builder.errorCode != ERR_OK) {
+        return TypeInfo(builder.Build());
+    }
+    return std::nullopt;
 }
 
 } // namespace RTSupport
