@@ -8,6 +8,7 @@
 #define RT_INTERFACE_H
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "RuntimeTypes.h"
@@ -598,12 +599,31 @@ typedef int (*DYN_IsActiveGcPhaseFn)(DYN_ThreadLocalData);
 // StackOverflowError to the appropriate exception-handling path.
 typedef void (*DYN_StackGrowStubFn)();
 
-// Publish and clear the managed unwind context around an interpreter-to-native call.
-typedef void (*DYN_SaveI2NContextFn)(const void* pc, void* fa, DYN_ThreadLocalData threadLocalData);
-typedef void (*DYN_DeleteI2NContextFn)(DYN_ThreadLocalData threadLocalData);
 // Return nonzero when the saferegion state changed.
-typedef int (*DYN_EnterSaferegionFn)(int updateUnwindContext);
-typedef int (*DYN_LeaveSaferegionFn)();
+typedef bool (*DYN_EnterSaferegionFn)(bool updateUnwindContext);
+typedef bool (*DYN_LeaveSaferegionFn)();
+
+typedef uintptr_t DYN_UnwindState;
+enum {
+    DYN_UNWIND_NORMAL = 0,
+    DYN_UNWIND_NATIVE = 1
+};
+
+typedef struct {
+    void* fa;
+    void* pc;
+    // Other values returned by the getter must be preserved unchanged.
+    DYN_UnwindState state;
+} DYN_UnwindContext;
+
+// Access the current mutator's stored context without capturing the caller.
+// Set only outside the saferegion; the task's anchorFA is not changed.
+typedef void (*DYN_GetPublishedUnwindContextFn)(DYN_UnwindContext* context);
+typedef void (*DYN_SetPublishedUnwindContextFn)(void* fa, void* pc, DYN_UnwindState state);
+
+// Disable stack movement on native entry; balance with enable on return.
+// Restrictions nest: enabling removes one restriction, not all of them.
+typedef void (*DYN_SetStackGrowFn)(bool enable);
 
 // Retrieves the current ExceptionWrapper.
 // return: pointer to ExceptionWrapper
@@ -672,6 +692,8 @@ enum {
 
 typedef int INT_FrameKind;
 typedef INT_FrameKind (*INT_ClassifyFrameFn)(void* fa, void* pc);
+// Resume at the saved managed context across N2I; null outputs end traversal.
+typedef void (*INT_N2I_GetUnwindFn)(void* fa, void* pc, void** faSaved, void** pcSaved);
 
 struct INT_InterpreterInterface {
     // current supported version is INT_INTERPRETER_INTERFACE_VERSION
@@ -680,6 +702,7 @@ struct INT_InterpreterInterface {
     size_t cjThreadSpecificDataSize;
 
     INT_ClassifyFrameFn classifyFrame;
+    INT_N2I_GetUnwindFn n2iGetUnwind;
 
     INT_IterateFramesWithStateFn iterateFramesWithState;
     INT_VisitFrameRootsExpansionFn visitFrameRootsExpansion;
@@ -755,10 +778,11 @@ struct DYN_CJNativeInterface {
     DYN_GetThreadLocalDataFn getThreadLocalData;
     DYN_IsActiveGcPhaseFn isActiveGcPhase;
     DYN_StackGrowStubFn stackGrowStub;
-    DYN_SaveI2NContextFn saveI2NContext;
-    DYN_DeleteI2NContextFn deleteI2NContext;
     DYN_EnterSaferegionFn enterSaferegion;
     DYN_LeaveSaferegionFn leaveSaferegion;
+    DYN_GetPublishedUnwindContextFn getPublishedUnwindContext;
+    DYN_SetPublishedUnwindContextFn setPublishedUnwindContext;
+    DYN_SetStackGrowFn setStackGrow;
 
     DYN_NativeLoggerFn nativeLogger;
 

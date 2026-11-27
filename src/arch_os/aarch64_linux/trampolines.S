@@ -47,9 +47,8 @@
     #define engine_interpreted_end _engine_interpreted_end
     #define engine_exception_start _engine_exception_start
     #define engine_exception_end _engine_exception_end
-    #define engine_save_i2n_context _engine_save_i2n_context
-    #define engine_delete_i2n_context _engine_delete_i2n_context
     #define engine_enter_saferegion _engine_enter_saferegion
+    #define engine_set_unwind_context _engine_set_unwind_context
     #define engine_leave_saferegion _engine_leave_saferegion
     #define engine_pending_exception _engine_pending_exception
 #endif
@@ -154,9 +153,8 @@ declare_hidden engine_interpreted_start
 declare_hidden engine_interpreted_end
 declare_hidden engine_exception_start
 declare_hidden engine_exception_end
-declare_hidden engine_save_i2n_context
-declare_hidden engine_delete_i2n_context
 declare_hidden engine_enter_saferegion
+declare_hidden engine_set_unwind_context
 declare_hidden engine_leave_saferegion
 declare_hidden engine_pending_exception
 
@@ -193,11 +191,9 @@ engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
   .skip 8
-engine_save_i2n_context:
-  .skip 8
-engine_delete_i2n_context:
-  .skip 8
 engine_enter_saferegion:
+  .skip 8
+engine_set_unwind_context:
   .skip 8
 engine_leave_saferegion:
   .skip 8
@@ -1050,71 +1046,76 @@ engine_c_abi_adapter_end:
 .endm
 
 .balign 16
+// (x0: ectype, x1: stack args, x2: stack args size, x3: native target,
+//  x4: C ABI adapter, x5: thread-local data).
+// Frame slots relative to x29:
+//   0x10: saved x28; 0x18..0x3f: saved call metadata;
+//   0x40: saferegion changed.
 engine_i2n_stub:
   .cfi_startproc
-  stp x29, x30, [sp, #-208]!
-  .cfi_def_cfa_offset 208
-  .cfi_offset x29, -208
-  .cfi_offset x30, -200
+  stp x29, x30, [sp, #-80]!
+  .cfi_def_cfa_offset 80
+  .cfi_offset x29, -80
+  .cfi_offset x30, -72
   mov x29, sp
   .cfi_def_cfa_register x29
   str x28, [sp, #0x10]
-  .cfi_offset x28, -192
+  .cfi_offset x28, -64
+  // Preserve arguments across runtime calls.
   str x4, [sp, #0x18]
   stp x0, x1, [sp, #0x20]
   stp x2, x3, [sp, #0x30]
-  stp q0, q1, [sp, #0x40]
-  stp q2, q3, [sp, #0x60]
-  stp q4, q5, [sp, #0x80]
-  stp q6, q7, [sp, #0xa0]
   mov x28, x5
-  adr x0, .Li2n_unwind_pc
-.Li2n_unwind_pc:
-  mov x1, x29
-  mov x2, x28
-  i2n_runtime_call engine_save_i2n_context
+
+  // Publish this frame as NATIVE, then enter saferegion without recapturing it.
+  mov x0, x29
+  adr x1, .Li2n_unwind_pc
+  mov x2, #1
+  i2n_runtime_call engine_set_unwind_context
   mov x0, #0
   i2n_runtime_call engine_enter_saferegion
-#ifdef __APPLE__
-  str w0, [sp, #0xc0]
-#endif
+.Li2n_unwind_pc:
+  and w0, w0, #0xff
+  str w0, [sp, #0x40]
+
+  // Restore arguments and call the C ABI adapter, which invokes the native target.
   ldp x0, x1, [sp, #0x20]
   ldp x2, x3, [sp, #0x30]
-  ldp q0, q1, [sp, #0x40]
-  ldp q2, q3, [sp, #0x60]
-  ldp q4, q5, [sp, #0x80]
-  ldp q6, q7, [sp, #0xa0]
   ldr x9, [sp, #0x18]
   blr x9
-  stp x0, x1, [sp, #0x20]
-  stp x2, x3, [sp, #0x30]
-  str x8, [sp, #0x18]
-  stp d0, d1, [sp, #0x40]
-  stp d2, d3, [sp, #0x50]
-#ifdef __APPLE__
-  ldr w9, [sp, #0xc0]
+
+  // Leave only if entered before. The published context stays valid during suspension.
+  ldr w9, [sp, #0x40]
   cbz w9, .Li2n_no_leave
-#endif
   i2n_runtime_call engine_leave_saferegion
 .Li2n_no_leave:
-#ifdef __APPLE__
+  // Clear the published context and return to NORMAL state.
+  mov x0, #0
+  mov x1, #0
+  mov x2, #0
+  i2n_runtime_call engine_set_unwind_context
+
   i2n_runtime_call engine_tls_function
-#else
-  mov x0, x28
-#endif
-  i2n_runtime_call engine_delete_i2n_context
+  mov TLS_REG, x0
+
+  // Rethrow a pending managed exception after returning from native code.
   i2n_runtime_call engine_pending_exception
   cbz x0, .Li2n_return
-  i2n_runtime_call engine_throw_out_of_interpreter
-.Li2n_return:
-  ldp x0, x1, [sp, #0x20]
-  ldp x2, x3, [sp, #0x30]
-  ldr x8, [sp, #0x18]
-  ldp d0, d1, [sp, #0x40]
-  ldp d2, d3, [sp, #0x50]
-  ldr x28, [sp, #0x10]
+  // Drop I2N so runtime starts exception unwinding at the interpreted caller.
+  adrp x9, Page(engine_throw_out_of_interpreter)
+  ldr x9, [x9, PageOff(engine_throw_out_of_interpreter)]
+  .cfi_remember_state
+  ldp x29, x30, [sp], #80
+  .cfi_def_cfa sp, 0
   .cfi_restore x28
-  ldp x29, x30, [sp], #208
+  .cfi_restore x29
+  .cfi_restore x30
+  br x9
+  .cfi_restore_state
+.Li2n_return:
+  // Native results are already stored in ectype by the C ABI adapter.
+  .cfi_restore x28
+  ldp x29, x30, [sp], #80
   .cfi_def_cfa sp, 0
   .cfi_restore x29
   .cfi_restore x30
